@@ -34,6 +34,8 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           # Fetch all history so gitlint can check the relevant commits.
           fetch-depth: "0"
+          submodules: true
+
       - run: corepack enable
 
       - name: Install dependencies
