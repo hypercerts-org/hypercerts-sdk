@@ -7,7 +7,6 @@ env:
 # Trigger the workflow when:
 on:
   # A push occurs to one of the matched branches.
-  push:
   pull_request:
     branches:
       - main
@@ -35,7 +34,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           # Fetch all history so gitlint can check the relevant commits.
           fetch-depth: "0"
-      - run: corepack enable
 
       - name: Install dependencies
         uses: pnpm/action-setup@v4
