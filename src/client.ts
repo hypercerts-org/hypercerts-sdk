@@ -45,7 +45,7 @@ import { fetchFromHttpsOrIpfs } from "./utils/fetchers";
  * @param {Partial<HypercertClientConfig>} config - The configuration options for the client.
  */
 export class HypercertClient implements HypercertClientInterface {
-  readonly _config;
+  readonly _config: HypercertClientConfig;
   private readonly _publicClient?: PublicClient;
   private readonly _walletClient?: WalletClient;
   private readonly _storage: HypercertStorage;

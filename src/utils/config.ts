@@ -26,7 +26,7 @@ import { createPublicClient, http } from "viem";
  */
 export const getConfig = (
   config: Partial<Pick<HypercertClientConfig, "publicClient" | "walletClient" | "environment">>,
-) => {
+): HypercertClientConfig => {
   if (!config) throw new Error("Missing config");
 
   const _config = {
