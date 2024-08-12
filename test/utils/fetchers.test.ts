@@ -4,7 +4,7 @@ import chai, { expect } from "chai";
 import chaiSubset from "chai-subset";
 import sinon from "sinon";
 
-import { getFromIPFS } from "../../src/utils/fetchers";
+import { getFromIPFS } from "../../src";
 import axios from "axios";
 
 chai.use(chaiSubset);

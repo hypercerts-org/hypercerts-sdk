@@ -2,8 +2,8 @@ import { describe, it } from "vitest";
 
 import { expect } from "chai";
 
-import { validateClaimData, validateMetaData } from "../src";
 import type { HypercertClaimdata, HypercertMetadata } from "../src";
+import { validateClaimData, validateMetaData } from "../src";
 import { mockDataSets } from "./helpers";
 
 describe("Validate claim test", () => {

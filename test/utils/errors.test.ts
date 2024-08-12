@@ -1,15 +1,14 @@
-import { describe, it, beforeEach, afterAll, beforeAll, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, it, vi } from "vitest";
 import chai from "chai";
 import assertionsCount from "chai-assertions-count";
 import sinon from "sinon";
 
-import { ContractError, FetchError, MalformedDataError, UnsupportedChainError } from "../../src/types/errors";
-import { handleSdkError } from "../../src/utils/errors";
+import { ContractError, FetchError, handleSdkError, MalformedDataError, UnsupportedChainError } from "../../src";
 
-import { getRawInputData, publicClient, walletClient, testClient } from "../helpers";
+import { getRawInputData, publicClient, testClient, walletClient } from "../helpers";
 
-import { HypercertClient, HypercertMinterAbi, TransferRestrictions, formatHypercertData } from "src";
-import { parseEther, encodeErrorResult } from "viem";
+import { formatHypercertData, HypercertClient, HypercertMinterAbi, TransferRestrictions } from "src";
+import { encodeErrorResult, parseEther } from "viem";
 
 chai.use(assertionsCount);
 

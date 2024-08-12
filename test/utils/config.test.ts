@@ -4,9 +4,9 @@ import chai, { expect } from "chai";
 import chaiSubset from "chai-subset";
 import sinon from "sinon";
 
-import { HypercertClientConfig } from "../../src/types";
+import { HypercertClientConfig } from "../../src";
 import { getConfig } from "../../src/utils/config";
-import { reloadEnv } from "../../test/setup-env";
+import { reloadEnv } from "../setup-env";
 import { walletClient, publicClient } from "../helpers";
 import { DEFAULT_ENVIRONMENT } from "../../src/constants";
 

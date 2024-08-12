@@ -6,7 +6,7 @@ import sinon from "sinon";
 
 import { faker } from "@faker-js/faker";
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
-import { getProofsFromAllowlist } from "../../src/utils";
+import { getProofsFromAllowlist } from "../../src";
 import axios from "axios";
 
 chai.use(chaiSubset);

@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, afterEach, beforeAll, afterAll } from "vitest";
 import sinon from "sinon";
 
-import { logger } from "../../src/utils";
+import { logger } from "../../src";
 
 describe("logger", () => {
   const stubError = sinon.stub(console, "error");

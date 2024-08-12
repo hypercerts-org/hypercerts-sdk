@@ -1,14 +1,18 @@
-import { describe, it, beforeEach, afterAll, beforeAll, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, it, vi } from "vitest";
 import chai, { expect } from "chai";
 import assertionsCount from "chai-assertions-count";
 import sinon from "sinon";
 import { encodeFunctionResult, isHex, parseEther } from "viem";
 
-import { HypercertClient } from "../../src/client";
-import { HypercertMetadata, formatHypercertData } from "../../src";
-import { MalformedDataError, ContractError } from "../../src/types/errors";
-import { TransferRestrictions } from "../../src/types/hypercerts";
-import { getRawInputData, publicClient, walletClient, testClient } from "../helpers";
+import {
+  ContractError,
+  formatHypercertData,
+  HypercertClient,
+  HypercertMetadata,
+  MalformedDataError,
+  TransferRestrictions,
+} from "../../src";
+import { getRawInputData, publicClient, testClient, walletClient } from "../helpers";
 import { HypercertMinterAbi } from "@hypercerts-org/contracts";
 
 chai.use(assertionsCount);

@@ -10,7 +10,7 @@ import {
   StorageError,
   UnknownSchemaError,
   UnsupportedChainError,
-} from "../../src/types/errors";
+} from "../../src";
 
 describe("Error types", () => {
   it("has ClientError", () => {
