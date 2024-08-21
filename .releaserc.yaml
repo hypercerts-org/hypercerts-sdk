@@ -4,6 +4,7 @@ plugins:
   - "@semantic-release/changelog"
   - "@semantic-release/git"
   - "@semantic-release/github"
+  - "@semantic-release/npm"
 
 branches:
   - "+([0-9])?(.{+([0-9]),x}).x"
