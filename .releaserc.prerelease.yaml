@@ -16,5 +16,3 @@ branches:
     prerelease: '${name.replace(/^hotfix\//g, "fix-").replace(/\//g, "-")}'
   - name: fix/*
     prerelease: '${name.replace(/^fix\//g, "fix-").replace(/\//g, "-")}'
-  - name: feat/init
-    prerelease: 'beta'
