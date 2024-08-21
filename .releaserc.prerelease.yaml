@@ -8,9 +8,7 @@ plugins:
 branches:
   - "+([0-9])?(.{+([0-9]),x}).x"
   - main
-  - name: dev/*
-    prerelease: "beta"
-  - name: develop/*
+  - name: develop
     prerelease: 'beta'
   - name: hotfix/*
     prerelease: '${name.replace(/^hotfix\//g, "fix-").replace(/\//g, "-")}'

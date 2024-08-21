@@ -42,7 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     permissions:
-      contents: write
+      contents: write # to be able to publish a GitHub release
+      issues: write # to be able to comment on released issues
+      pull-requests: write # to be able to comment on released pull requests
+      id-token: write # to enable use of OIDC for npm provenance
 
     steps:
       - name: Checkout
@@ -62,6 +65,9 @@ jobs:
           node-version: 20
           cache: 'pnpm'
 
+      - name: Install dependencies
+        run: pnpm install
+
       - name: Semantic Release
         uses: cycjimmy/semantic-release-action@v4
         id: semantic   # Need an `id` for output variables
@@ -71,7 +77,6 @@ jobs:
             @semantic-release/release-notes-generator
             @semantic-release/changelog
             @semantic-release/github
-            @semantic-release/git
             @semantic-release/npm
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PA_TOKEN }}
