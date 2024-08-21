@@ -4,7 +4,7 @@ import assertionsCount from "chai-assertions-count";
 
 import sinon from "sinon";
 
-import { HypercertClient } from "../../src/client";
+import { HypercertClient } from "../../src";
 
 import { publicClient, walletClient } from "../helpers";
 import { isHex, toHex } from "viem";
@@ -14,8 +14,7 @@ import { faker } from "@faker-js/faker";
 chai.use(assertionsCount);
 
 describe("split and merge", () => {
-  const wallet = walletClient;
-  const userAddress = wallet.account?.address;
+  const userAddress = walletClient.account?.address;
 
   let readSpy = sinon.stub(publicClient, "readContract");
   let writeSpy = sinon.stub(walletClient, "writeContract");
@@ -49,7 +48,7 @@ describe("split and merge", () => {
 
       expect(client.readOnly).to.be.false;
 
-      const hash = await client.splitFractionUnits(fractionId, [100n, 200n]);
+      const hash = await client.splitFraction({ fractionId, fractions: [100n, 200n] });
 
       //TODO determine underlying calls and mock those out. Some are provider simulation calls
       expect(isHex(hash)).to.be.true;
@@ -74,12 +73,20 @@ describe("split and merge", () => {
       expect(client.readOnly).to.be.false;
 
       try {
-        await client.splitFractionUnits(fractionId, [100n, 200n], { gasLimit: "FALSE_VALUE" as unknown as bigint });
+        await client.splitFraction({
+          fractionId,
+          fractions: [100n, 200n],
+          overrides: { gasLimit: "FALSE_VALUE" as unknown as bigint },
+        });
       } catch (e) {
         expect(e instanceof ContractError).to.be.true;
       }
 
-      const hash = await client.splitFractionUnits(fractionId, [100n, 200n], { gasLimit: 12300000n });
+      const hash = await client.splitFraction({
+        fractionId,
+        fractions: [100n, 200n],
+        overrides: { gasLimit: 12300000n },
+      });
 
       //TODO determine underlying calls and mock those out. Some are provider simulation calls
       expect(isHex(hash)).to.be.true;
@@ -102,7 +109,7 @@ describe("split and merge", () => {
       expect(client.readOnly).to.be.false;
 
       try {
-        await client.splitFractionUnits(fractionId, [100n, 777n]);
+        await client.splitFraction({ fractionId, fractions: [100n, 777n] });
       } catch (e) {
         expect(e instanceof ClientError).to.be.true;
 
@@ -124,7 +131,7 @@ describe("split and merge", () => {
       expect(client.readOnly).to.be.false;
 
       try {
-        await client.splitFractionUnits(fractionId, [100n, 200n]);
+        await client.splitFraction({ fractionId, fractions: [100n, 200n] });
       } catch (e) {
         expect(e instanceof ClientError).to.be.true;
 
@@ -163,7 +170,7 @@ describe("split and merge", () => {
 
       expect(client.readOnly).to.be.false;
 
-      const hash = await client.mergeFractionUnits([fractionId, fractionId + 1n]);
+      const hash = await client.mergeFractions({ fractionIds: [fractionId, fractionId + 1n] });
 
       //TODO determine underlying calls and mock those out. Some are provider simulation calls
       expect(isHex(hash)).to.be.true;
@@ -183,8 +190,11 @@ describe("split and merge", () => {
       let hash;
 
       try {
-        hash = await client.mergeFractionUnits([fractionId, fractionId + 1n], {
-          gasLimit: "FALSE_VALUE" as unknown as bigint,
+        hash = await client.mergeFractions({
+          fractionIds: [fractionId, fractionId + 1n],
+          overrides: {
+            gasLimit: "FALSE_VALUE" as unknown as bigint,
+          },
         });
       } catch (e) {
         console.log(e);
@@ -196,7 +206,10 @@ describe("split and merge", () => {
         expect(isHex(hash)).to.be.false;
       }
 
-      hash = await client.mergeFractionUnits([fractionId, fractionId + 1n], { gasLimit: 12300000n });
+      hash = await client.mergeFractions({
+        fractionIds: [fractionId, fractionId + 1n],
+        overrides: { gasLimit: 12300000n },
+      });
 
       //TODO determine underlying calls and mock those out. Some are provider simulation calls
 
@@ -213,7 +226,7 @@ describe("split and merge", () => {
 
       let hash;
       try {
-        hash = await client.mergeFractionUnits([fractionId, fractionId + 1n]);
+        hash = await client.mergeFractions({ fractionIds: [fractionId, fractionId + 1n] });
       } catch (e) {
         expect(e instanceof ClientError).to.be.true;
 

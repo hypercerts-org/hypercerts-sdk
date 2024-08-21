@@ -4,7 +4,7 @@ import { expect } from "chai";
 import sinon from "sinon";
 
 import { HypercertClient, HypercertMetadata, TransferRestrictions } from "../src";
-import { AllowlistEntry, ClientError } from "../src/types";
+import { AllowlistEntry, ClientError } from "../src";
 import { publicClient, walletClient } from "./helpers";
 
 describe("HypercertClient setup tests", () => {

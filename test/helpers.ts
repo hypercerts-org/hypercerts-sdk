@@ -1,12 +1,9 @@
 import { faker } from "@faker-js/faker";
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
 
-import { HypercertMetadata } from "../src";
-import { AllowlistEntry, DuplicateEvaluation, HypercertEvaluationSchema, SimpleTextEvaluation } from "../src/types";
-import { formatHypercertData } from "../src/utils/formatter";
+import { AllowlistEntry, formatHypercertData, HypercertMetadata } from "../src";
 import { Chain, foundry } from "viem/chains";
-import { PublicClient, WalletClient, createPublicClient, createTestClient, createWalletClient, http } from "viem";
-import * as HypercertMinter from "./resources/HypercertMinter.json";
+import { createPublicClient, createTestClient, createWalletClient, http, PublicClient, WalletClient } from "viem";
 import mockMetadata from "./res/mockMetadata";
 import mockData from "./res/mockData";
 
@@ -67,8 +64,6 @@ export const walletClient: WalletClient = createWalletClient({
   transport: http(),
   account: faker.finance.ethereumAddress() as `0x${string}`,
 });
-
-export const HypercertMinterByteCode = HypercertMinter.bytecode as `0x${string}`;
 
 export type TestDataType = Parameters<typeof formatHypercertData>[0];
 
@@ -137,84 +132,4 @@ const getFormattedMetadata = (overrides?: Partial<TestDataType>): HypercertMetad
   return formattedData as HypercertMetadata;
 };
 
-const getEvaluationData = (overrides?: Partial<HypercertEvaluationSchema>): HypercertEvaluationSchema => {
-  const mockData: HypercertEvaluationSchema = {
-    creator: "0x17ec8597ff92C3F44523bDc65BF0f1bE632917ff",
-    evaluationData: {
-      type: "duplicate",
-      duplicateHypercerts: [
-        {
-          chainId: "0x1",
-          contract: "0x822F17A9A5EeCFd66dBAFf7946a8071C265D1d07",
-          claimId: "1",
-        },
-        {
-          chainId: "0x1",
-          contract: "0x822F17A9A5EeCFd66dBAFf7946a8071C265D1d07",
-          claimId: "2",
-        },
-      ],
-      realHypercert: {
-        chainId: "0x1",
-        contract: "0x822F17A9A5EeCFd66dBAFf7946a8071C265D1d07",
-        claimId: "3",
-      },
-      explanation: "These hypercerts are duplicates",
-    },
-    evaluationSource: {
-      type: "IPFS",
-      cid: "0xC2679fBD37d54388Ce493F1DB75320D236e1815e",
-    },
-  };
-
-  return { ...mockData, ...overrides };
-};
-
-const getDuplicateEvaluationData = (overrides?: Partial<DuplicateEvaluation>): DuplicateEvaluation => {
-  const mockData: DuplicateEvaluation = {
-    type: "duplicate",
-    duplicateHypercerts: [
-      {
-        chainId: "0x1",
-        contract: "0x822F17A9A5EeCFd66dBAFf7946a8071C265D1d07",
-        claimId: "1",
-      },
-      {
-        chainId: "0x1",
-        contract: "0x822F17A9A5EeCFd66dBAFf7946a8071C265D1d07",
-        claimId: "2",
-      },
-    ],
-    realHypercert: {
-      chainId: "0x1",
-      contract: "0x822F17A9A5EeCFd66dBAFf7946a8071C265D1d07",
-      claimId: "3",
-    },
-    explanation: "These hypercerts are duplicates",
-  };
-
-  return { ...mockData, ...overrides };
-};
-
-const getSimpleTextEvaluationData = (overrides?: Partial<SimpleTextEvaluation>): SimpleTextEvaluation => {
-  const mockData: SimpleTextEvaluation = {
-    type: "simpleText",
-    text: "This is a simple text evaluation",
-    hypercert: {
-      chainId: "0x1",
-      contract: "0x822F17A9A5EeCFd66dBAFf7946a8071C265D1d07",
-      claimId: "3",
-    },
-  };
-
-  return { ...mockData, ...overrides };
-};
-
-export {
-  getAllowlist,
-  getFormattedMetadata,
-  getRawInputData,
-  getEvaluationData,
-  getDuplicateEvaluationData,
-  getSimpleTextEvaluationData,
-};
+export { getAllowlist, getFormattedMetadata, getRawInputData };
