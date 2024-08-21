@@ -1,13 +1,12 @@
-name: Semantic Release - staging
+name: Build and release - staging
 
 on:
   push:
     branches:
       - main
       - dev/*
+      - develop/*
       - feat/*
-      - feature/*
-      - hotfix/*
 
 jobs:
   build-and-test:
