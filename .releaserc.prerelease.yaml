@@ -8,10 +8,10 @@ branches:
   - "+([0-9])?(.{+([0-9]),x}).x"
   - main
   - name: dev/*
-    prerelease: '${name.replace(/^dev\//g, "dev-")}'
+    prerelease: '${name.replace(/^dev\//g, "dev-").replace(/\//g, "-")}'
   - name: feature/*
-    prerelease: '${name.replace(/^feature\//g, "feature-")}'
+    prerelease: '${name.replace(/^feature\//g, "feature-").replace(/\//g, "-")}'
   - name: feat/*
-    prerelease: '${name.replace(/^feature\//g, "feature-")}'
+    prerelease: '${name.replace(/^feat\//g, "feature-").replace(/\//g, "-")}'
   - name: hotfix/*
-    prerelease: '${name.replace(/^hotfix\//g, "hotfix-")}'
+    prerelease: '${name.replace(/^hotfix\//g, "hotfix-").replace(/\//g, "-")}'
