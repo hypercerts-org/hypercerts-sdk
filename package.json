@@ -1,6 +1,6 @@
 {
   "name": "@hypercerts-org/sdk",
-  "version": "2.0.0-alpha.36",
+  "version": "2.0.0-alpha.37",
   "description": "SDK for hypercerts protocol",
   "repository": "git@github.com:hypercerts-org/hypercerts-sdk.git",
   "author": "Hypercerts team",
@@ -22,7 +22,7 @@
   ],
   "dependencies": {
     "@graphql-typed-document-node/core": "^3.2.0",
-    "@hypercerts-org/contracts": "2.0.0-alpha.4",
+    "@hypercerts-org/contracts": "2.0.0-alpha.5",
     "@openzeppelin/merkle-tree": "^1.0.7",
     "@swc/core": "^1.6.3",
     "ajv": "^8.11.2",
@@ -33,6 +33,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.4.0",
+    "@commitlint/config-conventional": "^19.2.2",
     "@faker-js/faker": "^8.3.1",
     "@rollup/plugin-commonjs": "^24.0.1",
     "@rollup/plugin-json": "^6.0.0",
@@ -46,6 +48,7 @@
     "chai-assertions-count": "^1.0.2",
     "chai-subset": "^1.6.0",
     "esbuild": "^0.19.8",
+    "husky": "^9.1.5",
     "json-schema-to-typescript": "^13.1.1",
     "orval": "^6.30.2",
     "rollup": "^3.29.4",
@@ -66,7 +69,9 @@
     "update:submodules": "git submodule update --init --recursive",
     "test": "vitest run",
     "test:watch": "vitest --watch",
-    "types:json": "pnpm json2ts -i './src/resources/schema/' -o 'src/types' --cwd './src/resources/schema'"
+    "types:json": "pnpm json2ts -i './src/resources/schema/' -o 'src/types' --cwd './src/resources/schema'",
+    "prepare": "husky",
+    "commitlint": "commitlint --edit"
   },
   "packageManager": "pnpm@9.2.0+sha256.94fab213df221c55b6956b14a2264c21c6203cca9f0b3b95ff2fe9b84b120390"
 }
