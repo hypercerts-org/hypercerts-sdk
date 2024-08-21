@@ -10,11 +10,39 @@ on:
       - hotfix/*
 
 jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          version: 9
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run tests
+        run: pnpm test
+
   semantic-release:
+    needs: test
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
 
     name: Semantic Release
     runs-on: ubuntu-latest
+    environment: staging
     permissions:
       contents: write
 
@@ -25,7 +53,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
 
@@ -44,7 +72,7 @@ jobs:
             @semantic-release/changelog
             @semantic-release/github
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PA_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Do something when a new release published

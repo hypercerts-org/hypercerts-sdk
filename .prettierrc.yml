@@ -8,10 +8,6 @@ trailingComma: "all"
 useTabs: false
 
 overrides:
-  - files: "*.sol"
-    options:
-      compiler: "0.8.17"
-      tabWidth: 4
   - files: "*.ts"
     options:
       importOrder: ["<THIRD_PARTY_MODULES>", "^[./]"]

@@ -35,6 +35,7 @@
   "devDependencies": {
     "@commitlint/cli": "^19.4.0",
     "@commitlint/config-conventional": "^19.2.2",
+    "@eslint/js": "^9.9.0",
     "@faker-js/faker": "^8.3.1",
     "@rollup/plugin-commonjs": "^24.0.1",
     "@rollup/plugin-json": "^6.0.0",
@@ -48,9 +49,14 @@
     "chai-assertions-count": "^1.0.2",
     "chai-subset": "^1.6.0",
     "esbuild": "^0.19.8",
+    "eslint": "^9.9.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.9.0",
     "husky": "^9.1.5",
     "json-schema-to-typescript": "^13.1.1",
+    "lint-staged": "^15.2.9",
     "orval": "^6.30.2",
+    "prettier": "3.3.3",
     "rollup": "^3.29.4",
     "rollup-plugin-auto-external": "^2.0.0",
     "rollup-plugin-dts": "^6.1.1",
@@ -58,6 +64,7 @@
     "rollup-plugin-node-polyfills": "^0.2.1",
     "sinon": "^17.0.1",
     "typescript": "5.4.5",
+    "typescript-eslint": "^8.2.0",
     "vitest": "^1.6.0"
   },
   "scripts": {
@@ -71,7 +78,15 @@
     "test:watch": "vitest --watch",
     "types:json": "pnpm json2ts -i './src/resources/schema/' -o 'src/types' --cwd './src/resources/schema'",
     "prepare": "husky",
-    "commitlint": "commitlint --edit"
+    "commitlint": "commitlint --config commitlintrc.ts --edit"
+  },
+  "lint-staged": {
+    "*.{js, jsx,ts,tsx}": [
+      "eslint --quiet --fix"
+    ],
+    "*.{json,js,ts,jsx,tsx,html}": [
+      "prettier --write --ignore-unknown"
+    ]
   },
   "packageManager": "pnpm@9.2.0+sha256.94fab213df221c55b6956b14a2264c21c6203cca9f0b3b95ff2fe9b84b120390"
 }
