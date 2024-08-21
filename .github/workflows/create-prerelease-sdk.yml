@@ -6,7 +6,6 @@ on:
       - main
       - dev/*
       - develop/*
-      - feat/*
 
 jobs:
   build-and-test:
