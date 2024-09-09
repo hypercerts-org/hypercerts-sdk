@@ -10,7 +10,3 @@ branches:
   - main
   - name: develop
     prerelease: 'beta'
-  - name: hotfix/*
-    prerelease: '${name.replace(/^hotfix\//g, "fix-").replace(/\//g, "-")}'
-  - name: fix/*
-    prerelease: '${name.replace(/^fix\//g, "fix-").replace(/\//g, "-")}'

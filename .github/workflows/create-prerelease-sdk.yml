@@ -3,7 +3,6 @@ name: Build and release - staging
 on:
   push:
     branches:
-      - main
       - develop
 
 jobs:
