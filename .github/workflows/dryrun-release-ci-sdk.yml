@@ -1,9 +1,7 @@
 name: Build and release - staging
 
 on:
-  push:
-    branches:
-      - develop
+  pull_request:
 
 jobs:
   build-and-test:
@@ -73,6 +71,7 @@ jobs:
         uses: cycjimmy/semantic-release-action@v4
         id: semantic   # Need an `id` for output variables
         with:
+          dry_run: true
           extra_plugins: |
             @semantic-release/commit-analyzer
             @semantic-release/release-notes-generator

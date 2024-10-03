@@ -17,7 +17,8 @@ import { createPublicClient, http } from "viem";
  * - 11155111: Sepolia
  * - 84532: Base Sepolia
  * - 8453: Base Mainnet
- * - 421613: Arbitrum Sepolia
+ * - 42161: Arbitrum One
+ * - 421614: Arbitrum Sepolia
  *
  * @param config - An object containing any configuration values to override. This should be a partial HypercertClientConfig object.
  * @returns The final configuration object for the Hypercert client.
@@ -39,6 +40,7 @@ export const getConfig = (
   };
 
   const chainId = _config.walletClient?.chain?.id;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const writeAbleChainIds = Object.entries(_config.deployments).map(([_, deployment]) => deployment.chainId);
 
   if (!_config.walletClient) {
@@ -73,6 +75,7 @@ export const getConfig = (
  */
 export const getDeploymentsForEnvironment = (environment: Environment) => {
   const deployments = Object.fromEntries(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     Object.entries(DEPLOYMENTS).filter(([_, deployment]) => {
       if (deployment.isTestnet && environment === "test") {
         return deployment;
@@ -105,6 +108,7 @@ export const getDeploymentsForChainId = (chainId: SupportedChainIds) => {
   logger.info("Indexer", "getDeploymentsForChainId", { chainId });
 
   const deployments = Object.fromEntries(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     Object.entries(DEPLOYMENTS).filter(([_, deployment]) => {
       if (deployment.chainId === chainId) {
         return deployment;

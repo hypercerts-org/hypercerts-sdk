@@ -1,4 +1,4 @@
-name: Build and release - staging
+name: Build and test - staging
 
 on:
   pull_request:
