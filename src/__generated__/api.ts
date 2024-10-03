@@ -10,6 +10,11 @@ import type {
   AxiosRequestConfig,
   AxiosResponse
 } from 'axios'
+export type DeleteHyperboardParams = {
+adminAddress: string;
+signature: string;
+};
+
 export type ValidateOrder200DataItem = {
   id: string;
   invalidated: boolean;
@@ -22,14 +27,73 @@ export type ValidateOrder200 = {
   success: boolean;
 };
 
+export type UpdateOrderNonce200Data = {
+  address: string;
+  chain_id: number;
+  created_at: string;
+  nonce_counter: number;
+};
+
 export type UpdateOrderNonce200 = {
+  data: UpdateOrderNonce200Data;
+  message: string;
+  success: boolean;
+};
+
+export type DeleteOrder200 = {
   data: unknown;
   message: string;
   success: boolean;
 };
 
+export type DeleteOrderBody = {
+  orderId: string;
+  signature: string;
+};
+
+export type StoreOrder201AnyOfFourData = {
+  additionalParameters: string;
+  amounts: number[];
+  chainId: number;
+  collection: string;
+  collectionType: number;
+  createdAt: string;
+  currency: string;
+  endTime: number;
+  globalNonce: string;
+  hash: string;
+  hypercert_id: string;
+  id: string;
+  invalidated: boolean;
+  itemIds: string[];
+  orderNonce: string;
+  price: string;
+  quoteType: number;
+  signature: string;
+  signer: string;
+  startTime: number;
+  status: string;
+  strategyId: number;
+  subsetNonce: number;
+  validator_codes: number[];
+};
+
+export type StoreOrder201AnyOfFour = {
+  data: StoreOrder201AnyOfFourData;
+  error?: unknown;
+  message: string;
+  success: boolean;
+};
+
+export type StoreOrder201AnyOfTwoData = {
+  id: string;
+  order: PickAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayExcludeKeyofAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayIdOrCreatedAtOrInvalidatedOrValidatorCodes;
+  valid: boolean;
+  validatorCodes: OrderValidatorCode[];
+};
+
 export type StoreOrder201AnyOfTwo = {
-  data: unknown;
+  data: StoreOrder201AnyOfTwoData;
   error?: unknown;
   message: string;
   success: boolean;
@@ -42,7 +106,7 @@ export type StoreOrder201AnyOf = {
   success: boolean;
 };
 
-export type StoreOrder201 = StoreOrder201AnyOf | StoreOrder201AnyOfTwo;
+export type StoreOrder201 = StoreOrder201AnyOf | StoreOrder201AnyOfTwo | StoreOrder201AnyOfFour;
 
 /**
  * Interface for validating an allow list dump.
@@ -60,10 +124,121 @@ export interface StoreAllowListRequest {
   totalUnits?: string;
 }
 
+export type HyperboardUpdateRequestCollectionsItemHypercertsItem = {
+  factor: number;
+  hypercertId: string;
+};
+
+export type HyperboardUpdateRequestCollectionsItem = {
+  description: string;
+  hypercerts: HyperboardUpdateRequestCollectionsItemHypercertsItem[];
+  id?: string;
+  title: string;
+};
+
+/**
+ * Interface for updating a hyperboard
+ */
+export interface HyperboardUpdateRequest {
+  adminAddress: string;
+  backgroundImg?: string;
+  borderColor: string;
+  chainIds: number[];
+  collections: HyperboardUpdateRequestCollectionsItem[];
+  id: string;
+  signature: string;
+  title: string;
+}
+
+export type HyperboardCreateRequestCollectionsItemHypercertsItem = {
+  factor: number;
+  hypercertId: string;
+};
+
+export type HyperboardCreateRequestCollectionsItem = {
+  description: string;
+  hypercerts: HyperboardCreateRequestCollectionsItemHypercertsItem[];
+  id?: string;
+  title: string;
+};
+
+/**
+ * Interface for creating a hyperboard
+ */
+export interface HyperboardCreateRequest {
+  adminAddress: string;
+  backgroundImg?: string;
+  borderColor: string;
+  chainIds: number[];
+  collections: HyperboardCreateRequestCollectionsItem[];
+  signature: string;
+  title: string;
+}
+
+export type ApiResponseIdStringOrNullErrors = RecordStringStringOrStringArray | Error[];
+
+/**
+ * @nullable
+ */
+export type ApiResponseIdStringOrNullData = {
+  id: string;
+} | null;
+
+/**
+ * Interface for a generic API response.
+ */
+export interface ApiResponseIdStringOrNull {
+  /** @nullable */
+  data?: ApiResponseIdStringOrNullData;
+  errors?: ApiResponseIdStringOrNullErrors;
+  message?: string;
+  success: boolean;
+}
+
+/**
+ * Response for a created hyperboard
+ */
+export type HyperboardCreateResponse = ApiResponseIdStringOrNull;
+
 export interface ValidateOrderRequest {
   chainId: number;
   tokenIds: string[];
 }
+
+export interface UpdateOrderNonceRequest {
+  address: string;
+  chainId: number;
+}
+
+export interface CreateOrderRequest {
+  additionalParameters: string;
+  amounts: number[];
+  chainId: number;
+  collection: string;
+  collectionType: number;
+  currency: string;
+  endTime: number;
+  globalNonce: string;
+  itemIds: string[];
+  orderNonce: string;
+  price: string;
+  quoteType: number;
+  signature: string;
+  signer: string;
+  startTime: number;
+  strategyId: number;
+  subsetNonce: number;
+}
+
+/**
+ * From T, pick a set of properties whose keys are in the union K
+ */
+export interface PickAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayExcludeKeyofAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayIdOrCreatedAtOrInvalidatedOrValidatorCodes { [key: string]: unknown }
+
+/**
+ * Construct a type with the properties of T except for those in type K.
+ */
+export type OmitAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayIdOrCreatedAtOrInvalidatedOrValidatorCodes = PickAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayExcludeKeyofAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayIdOrCreatedAtOrInvalidatedOrValidatorCodes;
 
 /**
  * Error errors returned by the order validator contract
@@ -117,30 +292,17 @@ export const OrderValidatorCode = {
   NUMBER_902: 902,
 } as const;
 
-export interface UpdateOrderNonceRequest {
-  address: string;
-  chainId: number;
+/**
+ * Interface for validating metadata.
+ */
+export interface ValidateMetadataRequest {
+  metadata: HypercertMetadata;
 }
 
-export interface CreateOrderRequest {
-  additionalParameters: string;
-  amounts: number[];
-  chainId: number;
-  collection: string;
-  collectionType: number;
-  currency: string;
-  endTime: number;
-  globalNonce: string;
-  itemIds: string[];
-  orderNonce: string;
-  price: string;
-  quoteType: number;
-  signature: string;
-  signer: string;
-  startTime: number;
-  strategyId: number;
-  subsetNonce: number;
-}
+/**
+ * Interface for a validation response.
+ */
+export type ValidationResponse = ApiResponseValidationResult;
 
 export type ApiResponseValidationResultErrors = RecordStringStringOrStringArray | Error[];
 
@@ -163,11 +325,6 @@ export interface ApiResponseValidationResult {
   success: boolean;
 }
 
-/**
- * Interface for a validation response.
- */
-export type ValidationResponse = ApiResponseValidationResult;
-
 export type HypercertMetadataPropertiesItem = {
   trait_type?: string;
   value?: string;
@@ -184,7 +341,7 @@ export interface HypercertMetadata {
   description: string;
   /** An url pointing to the external website of the project */
   external_url?: string;
-  hypercert?: HypercertClaimdata;
+  hypercert?: HypercertClaimdata361;
   /** A URI pointing to a resource with mime type image/* representing the asset to which this token represents. Consider making any images at a width between 320 and 1080 pixels and aspect ratio between 1.91:1 and 4:5 inclusive. */
   image: string;
   /** Identifies the asset to which this token represents */
@@ -194,13 +351,6 @@ export interface HypercertMetadata {
   ref?: string;
   /** The version of Hypercert schema used to describe this hypercert */
   version?: string;
-}
-
-/**
- * Interface for validating metadata.
- */
-export interface ValidateMetadataRequest {
-  metadata: HypercertMetadata;
 }
 
 /**
@@ -222,7 +372,7 @@ export interface StoreMetadataRequest {
 /**
  * Work time period. The value is UNIX time in seconds from epoch.
  */
-export type HypercertClaimdataWorkTimeframe = {
+export type HypercertClaimdata361WorkTimeframe = {
   display_value?: string;
   name?: string;
   value?: number[];
@@ -232,7 +382,7 @@ export type HypercertClaimdataWorkTimeframe = {
 /**
  * Scopes of work
  */
-export type HypercertClaimdataWorkScope = {
+export type HypercertClaimdata361WorkScope = {
   display_value?: string;
   excludes?: string[];
   name?: string;
@@ -243,7 +393,7 @@ export type HypercertClaimdataWorkScope = {
 /**
  * Rights
  */
-export type HypercertClaimdataRights = {
+export type HypercertClaimdata361Rights = {
   display_value?: string;
   excludes?: string[];
   name?: string;
@@ -254,7 +404,7 @@ export type HypercertClaimdataRights = {
 /**
  * Impact time period. The value is UNIX time in seconds from epoch.
  */
-export type HypercertClaimdataImpactTimeframe = {
+export type HypercertClaimdata361ImpactTimeframe = {
   display_value?: string;
   name?: string;
   value?: number[];
@@ -264,7 +414,7 @@ export type HypercertClaimdataImpactTimeframe = {
 /**
  * Scopes of impact
  */
-export type HypercertClaimdataImpactScope = {
+export type HypercertClaimdata361ImpactScope = {
   display_value?: string;
   excludes?: string[];
   name?: string;
@@ -275,7 +425,7 @@ export type HypercertClaimdataImpactScope = {
 /**
  * Contributors
  */
-export type HypercertClaimdataContributors = {
+export type HypercertClaimdata361Contributors = {
   display_value?: string;
   name?: string;
   value?: string[];
@@ -285,33 +435,26 @@ export type HypercertClaimdataContributors = {
 /**
  * Properties of an impact claim
  */
-export interface HypercertClaimdata {
+export interface HypercertClaimdata361 {
   /** Contributors */
-  contributors: HypercertClaimdataContributors;
+  contributors: HypercertClaimdata361Contributors;
   /** Scopes of impact */
-  impact_scope: HypercertClaimdataImpactScope;
+  impact_scope: HypercertClaimdata361ImpactScope;
   /** Impact time period. The value is UNIX time in seconds from epoch. */
-  impact_timeframe: HypercertClaimdataImpactTimeframe;
+  impact_timeframe: HypercertClaimdata361ImpactTimeframe;
   /** Rights */
-  rights?: HypercertClaimdataRights;
+  rights?: HypercertClaimdata361Rights;
   /** Scopes of work */
-  work_scope: HypercertClaimdataWorkScope;
+  work_scope: HypercertClaimdata361WorkScope;
   /** Work time period. The value is UNIX time in seconds from epoch. */
-  work_timeframe: HypercertClaimdataWorkTimeframe;
+  work_timeframe: HypercertClaimdata361WorkTimeframe;
   [key: string]: unknown;
 }
 
-export type ApiResponseErrors = RecordStringStringOrStringArray | Error[];
-
 /**
- * Interface for a generic API response.
+ * Interface for a storage response.
  */
-export interface ApiResponse {
-  data?: unknown;
-  errors?: ApiResponseErrors;
-  message?: string;
-  success: boolean;
-}
+export type StorageResponse = ApiResponseCidString;
 
 export type ApiResponseCidStringErrors = RecordStringStringOrStringArray | Error[];
 
@@ -330,9 +473,48 @@ export interface ApiResponseCidString {
 }
 
 /**
- * Interface for a storage response.
+ * Interface for a user add or update request.
  */
-export type StorageResponse = ApiResponseCidString;
+export interface AddOrUpdateUserRequest {
+  avatar: string;
+  chain_id: number;
+  display_name: string;
+  signature: string;
+}
+
+export type ApiResponseErrors = RecordStringStringOrStringArray | Error[];
+
+/**
+ * Interface for a generic API response.
+ */
+export interface ApiResponse {
+  data?: unknown;
+  errors?: ApiResponseErrors;
+  message?: string;
+  success: boolean;
+}
+
+export type ApiResponseAddressStringOrNullErrors = RecordStringStringOrStringArray | Error[];
+
+/**
+ * @nullable
+ */
+export type ApiResponseAddressStringOrNullData = {
+  address: string;
+} | null;
+
+/**
+ * Interface for a generic API response.
+ */
+export interface ApiResponseAddressStringOrNull {
+  /** @nullable */
+  data?: ApiResponseAddressStringOrNullData;
+  errors?: ApiResponseAddressStringOrNullErrors;
+  message?: string;
+  success: boolean;
+}
+
+export type AddOrUpdateUserResponse = ApiResponseAddressStringOrNull;
 
 export interface Error {
   message: string;
@@ -350,6 +532,19 @@ export interface RecordStringStringOrStringArray {[key: string]: string | string
 
 
   /**
+ * Add or update a user
+ */
+export const addOrUpdateUser = <TData = AxiosResponse<ApiResponseAddressStringOrNull>>(
+    address: string,
+    addOrUpdateUserRequest: AddOrUpdateUserRequest, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.post(
+      `/v1/users/${address}`,
+      addOrUpdateUserRequest,options
+    );
+  }
+
+/**
  * Submits a new hypercert metadata object for validation and storage on IPFS.
 When an allowlist URI is provided the service will validate the allowlist data before storing the metadata.
 Note that this might lead to a race condition when uploading metadata and the allowlist separately in rapid succession.
@@ -416,6 +611,18 @@ export const storeOrder = <TData = AxiosResponse<StoreOrder201>>(
   }
 
 /**
+ * Delete order from database
+ */
+export const deleteOrder = <TData = AxiosResponse<DeleteOrder200>>(
+    deleteOrderBody: DeleteOrderBody, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.delete(
+      `/v1/marketplace/orders`,{data:
+      deleteOrderBody, ...options}
+    );
+  }
+
+/**
  * Updates and returns the order nonce for a user on a specific chain.
  */
 export const updateOrderNonce = <TData = AxiosResponse<UpdateOrderNonce200>>(
@@ -436,6 +643,39 @@ export const validateOrder = <TData = AxiosResponse<ValidateOrder200>>(
     return axios.post(
       `/v1/marketplace/orders/validate`,
       validateOrderRequest,options
+    );
+  }
+
+/**
+ * Create a new hyperboard. Creates the collections passed to it automatically.
+ */
+export const createHyperboard = <TData = AxiosResponse<ApiResponseIdStringOrNull>>(
+    hyperboardCreateRequest: HyperboardCreateRequest, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.post(
+      `/v1/hyperboards`,
+      hyperboardCreateRequest,options
+    );
+  }
+
+export const updateHyperboard = <TData = AxiosResponse<ApiResponseIdStringOrNull>>(
+    hyperboardId: string,
+    hyperboardUpdateRequest: HyperboardUpdateRequest, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.patch(
+      `/v1/hyperboards/${hyperboardId}`,
+      hyperboardUpdateRequest,options
+    );
+  }
+
+export const deleteHyperboard = <TData = AxiosResponse<ApiResponse>>(
+    hyperboardId: string,
+    params: DeleteHyperboardParams, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.delete(
+      `/v1/hyperboards/${hyperboardId}`,{
+    ...options,
+        params: {...params, ...options?.params},}
     );
   }
 
@@ -468,12 +708,17 @@ export const validateAllowList = <TData = AxiosResponse<ApiResponseValidationRes
     );
   }
 
+export type AddOrUpdateUserResult = AxiosResponse<ApiResponseAddressStringOrNull>
 export type StoreMetadataResult = AxiosResponse<ApiResponseCidString>
 export type StoreMetadataWithAllowlistResult = AxiosResponse<ApiResponseCidString>
 export type ValidateMetadataResult = AxiosResponse<ApiResponseValidationResult>
 export type ValidateMetadataWithAllowlistResult = AxiosResponse<ApiResponseValidationResult>
 export type StoreOrderResult = AxiosResponse<StoreOrder201>
+export type DeleteOrderResult = AxiosResponse<DeleteOrder200>
 export type UpdateOrderNonceResult = AxiosResponse<UpdateOrderNonce200>
 export type ValidateOrderResult = AxiosResponse<ValidateOrder200>
+export type CreateHyperboardResult = AxiosResponse<ApiResponseIdStringOrNull>
+export type UpdateHyperboardResult = AxiosResponse<ApiResponseIdStringOrNull>
+export type DeleteHyperboardResult = AxiosResponse<ApiResponse>
 export type StoreAllowListResult = AxiosResponse<ApiResponseCidString>
 export type ValidateAllowListResult = AxiosResponse<ApiResponseValidationResult>
