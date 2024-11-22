@@ -51,6 +51,11 @@ const DEPLOYMENTS: { [key in SupportedChainIds]: Deployment } = {
     addresses: deployments[421614],
     isTestnet: true,
   } as const,
+  314159: {
+    chainId: 314159,
+    addresses: deployments[314159],
+    isTestnet: true,
+  } as const,
 };
 
 export { ENDPOINTS, DEPLOYMENTS };

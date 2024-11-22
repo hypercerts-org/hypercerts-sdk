@@ -22,14 +22,14 @@
   ],
   "dependencies": {
     "@graphql-typed-document-node/core": "^3.2.0",
-    "@hypercerts-org/contracts": "2.0.0-alpha.9",
+    "@hypercerts-org/contracts": "2.0.0-alpha.11",
     "@openzeppelin/merkle-tree": "^1.0.7",
     "@swc/core": "^1.6.3",
     "ajv": "^8.11.2",
-    "axios": "^1.7.2",
+    "axios": "^1.7.7",
     "dotenv": "^16.0.3",
     "rollup-plugin-swc3": "^0.11.2",
-    "viem": "^2.15.1",
+    "viem": "^2.21.35",
     "zod": "^3.23.8"
   },
   "devDependencies": {

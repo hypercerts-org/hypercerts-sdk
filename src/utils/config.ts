@@ -19,6 +19,7 @@ import { createPublicClient, http } from "viem";
  * - 8453: Base Mainnet
  * - 42161: Arbitrum One
  * - 421614: Arbitrum Sepolia
+ * - 314159: Filecoin Calibration
  *
  * @param config - An object containing any configuration values to override. This should be a partial HypercertClientConfig object.
  * @returns The final configuration object for the Hypercert client.
