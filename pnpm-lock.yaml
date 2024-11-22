@@ -5758,7 +5758,7 @@ snapshots:
       fs-extra: 10.1.0
       hardhat: 2.22.8(ts-node@10.9.2(@swc/core@1.7.10)(@types/node@20.14.15)(typescript@5.4.5))(typescript@5.4.5)
       hardhat-deploy: 0.11.45
-      tenderly: 0.9.1(ts-node@10.9.2(@swc/core@1.7.10)(@types/node@20.14.15)(typescript@5.4.5))(typescript@5.5.4)
+      tenderly: 0.9.1(ts-node@10.9.2(@swc/core@1.7.10)(@types/node@20.14.15)(typescript@5.5.4))(typescript@5.5.4)
       ts-node: 10.9.2(@swc/core@1.7.10)(@types/node@20.14.15)(typescript@5.5.4)
       tslog: 4.9.3
       typescript: 5.5.4
@@ -8686,7 +8686,7 @@ snapshots:
       string-width: 4.2.3
       strip-ansi: 6.0.1
 
-  tenderly@0.9.1(ts-node@10.9.2(@swc/core@1.7.10)(@types/node@20.14.15)(typescript@5.4.5))(typescript@5.5.4):
+  tenderly@0.9.1(ts-node@10.9.2(@swc/core@1.7.10)(@types/node@20.14.15)(typescript@5.5.4))(typescript@5.5.4):
     dependencies:
       axios: 0.27.2
       cli-table3: 0.6.5
