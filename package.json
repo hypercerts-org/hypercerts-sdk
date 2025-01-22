@@ -22,7 +22,7 @@
   ],
   "dependencies": {
     "@graphql-typed-document-node/core": "^3.2.0",
-    "@hypercerts-org/contracts": "2.0.0-alpha.9",
+    "@hypercerts-org/contracts": "2.0.0-alpha.12",
     "@openzeppelin/merkle-tree": "^1.0.7",
     "@swc/core": "^1.6.3",
     "ajv": "^8.11.2",
@@ -45,6 +45,7 @@
     "@types/node": "^20.12.2",
     "@types/sinon": "^17.0.2",
     "@viem/anvil": "^0.0.6",
+    "@vitest/coverage-v8": "^3.0.3",
     "chai": "^4.3.7",
     "chai-assertions-count": "^1.0.2",
     "chai-subset": "^1.6.0",
@@ -65,7 +66,7 @@
     "sinon": "^17.0.1",
     "typescript": "5.4.5",
     "typescript-eslint": "^8.2.0",
-    "vitest": "^1.6.0"
+    "vitest": "^3.0.3"
   },
   "scripts": {
     "build": "pnpm types:json && pnpm codegen:api && rollup -c",
@@ -76,6 +77,7 @@
     "update:submodules": "git submodule update --init --recursive",
     "test": "vitest run",
     "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
     "types:json": "pnpm json2ts -i './src/resources/schema/' -o 'src/types' --cwd './src/resources/schema'",
     "prepare": "husky",
     "commitlint": "commitlint --config commitlintrc.ts --edit"

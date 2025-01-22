@@ -4,8 +4,8 @@ import { HypercertMetadata } from "./metadata";
 import { ByteArray, Hex, PublicClient, WalletClient } from "viem";
 import { AxiosRequestConfig } from "axios";
 
-export type TestChainIds = 11155111 | 84532 | 421614;
-export type ProductionChainIds = 10 | 42220 | 8453 | 42161;
+export type TestChainIds = 11155111 | 84532 | 421614 | 314159;
+export type ProductionChainIds = 10 | 42220 | 8453 | 42161 | 314;
 
 /**
  * Enum to verify the supported chainIds
