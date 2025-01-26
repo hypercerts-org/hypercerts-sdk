@@ -36,14 +36,26 @@
       "type": "array",
       "items": {
         "type": "object",
-        "properties": {
-          "trait_type": {
-            "type": "string"
+        "oneOf": [
+          {
+            "properties": {
+              "trait_type": { "type": "string" },
+              "value": { "type": "string" }
+            },
+            "required": ["trait_type", "value"],
+            "additionalProperties": false
           },
-          "value": {
-            "type": "string"
+          {
+            "properties": {
+              "trait_type": { "type": "string" },
+              "type": { "type": "string" },
+              "src": { "type": "string" },
+              "name": { "type": "string" }
+            },
+            "required": ["trait_type", "type", "src", "name"],
+            "additionalProperties": false
           }
-        }
+        ]
       }
     },
     "hypercert": {

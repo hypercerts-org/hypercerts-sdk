@@ -8,8 +8,9 @@ import { mockDataSets } from "./helpers";
 
 describe("Validate claim test", () => {
   const { hypercertData, hypercertMetadata } = mockDataSets;
-  it("checking default metadata", () => {
+  it("checking default metadata", (): void => {
     const result = validateMetaData(hypercertMetadata.data);
+    console.log(result);
     expect(result.valid).to.be.true;
 
     const invalidResult = validateMetaData({} as HypercertMetadata);

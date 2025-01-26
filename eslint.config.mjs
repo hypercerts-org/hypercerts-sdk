@@ -1,11 +1,14 @@
-import globals from "globals";
-import pluginJs from "@eslint/js";
-import tseslint from "typescript-eslint";
-
-
-export default [
-  { files: ["**/*.{js,mjs,cjs,ts}"] },
-  { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
-  pluginJs.configs.recommended,
-  ...tseslint.configs.recommended,
-];
+export default  {
+  root: true,
+  env: {
+    browser: true,
+    node: true,
+  },
+  extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended", "plugin:chai-friendly/recommended"],
+  parser: "@typescript-eslint/parser",
+  plugins: ["@typescript-eslint", "chai-friendly"],
+  rules: {
+    "no-unused-expressions": "off",
+    "chai-friendly/no-unused-expressions": "error",
+  },
+};
