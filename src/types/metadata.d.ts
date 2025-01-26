@@ -37,11 +37,18 @@ export interface HypercertMetadata {
    * A CID pointer to the merke tree proof json on ipfs
    */
   allowList?: string;
-  properties?: {
-    trait_type?: string;
-    value?: string;
-    [k: string]: unknown;
-  }[];
+  properties?: (
+    | {
+        trait_type: string;
+        value: string;
+      }
+    | {
+        trait_type: string;
+        type: string;
+        src: string;
+        name: string;
+      }
+  )[];
   hypercert?: HypercertClaimdata;
 }
 /**

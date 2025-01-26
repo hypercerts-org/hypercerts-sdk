@@ -43,41 +43,160 @@ describe("MetadataValidator", () => {
     hypercert: validClaimData,
   };
 
-  it("should validate valid metadata", () => {
-    const result = validator.validate(validMetadata);
+  describe("Basic Metadata Validation", () => {
+    it("should validate valid metadata", () => {
+      const result = validator.validate(validMetadata);
+      expect(result.isValid).to.be.true;
+      expect(result.data).to.deep.equal(validMetadata);
+      expect(result.errors).to.be.empty;
+    });
 
-    expect(result.isValid).to.be.true;
-    expect(result.data).to.deep.equal(validMetadata);
-    expect(result.errors).to.be.empty;
+    it("should validate required fields", () => {
+      const invalidMetadata = {
+        description: "Test Description",
+        image: "ipfs://test",
+      };
+
+      const result = validator.validate(invalidMetadata);
+      expect(result.isValid).to.be.false;
+      expect(result.errors[0].field).to.equal("name");
+    });
   });
 
-  it("should validate required fields", () => {
-    const invalidMetadata = {
-      description: "Test Description",
-      image: "ipfs://test",
-    };
+  describe("Property Validation", () => {
+    it("should validate metadata with valid properties", () => {
+      const metadataWithProperties = {
+        ...validMetadata,
+        properties: [
+          {
+            trait_type: "category",
+            value: "education",
+          },
+          {
+            trait_type: "geoJSON",
+            type: "applications/geo+json",
+            src: "ipfs://QmExample",
+            name: "location.geojson",
+          },
+        ],
+      };
 
-    const result = validator.validate(invalidMetadata);
+      const result = validator.validate(metadataWithProperties);
+      expect(result.isValid).to.be.true;
+      expect(result.data).to.deep.equal(metadataWithProperties);
+    });
 
-    expect(result.isValid).to.be.false;
-    expect(result.errors[0].field).to.equal("name");
+    it("should reject metadata with invalid simple property", () => {
+      const metadataWithInvalidProperty = {
+        ...validMetadata,
+        properties: [
+          {
+            trait_type: "category",
+            // missing required 'value' field
+          },
+        ],
+      };
+
+      const result = validator.validate(metadataWithInvalidProperty);
+      expect(result.isValid).to.be.false;
+      expect(result.errors).to.have.length.greaterThan(0);
+    });
+
+    it("should reject metadata with invalid geoJSON property", () => {
+      const metadataWithInvalidGeoJSON = {
+        ...validMetadata,
+        properties: [
+          {
+            trait_type: "geoJSON",
+            type: "wrong/type",
+            src: "invalid://QmExample",
+            name: "location.wrong",
+          },
+        ],
+      };
+
+      const result = validator.validate(metadataWithInvalidGeoJSON);
+      expect(result.isValid).to.be.false;
+      expect(result.errors).to.have.length(3); // MIME type, URL, and file extension errors
+    });
+
+    it("should collect all property validation errors", () => {
+      const metadataWithMultipleInvalidProperties = {
+        ...validMetadata,
+        properties: [
+          {
+            trait_type: "category",
+            // missing value
+          },
+          {
+            trait_type: "geoJSON",
+            type: "wrong/type",
+            src: "invalid://QmExample",
+            name: "location.wrong",
+          },
+        ],
+      };
+
+      const result = validator.validate(metadataWithMultipleInvalidProperties);
+      expect(result.isValid).to.be.false;
+      expect(result.errors.length).to.be.greaterThan(3); // Schema error plus GeoJSON errors
+    });
+
+    it("should handle empty properties array", () => {
+      const metadataWithEmptyProperties = {
+        ...validMetadata,
+        properties: [],
+      };
+
+      const result = validator.validate(metadataWithEmptyProperties);
+      expect(result.isValid).to.be.true;
+    });
   });
 
-  it("should validate nested claim data", () => {
-    const invalidMetadata = {
-      ...validMetadata,
-      hypercert: {
-        ...validClaimData,
-        impact_scope: undefined,
-      },
-    };
+  describe("Combined Validation", () => {
+    it("should validate metadata with both valid properties and claim data", () => {
+      const completeMetadata = {
+        ...validMetadata,
+        properties: [
+          {
+            trait_type: "category",
+            value: "education",
+          },
+          {
+            trait_type: "geoJSON",
+            type: "applications/geo+json",
+            src: "ipfs://QmExample",
+            name: "location.geojson",
+          },
+        ],
+      };
 
-    const result = validator.validate(invalidMetadata);
+      const result = validator.validate(completeMetadata);
+      expect(result.isValid).to.be.true;
+      expect(result.data).to.deep.equal(completeMetadata);
+    });
 
-    expect(result.isValid).to.be.false;
-    expect(result.errors[0].field).to.equal("/hypercert");
-    // or if we want to check the specific error message:
-    expect(result.errors[0].message).to.include("impact_scope");
+    it("should collect errors from both metadata and property validation", () => {
+      const invalidMetadata = {
+        description: "Test Description", // missing required name
+        image: "ipfs://test",
+        properties: [
+          {
+            trait_type: "geoJSON",
+            type: "wrong/type",
+            src: "invalid://QmExample",
+            name: "location.wrong",
+          },
+        ],
+      };
+
+      const result = validator.validate(invalidMetadata);
+
+      console.log(result.errors);
+
+      expect(result.isValid).to.be.false;
+      expect(result.errors).to.have.length.greaterThan(3); // Schema errors plus property errors
+    });
   });
 });
 

@@ -4,6 +4,7 @@ import { MerkleProofData, MerkleProofValidator } from "./validators/MerkleProofV
 import { MetadataValidator, ClaimDataValidator } from "./validators/MetadataValidator";
 import { AllowlistValidator } from "./validators/AllowListValidator";
 import { AllowlistValidationParams } from "./validators/AllowListValidator";
+import { PropertyValidator, PropertyValue } from "./validators/PropertyValidator";
 
 export class ValidatorFactory {
   static createMetadataValidator(): IValidator<HypercertMetadata> {
@@ -20,5 +21,9 @@ export class ValidatorFactory {
 
   static createMerkleProofValidator(): IValidator<MerkleProofData> {
     return new MerkleProofValidator();
+  }
+
+  static createPropertyValidator(): IValidator<PropertyValue> {
+    return new PropertyValidator();
   }
 }
