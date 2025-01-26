@@ -48,7 +48,10 @@ const formatHypercertData = ({
   external_url?: string;
   image: string;
   version: string;
-  properties?: { trait_type: string; value?: string; [k: string]: unknown }[];
+  properties?: (
+    | { trait_type: string; value: string }
+    | { trait_type: string; type: string; src: string; name: string }
+  )[];
   impactScope: string[];
   excludedImpactScope: string[];
   workScope: string[];

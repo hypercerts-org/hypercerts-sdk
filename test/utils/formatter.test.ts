@@ -17,7 +17,10 @@ const testData: Partial<TestDataType> = {
   workScope: ["test work scope"],
   workTimeframeStart: Math.floor(new Date().getTime()) / 1000,
   workTimeframeEnd: Math.floor(new Date().getTime()) / 1000,
-  properties: [{ trait_type: "test trait type", value: "aaa" }],
+  properties: [
+    { trait_type: "test trait type", value: "aaa" },
+    { trait_type: "test trait type", type: "image", src: "https://example.com", name: "test name" },
+  ],
   rights: ["test right 1", "test right 2"],
   version: "0.0.1",
 };
