@@ -10,6 +10,46 @@ import type {
   AxiosRequestConfig,
   AxiosResponse
 } from 'axios'
+export type DeleteBlueprint200AnyOfSix = {
+  data?: unknown;
+  errors?: unknown;
+  message: string;
+  success: boolean;
+};
+
+export type DeleteBlueprint200AnyOfFourErrors = {
+  blueprint?: unknown;
+  signature: string;
+};
+
+export type DeleteBlueprint200AnyOfFour = {
+  data?: unknown;
+  errors: DeleteBlueprint200AnyOfFourErrors;
+  message: string;
+  success: boolean;
+};
+
+export type DeleteBlueprint200AnyOfTwoErrors = {
+  blueprint: string;
+  signature?: unknown;
+};
+
+export type DeleteBlueprint200AnyOfTwo = {
+  data?: unknown;
+  errors: DeleteBlueprint200AnyOfTwoErrors;
+  message: string;
+  success: boolean;
+};
+
+export type DeleteBlueprint200AnyOf = {
+  data: unknown;
+  errors: unknown;
+  message: string;
+  success: boolean;
+};
+
+export type DeleteBlueprint200 = DeleteBlueprint200AnyOf | DeleteBlueprint200AnyOfTwo | DeleteBlueprint200AnyOfFour | DeleteBlueprint200AnyOfSix;
+
 export type DeleteHyperboardParams = {
 adminAddress: string;
 signature: string;
@@ -108,20 +148,97 @@ export type StoreOrder201AnyOf = {
 
 export type StoreOrder201 = StoreOrder201AnyOf | StoreOrder201AnyOfTwo | StoreOrder201AnyOfFour;
 
-/**
- * Interface for validating an allow list dump.
- */
+export type StoreMetadata201AnyOfFourErrors = {
+  metadata: string;
+};
+
+export type StoreMetadata201AnyOfFour = {
+  data?: unknown;
+  errors: StoreMetadata201AnyOfFourErrors;
+  message: string;
+  success: boolean;
+  valid?: unknown;
+};
+
+export type StoreMetadata201 = StoreMetadata201AnyOf | StoreMetadata201AnyOfTwo | StoreMetadata201AnyOfFour;
+
+export type StoreMetadata201AnyOfTwoData = {
+  cid: string;
+};
+
+export type StoreMetadata201AnyOfTwo = {
+  data: StoreMetadata201AnyOfTwoData;
+  errors?: unknown;
+  message?: unknown;
+  success: boolean;
+  valid?: unknown;
+};
+
+export type StoreMetadata201AnyOf = {
+  data?: unknown;
+  errors: unknown;
+  message: string;
+  success: boolean;
+  valid: boolean;
+};
+
+export type ProcessSignatureRequests200 = {
+  message: string;
+  success: boolean;
+};
+
+export type CancelSignatureRequest200 = {
+  message: string;
+  success: boolean;
+};
+
+export type UploadBody = {
+  /** - Array of files to upload (max 5 files, 10MB each) */
+  files?: Blob[];
+  /** - Optional JSON string with additional metadata */
+  jsonData?: string;
+};
+
 export interface ValidateAllowListRequest {
   allowList: string;
   totalUnits?: string;
 }
 
-/**
- * Interface for storing an allow list dump on IPFS
- */
 export interface StoreAllowListRequest {
   allowList: string;
   totalUnits?: string;
+}
+
+export interface BlueprintQueueMintRequest {
+  chain_id: number;
+  minter_address: string;
+  signature: string;
+  tx_hash: string;
+}
+
+export interface BlueprintDeleteRequest {
+  admin_address: string;
+  chain_id: number;
+  signature: string;
+}
+
+export interface BlueprintCreateRequest {
+  admin_address: string;
+  chain_id: number;
+  form_values: unknown;
+  minter_address: string;
+  signature: string;
+}
+
+export type BlueprintResponseData = {
+  blueprint_id: number;
+};
+
+export interface BlueprintResponse {
+  data?: BlueprintResponseData;
+  errors?: RecordStringStringOrStringArray;
+  message?: string;
+  success: boolean;
 }
 
 export type HyperboardUpdateRequestCollectionsItemHypercertsItem = {
@@ -129,16 +246,19 @@ export type HyperboardUpdateRequestCollectionsItemHypercertsItem = {
   hypercertId: string;
 };
 
+export type HyperboardUpdateRequestCollectionsItemBlueprintsItem = {
+  blueprintId: number;
+  factor: number;
+};
+
 export type HyperboardUpdateRequestCollectionsItem = {
+  blueprints: HyperboardUpdateRequestCollectionsItemBlueprintsItem[];
   description: string;
   hypercerts: HyperboardUpdateRequestCollectionsItemHypercertsItem[];
   id?: string;
   title: string;
 };
 
-/**
- * Interface for updating a hyperboard
- */
 export interface HyperboardUpdateRequest {
   adminAddress: string;
   backgroundImg?: string;
@@ -155,16 +275,19 @@ export type HyperboardCreateRequestCollectionsItemHypercertsItem = {
   hypercertId: string;
 };
 
+export type HyperboardCreateRequestCollectionsItemBlueprintsItem = {
+  blueprintId: number;
+  factor: number;
+};
+
 export type HyperboardCreateRequestCollectionsItem = {
+  blueprints: HyperboardCreateRequestCollectionsItemBlueprintsItem[];
   description: string;
   hypercerts: HyperboardCreateRequestCollectionsItemHypercertsItem[];
   id?: string;
   title: string;
 };
 
-/**
- * Interface for creating a hyperboard
- */
 export interface HyperboardCreateRequest {
   adminAddress: string;
   backgroundImg?: string;
@@ -175,30 +298,16 @@ export interface HyperboardCreateRequest {
   title: string;
 }
 
-export type ApiResponseIdStringOrNullErrors = RecordStringStringOrStringArray | Error[];
-
-/**
- * @nullable
- */
-export type ApiResponseIdStringOrNullData = {
+export type HyperboardResponseData = {
   id: string;
-} | null;
+};
 
-/**
- * Interface for a generic API response.
- */
-export interface ApiResponseIdStringOrNull {
-  /** @nullable */
-  data?: ApiResponseIdStringOrNullData;
-  errors?: ApiResponseIdStringOrNullErrors;
+export interface HyperboardResponse {
+  data?: HyperboardResponseData;
+  errors?: RecordStringStringOrStringArray;
   message?: string;
   success: boolean;
 }
-
-/**
- * Response for a created hyperboard
- */
-export type HyperboardCreateResponse = ApiResponseIdStringOrNull;
 
 export interface ValidateOrderRequest {
   chainId: number;
@@ -292,35 +401,25 @@ export const OrderValidatorCode = {
   NUMBER_902: 902,
 } as const;
 
-/**
- * Interface for validating metadata.
- */
 export interface ValidateMetadataRequest {
   metadata: HypercertMetadata;
 }
 
-/**
- * Interface for a validation response.
- */
-export type ValidationResponse = ApiResponseValidationResult;
-
-export type ApiResponseValidationResultErrors = RecordStringStringOrStringArray | Error[];
-
-/**
- * Interface for a validation response.
- */
-export interface ValidationResult {
+export interface ValidationResponse {
   data?: unknown;
   errors?: RecordStringStringOrStringArray;
+  message?: string;
+  success: boolean;
   valid: boolean;
 }
 
-/**
- * Interface for a generic API response.
- */
-export interface ApiResponseValidationResult {
-  data?: ValidationResult;
-  errors?: ApiResponseValidationResultErrors;
+export type StorageResponseData = {
+  cid: string;
+};
+
+export interface StorageResponse {
+  data?: StorageResponseData;
+  errors?: RecordStringStringOrStringArray;
   message?: string;
   success: boolean;
 }
@@ -341,7 +440,7 @@ export interface HypercertMetadata {
   description: string;
   /** An url pointing to the external website of the project */
   external_url?: string;
-  hypercert?: HypercertClaimdata361;
+  hypercert?: HypercertClaimdata;
   /** A URI pointing to a resource with mime type image/* representing the asset to which this token represents. Consider making any images at a width between 320 and 1080 pixels and aspect ratio between 1.91:1 and 4:5 inclusive. */
   image: string;
   /** Identifies the asset to which this token represents */
@@ -353,18 +452,12 @@ export interface HypercertMetadata {
   version?: string;
 }
 
-/**
- * Interface for storing metadata and allow list dump on IPFS.
- */
 export interface StoreMetadataWithAllowlistRequest {
   allowList: string;
   metadata: HypercertMetadata;
   totalUnits?: string;
 }
 
-/**
- * Interface for storing metadata on IPFS.
- */
 export interface StoreMetadataRequest {
   metadata: HypercertMetadata;
 }
@@ -372,7 +465,7 @@ export interface StoreMetadataRequest {
 /**
  * Work time period. The value is UNIX time in seconds from epoch.
  */
-export type HypercertClaimdata361WorkTimeframe = {
+export type HypercertClaimdataWorkTimeframe = {
   display_value?: string;
   name?: string;
   value?: number[];
@@ -382,7 +475,7 @@ export type HypercertClaimdata361WorkTimeframe = {
 /**
  * Scopes of work
  */
-export type HypercertClaimdata361WorkScope = {
+export type HypercertClaimdataWorkScope = {
   display_value?: string;
   excludes?: string[];
   name?: string;
@@ -393,7 +486,7 @@ export type HypercertClaimdata361WorkScope = {
 /**
  * Rights
  */
-export type HypercertClaimdata361Rights = {
+export type HypercertClaimdataRights = {
   display_value?: string;
   excludes?: string[];
   name?: string;
@@ -404,7 +497,7 @@ export type HypercertClaimdata361Rights = {
 /**
  * Impact time period. The value is UNIX time in seconds from epoch.
  */
-export type HypercertClaimdata361ImpactTimeframe = {
+export type HypercertClaimdataImpactTimeframe = {
   display_value?: string;
   name?: string;
   value?: number[];
@@ -414,7 +507,7 @@ export type HypercertClaimdata361ImpactTimeframe = {
 /**
  * Scopes of impact
  */
-export type HypercertClaimdata361ImpactScope = {
+export type HypercertClaimdataImpactScope = {
   display_value?: string;
   excludes?: string[];
   name?: string;
@@ -425,7 +518,7 @@ export type HypercertClaimdata361ImpactScope = {
 /**
  * Contributors
  */
-export type HypercertClaimdata361Contributors = {
+export type HypercertClaimdataContributors = {
   display_value?: string;
   name?: string;
   value?: string[];
@@ -435,97 +528,125 @@ export type HypercertClaimdata361Contributors = {
 /**
  * Properties of an impact claim
  */
-export interface HypercertClaimdata361 {
+export interface HypercertClaimdata {
   /** Contributors */
-  contributors: HypercertClaimdata361Contributors;
+  contributors: HypercertClaimdataContributors;
   /** Scopes of impact */
-  impact_scope: HypercertClaimdata361ImpactScope;
+  impact_scope: HypercertClaimdataImpactScope;
   /** Impact time period. The value is UNIX time in seconds from epoch. */
-  impact_timeframe: HypercertClaimdata361ImpactTimeframe;
+  impact_timeframe: HypercertClaimdataImpactTimeframe;
   /** Rights */
-  rights?: HypercertClaimdata361Rights;
+  rights?: HypercertClaimdataRights;
   /** Scopes of work */
-  work_scope: HypercertClaimdata361WorkScope;
+  work_scope: HypercertClaimdataWorkScope;
   /** Work time period. The value is UNIX time in seconds from epoch. */
-  work_timeframe: HypercertClaimdata361WorkTimeframe;
+  work_timeframe: HypercertClaimdataWorkTimeframe;
   [key: string]: unknown;
 }
 
-/**
- * Interface for a storage response.
- */
-export type StorageResponse = ApiResponseCidString;
-
-export type ApiResponseCidStringErrors = RecordStringStringOrStringArray | Error[];
-
-export type ApiResponseCidStringData = {
-  cid: string;
-};
-
-/**
- * Interface for a generic API response.
- */
-export interface ApiResponseCidString {
-  data?: ApiResponseCidStringData;
-  errors?: ApiResponseCidStringErrors;
-  message?: string;
-  success: boolean;
-}
-
-/**
- * Interface for a user add or update request.
- */
-export interface AddOrUpdateUserRequest {
-  avatar: string;
+export interface CancelSignatureRequest {
   chain_id: number;
-  display_name: string;
+  owner_address: string;
   signature: string;
 }
 
-export type ApiResponseErrors = RecordStringStringOrStringArray | Error[];
+export type UploadResponseDataResultsItem = {
+  cid: string;
+  fileName: string;
+};
+
+export type UploadResponseDataFailedItem = {
+  error: string;
+  fileName: string;
+};
+
+export type UploadResponseData = {
+  failed: UploadResponseDataFailedItem[];
+  results: UploadResponseDataResultsItem[];
+};
 
 /**
- * Interface for a generic API response.
+ * Construct a type with a set of properties K of type T
  */
-export interface ApiResponse {
-  data?: unknown;
-  errors?: ApiResponseErrors;
-  message?: string;
-  success: boolean;
-}
+export interface RecordStringString {[key: string]: string}
 
-export type ApiResponseAddressStringOrNullErrors = RecordStringStringOrStringArray | Error[];
+export type UploadStatus = typeof UploadStatus[keyof typeof UploadStatus];
 
-/**
- * @nullable
- */
-export type ApiResponseAddressStringOrNullData = {
-  address: string;
-} | null;
 
-/**
- * Interface for a generic API response.
- */
-export interface ApiResponseAddressStringOrNull {
-  /** @nullable */
-  data?: ApiResponseAddressStringOrNullData;
-  errors?: ApiResponseAddressStringOrNullErrors;
-  message?: string;
-  success: boolean;
-}
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const UploadStatus = {
+  all: 'all',
+  some: 'some',
+  none: 'none',
+} as const;
 
-export type AddOrUpdateUserResponse = ApiResponseAddressStringOrNull;
-
-export interface Error {
+export interface UploadResponse {
+  data?: UploadResponseData;
+  errors?: RecordStringString;
   message: string;
-  name: string;
-  stack?: string;
+  success: boolean;
+  uploadStatus: UploadStatus;
 }
+
+/**
+ */
+export type MultisigUserUpsertRequestType = typeof MultisigUserUpsertRequestType[keyof typeof MultisigUserUpsertRequestType];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const MultisigUserUpsertRequestType = {
+  multisig: 'multisig',
+} as const;
+
+export interface MultisigUserUpsertRequest {
+  chain_id: number;
+  messageHash: string;
+  /** */
+  type: MultisigUserUpsertRequestType;
+}
+
+export type AddOrUpdateUserRequest = EOAUserUpsertRequest | MultisigUserUpsertRequest;
+
+/**
+ */
+export type EOAUserUpsertRequestType = typeof EOAUserUpsertRequestType[keyof typeof EOAUserUpsertRequestType];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const EOAUserUpsertRequestType = {
+  eoa: 'eoa',
+} as const;
+
+export interface EOAUserUpsertRequest {
+  avatar?: string;
+  chain_id: number;
+  display_name?: string;
+  signature: string;
+  /** */
+  type: EOAUserUpsertRequestType;
+}
+
+export type UserResponseData = {
+  address: string;
+};
 
 /**
  * Construct a type with a set of properties K of type T
  */
 export interface RecordStringStringOrStringArray {[key: string]: string | string[]}
+
+export interface BaseResponse {
+  errors?: RecordStringStringOrStringArray;
+  message?: string;
+  success: boolean;
+}
+
+export interface UserResponse {
+  data?: UserResponseData;
+  errors?: RecordStringStringOrStringArray;
+  message?: string;
+  success: boolean;
+}
 
 
 
@@ -534,7 +655,7 @@ export interface RecordStringStringOrStringArray {[key: string]: string | string
   /**
  * Add or update a user
  */
-export const addOrUpdateUser = <TData = AxiosResponse<ApiResponseAddressStringOrNull>>(
+export const addOrUpdateUser = <TData = AxiosResponse<UserResponse>>(
     address: string,
     addOrUpdateUserRequest: AddOrUpdateUserRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
@@ -545,12 +666,51 @@ export const addOrUpdateUser = <TData = AxiosResponse<ApiResponseAddressStringOr
   }
 
 /**
+ * Upload one or more files to IPFS storage.
+ * @summary Upload files to IPFS
+ */
+export const upload = <TData = AxiosResponse<UploadResponse>>(
+    uploadBody?: UploadBody, options?: AxiosRequestConfig
+ ): Promise<TData> => {const formData = new FormData();
+if(uploadBody?.files !== undefined) {
+ uploadBody.files.forEach(value => formData.append('files', value));
+ }
+if(uploadBody?.jsonData !== undefined) {
+ formData.append('jsonData', uploadBody.jsonData)
+ }
+
+    return axios.post(
+      `/v1/upload`,
+      formData,options
+    );
+  }
+
+export const cancelSignatureRequest = <TData = AxiosResponse<CancelSignatureRequest200>>(
+    safeAddress: string,
+    messageHash: string,
+    cancelSignatureRequest: CancelSignatureRequest, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.post(
+      `/v1/signature-requests/${safeAddress}-${messageHash}/cancel`,
+      cancelSignatureRequest,options
+    );
+  }
+
+export const processSignatureRequests = <TData = AxiosResponse<ProcessSignatureRequests200>>(
+     options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.post(
+      `/v1/signature-requests/process`,undefined,options
+    );
+  }
+
+/**
  * Submits a new hypercert metadata object for validation and storage on IPFS.
 When an allowlist URI is provided the service will validate the allowlist data before storing the metadata.
 Note that this might lead to a race condition when uploading metadata and the allowlist separately in rapid succession.
 In that case we recommend using POST /metadata/with-allowlist instead.
  */
-export const storeMetadata = <TData = AxiosResponse<ApiResponseCidString>>(
+export const storeMetadata = <TData = AxiosResponse<StoreMetadata201>>(
     storeMetadataRequest: StoreMetadataRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -565,7 +725,7 @@ The service will parse and validate the allow list data and the metadata.
 After successful validation, the allow list data will be uploaded to IPFS and the URI of the allowlist will be attached to the hypercert metadata.
 If an allow list URI is already present, the service will return an error.
  */
-export const storeMetadataWithAllowlist = <TData = AxiosResponse<ApiResponseCidString>>(
+export const storeMetadataWithAllowlist = <TData = AxiosResponse<StorageResponse>>(
     storeMetadataWithAllowlistRequest: StoreMetadataWithAllowlistRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -577,7 +737,7 @@ export const storeMetadataWithAllowlist = <TData = AxiosResponse<ApiResponseCidS
 /**
  * Validates a hypercert metadata object. When an allowlist URI is provided the service will validate the allowlist data as well.
  */
-export const validateMetadata = <TData = AxiosResponse<ApiResponseValidationResult>>(
+export const validateMetadata = <TData = AxiosResponse<ValidationResponse>>(
     validateMetadataRequest: ValidateMetadataRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -589,7 +749,7 @@ export const validateMetadata = <TData = AxiosResponse<ApiResponseValidationResu
 /**
  * Validates a hypercert metadata object paired with allowlist data.
  */
-export const validateMetadataWithAllowlist = <TData = AxiosResponse<ApiResponseValidationResult>>(
+export const validateMetadataWithAllowlist = <TData = AxiosResponse<ValidationResponse>>(
     storeMetadataWithAllowlistRequest: StoreMetadataWithAllowlistRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -649,7 +809,7 @@ export const validateOrder = <TData = AxiosResponse<ValidateOrder200>>(
 /**
  * Create a new hyperboard. Creates the collections passed to it automatically.
  */
-export const createHyperboard = <TData = AxiosResponse<ApiResponseIdStringOrNull>>(
+export const createHyperboard = <TData = AxiosResponse<HyperboardResponse>>(
     hyperboardCreateRequest: HyperboardCreateRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -658,7 +818,7 @@ export const createHyperboard = <TData = AxiosResponse<ApiResponseIdStringOrNull
     );
   }
 
-export const updateHyperboard = <TData = AxiosResponse<ApiResponseIdStringOrNull>>(
+export const updateHyperboard = <TData = AxiosResponse<HyperboardResponse>>(
     hyperboardId: string,
     hyperboardUpdateRequest: HyperboardUpdateRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
@@ -668,7 +828,7 @@ export const updateHyperboard = <TData = AxiosResponse<ApiResponseIdStringOrNull
     );
   }
 
-export const deleteHyperboard = <TData = AxiosResponse<ApiResponse>>(
+export const deleteHyperboard = <TData = AxiosResponse<BaseResponse>>(
     hyperboardId: string,
     params: DeleteHyperboardParams, options?: AxiosRequestConfig
  ): Promise<TData> => {
@@ -679,13 +839,42 @@ export const deleteHyperboard = <TData = AxiosResponse<ApiResponse>>(
     );
   }
 
+export const createBlueprint = <TData = AxiosResponse<BlueprintResponse>>(
+    blueprintCreateRequest: BlueprintCreateRequest, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.post(
+      `/v1/blueprints`,
+      blueprintCreateRequest,options
+    );
+  }
+
+export const deleteBlueprint = <TData = AxiosResponse<DeleteBlueprint200>>(
+    blueprintId: number,
+    blueprintDeleteRequest: BlueprintDeleteRequest, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.delete(
+      `/v1/blueprints/${blueprintId}`,{data:
+      blueprintDeleteRequest, ...options}
+    );
+  }
+
+export const mintBlueprint = <TData = AxiosResponse<BlueprintResponse>>(
+    blueprintId: number,
+    blueprintQueueMintRequest: BlueprintQueueMintRequest, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.post(
+      `/v1/blueprints/mint/${blueprintId}`,
+      blueprintQueueMintRequest,options
+    );
+  }
+
 /**
  * Submits a new allowlist for validation and storage on IPFS. While we maintain a database of allowlists, the allowlist itself is stored on IPFS.
 Try to keep a backup of the allowlist for recovery purposes.
 
 Provide the dump of the OpenZeppelin MerkleTree and the total units.
  */
-export const storeAllowList = <TData = AxiosResponse<ApiResponseCidString>>(
+export const storeAllowList = <TData = AxiosResponse<StorageResponse>>(
     storeAllowListRequest: StoreAllowListRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -699,7 +888,7 @@ export const storeAllowList = <TData = AxiosResponse<ApiResponseCidString>>(
 
 Provide the dump of the OpenZeppelin MerkleTree and the total units.
  */
-export const validateAllowList = <TData = AxiosResponse<ApiResponseValidationResult>>(
+export const validateAllowList = <TData = AxiosResponse<ValidationResponse>>(
     validateAllowListRequest: ValidateAllowListRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -708,17 +897,23 @@ export const validateAllowList = <TData = AxiosResponse<ApiResponseValidationRes
     );
   }
 
-export type AddOrUpdateUserResult = AxiosResponse<ApiResponseAddressStringOrNull>
-export type StoreMetadataResult = AxiosResponse<ApiResponseCidString>
-export type StoreMetadataWithAllowlistResult = AxiosResponse<ApiResponseCidString>
-export type ValidateMetadataResult = AxiosResponse<ApiResponseValidationResult>
-export type ValidateMetadataWithAllowlistResult = AxiosResponse<ApiResponseValidationResult>
+export type AddOrUpdateUserResult = AxiosResponse<UserResponse>
+export type UploadResult = AxiosResponse<UploadResponse>
+export type CancelSignatureRequestResult = AxiosResponse<CancelSignatureRequest200>
+export type ProcessSignatureRequestsResult = AxiosResponse<ProcessSignatureRequests200>
+export type StoreMetadataResult = AxiosResponse<StoreMetadata201>
+export type StoreMetadataWithAllowlistResult = AxiosResponse<StorageResponse>
+export type ValidateMetadataResult = AxiosResponse<ValidationResponse>
+export type ValidateMetadataWithAllowlistResult = AxiosResponse<ValidationResponse>
 export type StoreOrderResult = AxiosResponse<StoreOrder201>
 export type DeleteOrderResult = AxiosResponse<DeleteOrder200>
 export type UpdateOrderNonceResult = AxiosResponse<UpdateOrderNonce200>
 export type ValidateOrderResult = AxiosResponse<ValidateOrder200>
-export type CreateHyperboardResult = AxiosResponse<ApiResponseIdStringOrNull>
-export type UpdateHyperboardResult = AxiosResponse<ApiResponseIdStringOrNull>
-export type DeleteHyperboardResult = AxiosResponse<ApiResponse>
-export type StoreAllowListResult = AxiosResponse<ApiResponseCidString>
-export type ValidateAllowListResult = AxiosResponse<ApiResponseValidationResult>
+export type CreateHyperboardResult = AxiosResponse<HyperboardResponse>
+export type UpdateHyperboardResult = AxiosResponse<HyperboardResponse>
+export type DeleteHyperboardResult = AxiosResponse<BaseResponse>
+export type CreateBlueprintResult = AxiosResponse<BlueprintResponse>
+export type DeleteBlueprintResult = AxiosResponse<DeleteBlueprint200>
+export type MintBlueprintResult = AxiosResponse<BlueprintResponse>
+export type StoreAllowListResult = AxiosResponse<StorageResponse>
+export type ValidateAllowListResult = AxiosResponse<ValidationResponse>
