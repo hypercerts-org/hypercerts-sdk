@@ -18,7 +18,7 @@ interface GeoJSONProperty {
 }
 
 class GeoJSONValidationStrategy implements PropertyValidationStrategy {
-  private readonly MIME_TYPE = "applications/geo+json";
+  private readonly MIME_TYPE = "application/geo+json";
 
   validate(property: NonNullable<PropertyValue>): ValidationError[] {
     if (!this.isGeoJSONProperty(property)) {

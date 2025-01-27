@@ -32,7 +32,7 @@ describe("PropertyValidator", () => {
     it("should validate a valid geoJSON property", () => {
       const property = {
         trait_type: "geoJSON",
-        type: "applications/geo+json",
+        type: "application/geo+json",
         src: "ipfs://QmExample",
         name: "location.geojson",
       };
@@ -45,7 +45,7 @@ describe("PropertyValidator", () => {
     it("should accept HTTPS source", () => {
       const property = {
         trait_type: "geoJSON",
-        type: "applications/geo+json",
+        type: "application/geo+json",
         src: "https://example.com/location.geojson",
         name: "location.geojson",
       };
@@ -67,14 +67,14 @@ describe("PropertyValidator", () => {
       expect(result.errors).to.deep.include({
         field: "type",
         code: "invalid_mime_type",
-        message: "GeoJSON type must be applications/geo+json",
+        message: "GeoJSON type must be application/geo+json",
       });
     });
 
     it("should reject invalid source URL", () => {
       const property = {
         trait_type: "geoJSON",
-        type: "applications/geo+json",
+        type: "application/geo+json",
         src: "invalid://QmExample",
         name: "location.geojson",
       };
@@ -91,7 +91,7 @@ describe("PropertyValidator", () => {
     it("should reject invalid file extension", () => {
       const property = {
         trait_type: "geoJSON",
-        type: "applications/geo+json",
+        type: "application/geo+json",
         src: "ipfs://QmExample",
         name: "location.wrong",
       };
