@@ -74,7 +74,7 @@ describe("MetadataValidator", () => {
           },
           {
             trait_type: "geoJSON",
-            type: "applications/geo+json",
+            type: "application/geo+json",
             src: "ipfs://QmExample",
             name: "location.geojson",
           },
@@ -164,7 +164,7 @@ describe("MetadataValidator", () => {
           },
           {
             trait_type: "geoJSON",
-            type: "applications/geo+json",
+            type: "application/geo+json",
             src: "ipfs://QmExample",
             name: "location.geojson",
           },

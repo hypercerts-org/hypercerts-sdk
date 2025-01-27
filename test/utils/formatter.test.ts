@@ -20,6 +20,12 @@ const testData: Partial<TestDataType> = {
   properties: [
     { trait_type: "test trait type", value: "aaa" },
     { trait_type: "test trait type", type: "image", src: "https://example.com", name: "test name" },
+    {
+      trait_type: "geoJSON",
+      type: "application/geo+json",
+      name: "oceanus-conservation-barangay.geojson",
+      src: "ipfs://bafkreifhfoozmhdtjn2y4xqtosuf26mxr2sxzvrrprkucglgotx3ok362a",
+    },
   ],
   rights: ["test right 1", "test right 2"],
   version: "0.0.1",
@@ -32,6 +38,9 @@ const testDataUndefinedExternalURL: Partial<TestDataType> = { ...testData, exter
 describe("Format Hypercert Data test", () => {
   it("checks correct metadata and returns result", () => {
     const result = formatHypercertData(testData as TestDataType);
+
+    expect(result.valid).to.be.true;
+    expect(result.data).to.not.be.null;
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const validKeys = Object.keys(result.data!);
