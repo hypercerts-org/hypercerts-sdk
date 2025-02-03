@@ -39,13 +39,14 @@ export type Contracts =
   | "StrategyHypercertFractionOffer";
 
 /**
- * Represents a deployment of a contract on a specific network.
+ * Represents the hypercerts deployments on a specific network.
  */
 export type Deployment = {
   chainId: SupportedChainIds;
   /** The address of the deployed contract. */
   addresses: Partial<Record<Contracts, `0x${string}`>>;
   isTestnet: boolean;
+  easSchemas?: { [key: string]: { [key: string]: string | boolean } };
 };
 
 /**

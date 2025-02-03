@@ -1,5 +1,5 @@
 import { ValidationError } from "../interfaces";
-import { SchemaValidator } from "../base/SchemaValidator";
+import { AjvSchemaValidator } from "../base/SchemaValidator";
 import { HypercertMetadata } from "src/types";
 import metaDataSchema from "../../resources/schema/metadata.json";
 
@@ -65,7 +65,7 @@ class GeoJSONValidationStrategy implements PropertyValidationStrategy {
   }
 }
 
-export class PropertyValidator extends SchemaValidator<PropertyValue> {
+export class PropertyValidator extends AjvSchemaValidator<PropertyValue> {
   private readonly validationStrategies: Record<string, PropertyValidationStrategy> = {
     geoJSON: new GeoJSONValidationStrategy(),
   };

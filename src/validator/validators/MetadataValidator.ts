@@ -1,10 +1,10 @@
 import { HypercertClaimdata, HypercertMetadata } from "src/types/metadata";
-import { SchemaValidator } from "../base/SchemaValidator";
+import { AjvSchemaValidator } from "../base/SchemaValidator";
 import claimDataSchema from "../../resources/schema/claimdata.json";
 import metaDataSchema from "../../resources/schema/metadata.json";
 import { PropertyValidator } from "./PropertyValidator";
 
-export class MetadataValidator extends SchemaValidator<HypercertMetadata> {
+export class MetadataValidator extends AjvSchemaValidator<HypercertMetadata> {
   private propertyValidator: PropertyValidator;
 
   constructor() {
@@ -36,7 +36,7 @@ export class MetadataValidator extends SchemaValidator<HypercertMetadata> {
   }
 }
 
-export class ClaimDataValidator extends SchemaValidator<HypercertClaimdata> {
+export class ClaimDataValidator extends AjvSchemaValidator<HypercertClaimdata> {
   constructor() {
     super(claimDataSchema);
   }
