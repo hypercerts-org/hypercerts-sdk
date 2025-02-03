@@ -46,7 +46,7 @@ const AttestationSchema = z
     }),
   );
 
-type AttestationData = z.infer<typeof AttestationSchema>;
+export type AttestationData = z.infer<typeof AttestationSchema>;
 
 // Example raw  attestation
 

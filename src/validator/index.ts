@@ -126,3 +126,5 @@ export const verifyMerkleProofs = (roots: string[], signerAddress: string, units
     verifyMerkleProof(roots[i], signerAddress, units[i], proofs[i]);
   }
 };
+
+export { ValidatorFactory };

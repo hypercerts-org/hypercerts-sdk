@@ -4,7 +4,7 @@ import { HypercertMetadata } from "src/types";
 import metaDataSchema from "../../resources/schema/metadata.json";
 
 export type PropertyValues = HypercertMetadata["properties"];
-type PropertyValue = NonNullable<PropertyValues>[number];
+export type PropertyValue = NonNullable<PropertyValues>[number];
 
 interface PropertyValidationStrategy {
   validate(property: NonNullable<PropertyValue>): ValidationError[];
