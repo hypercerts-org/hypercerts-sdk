@@ -5,6 +5,7 @@ import { logger } from "./logger";
 import { handleSdkError, handleContractError } from "./errors";
 import { getClaimStoredDataFromTxHash } from "./txParser";
 import { parseClaimOrFractionId } from "./parsing";
+import { isHypercertToken, getHypercertTokenId } from "./tokenIds";
 
 export {
   getProofsFromAllowlist,
@@ -16,4 +17,6 @@ export {
   parseAllowListEntriesToMerkleTree,
   getClaimStoredDataFromTxHash,
   parseClaimOrFractionId,
+  isHypercertToken,
+  getHypercertTokenId,
 };
