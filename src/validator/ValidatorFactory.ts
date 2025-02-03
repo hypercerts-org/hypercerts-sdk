@@ -5,6 +5,7 @@ import { MetadataValidator, ClaimDataValidator } from "./validators/MetadataVali
 import { AllowlistValidator } from "./validators/AllowListValidator";
 import { AllowlistValidationParams } from "./validators/AllowListValidator";
 import { PropertyValidator, PropertyValue } from "./validators/PropertyValidator";
+import { AttestationData, AttestationValidator } from "./validators/AttestationValidator";
 
 export class ValidatorFactory {
   static createMetadataValidator(): IValidator<HypercertMetadata> {
@@ -25,5 +26,9 @@ export class ValidatorFactory {
 
   static createPropertyValidator(): IValidator<PropertyValue> {
     return new PropertyValidator();
+  }
+
+  static createAttestationValidator(): IValidator<AttestationData> {
+    return new AttestationValidator();
   }
 }
