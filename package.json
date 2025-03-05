@@ -52,6 +52,7 @@
     "esbuild": "^0.19.8",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-chai-friendly": "^1.0.1",
     "globals": "^15.14.0",
     "husky": "^9.1.7",
     "json-schema-to-typescript": "^13.1.1",
@@ -70,7 +71,7 @@
   },
   "scripts": {
     "build": "pnpm types:json && pnpm codegen:api && rollup -c",
-    "codegen:api": "npx orval --input ./lib/hypercerts-api/src/__generated__/swagger.json --output ./src/__generated__/api.ts",
+    "codegen:api": "npx orval --input https://api.hypercerts.org/swagger.json --output ./src/__generated__/api.ts",
     "clean": "rm -rf ./dist",
     "prebuild": "pnpm clean",
     "prepack": "pnpm build",
@@ -83,7 +84,7 @@
     "commitlint": "commitlint --config commitlintrc.ts --edit"
   },
   "lint-staged": {
-    "*.{js, jsx,ts,tsx}": [
+    "*.{js,jsx,ts,tsx}": [
       "eslint --quiet --fix"
     ],
     "*.{json,js,ts,jsx,tsx,html}": [
