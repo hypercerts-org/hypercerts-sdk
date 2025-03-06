@@ -20,7 +20,7 @@ const parseDataToOzMerkleTree = (data: unknown, uri?: string) => {
 };
 
 const parseAllowListEntriesToMerkleTree = (allowList: AllowlistEntry[]) => {
-  const tuples = allowList.map((p) => [p.address, p.units]);
+  const tuples = allowList.map((p) => [p.address, p.units] as [string, bigint]);
   return StandardMerkleTree.of(tuples, ["address", "uint256"]);
 };
 
@@ -32,7 +32,7 @@ const getMerkleTreeFromIPFS = async (cidOrIpfsUri: string) => {
     throw new Error(`Invalid allowlist at ${cidOrIpfsUri}`);
   }
 
-  const tree = StandardMerkleTree.load(JSON.parse(allowlist));
+  const tree = StandardMerkleTree.load<[string, bigint]>(JSON.parse(allowlist));
 
   if (!tree) {
     throw new Error(`Invalid allowlist at ${cidOrIpfsUri}`);
