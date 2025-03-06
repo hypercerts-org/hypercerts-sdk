@@ -41,6 +41,7 @@ const getMerkleTreeFromIPFS = async (cidOrIpfsUri: string) => {
   return tree;
 };
 
+// TODO: This function is not used anywhere, we should remove it.
 /**
  * This function retrieves proofs from an allowlist.
  *
