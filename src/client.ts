@@ -161,7 +161,6 @@ export class HypercertClient implements HypercertClientInterface {
   mintHypercert = async ({ metaData, totalUnits, transferRestriction, allowList, overrides }: MintParams) => {
     const { account } = this.getConnected();
 
-    let root;
     let tree;
 
     if (allowList) {
@@ -189,10 +188,13 @@ export class HypercertClient implements HypercertClientInterface {
 
           allowListEntries = lines.map((line) => {
             const values = line.split(",");
-            const entry = headers.reduce((acc, header, i) => {
-              acc[header] = values[i];
-              return acc;
-            }, {} as Record<string, string>);
+            const entry = headers.reduce(
+              (acc, header, i) => {
+                acc[header] = values[i];
+                return acc;
+              },
+              {} as Record<string, string>,
+            );
             const { address, units } = entry;
             return { address, units: BigInt(units) };
           });
@@ -206,8 +208,6 @@ export class HypercertClient implements HypercertClientInterface {
       if (!tree) {
         throw new ClientError("Invalid or no contents found for the provided allow list", { allowList });
       }
-
-      root = tree.root;
     }
 
     if (allowList && !tree) {
@@ -236,7 +236,7 @@ export class HypercertClient implements HypercertClientInterface {
     const method = allowList && tree ? "createAllowlist" : "mintClaim";
     const params =
       allowList && tree
-        ? [account?.address, totalUnits, root, cid, transferRestriction]
+        ? [account?.address, totalUnits, tree.root, cid, transferRestriction]
         : [account?.address, totalUnits, cid, transferRestriction];
 
     const request = await this.simulateRequest(account, method, params, overrides);
