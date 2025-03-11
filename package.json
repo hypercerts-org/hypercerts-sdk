@@ -69,6 +69,12 @@
     "typescript-eslint": "^8.21.0",
     "vitest": "^3.0.3"
   },
+  "peerDependencies": {
+    "@safe-global/api-kit": "^2.5.7",
+    "@safe-global/protocol-kit": "^5.2.0",
+    "@safe-global/types-kit": "^1.0.4",
+    "ethers": "^6.6.2"
+  },
   "scripts": {
     "build": "pnpm types:json && pnpm codegen:api && rollup -c",
     "codegen:api": "npx orval --input https://api.hypercerts.org/swagger.json --output ./src/__generated__/api.ts",

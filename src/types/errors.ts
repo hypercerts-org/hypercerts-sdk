@@ -192,6 +192,18 @@ export class ConfigurationError extends Error implements CustomError {
   }
 }
 
+/**
+ * The Safe transaction failed
+ */
+export class SafeTransactionError extends Error implements CustomError {
+  payload?: { [key: string]: unknown };
+
+  constructor(message: string, payload?: { [key: string]: unknown }) {
+    super(message);
+    this.payload = payload;
+  }
+}
+
 export type HypercertsSdkError =
   | ConfigurationError
   | FetchError

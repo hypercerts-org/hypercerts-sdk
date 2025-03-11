@@ -38,6 +38,7 @@ describe("HypercertClient setup tests", () => {
     const client = new HypercertClient({ environment: "test", publicClient });
 
     // mintClaim
+    // This test case is a bit brittle as it relies on the getConnected() method being called at the top of mintHypercert()
     try {
       const metaData = { name: "test" } as HypercertMetadata;
       const totalUnits = 1n;
