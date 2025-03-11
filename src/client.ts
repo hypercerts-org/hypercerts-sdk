@@ -159,6 +159,7 @@ export class HypercertClient implements HypercertClientInterface {
    * @throws Will throw a `ClientError` if any validation or request submission fails.
    */
   mintHypercert = async ({ metaData, totalUnits, transferRestriction, allowList, overrides }: MintParams) => {
+    // FYI: one test case is temporally coupled with this.getConnected()
     const { account } = this.getConnected();
 
     let tree;
