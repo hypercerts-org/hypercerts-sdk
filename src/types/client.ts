@@ -1,7 +1,7 @@
 import { AllowlistEntry, TransferRestrictions } from "./hypercerts";
 import { HypercertMetadata } from "./metadata";
 
-import { ByteArray, Hex, PublicClient, WalletClient } from "viem";
+import { Address, ByteArray, Hex, PublicClient, WalletClient } from "viem";
 import { AxiosRequestConfig } from "axios";
 
 export type TestChainIds = 11155111 | 84532 | 421614 | 314159;
@@ -13,7 +13,7 @@ export type ProductionChainIds = 10 | 42220 | 8453 | 42161 | 314;
  */
 export type SupportedChainIds = TestChainIds | ProductionChainIds;
 
-export type SupportedOverrides = ContractOverrides & AxiosRequestConfig;
+export type SupportedOverrides = ContractOverrides & FeatureOverrides & AxiosRequestConfig;
 
 /**
  * Configuration options for the contract interactions.
@@ -26,6 +26,15 @@ export type ContractOverrides = {
   value?: bigint;
   gasPrice?: bigint;
   gasLimit?: bigint;
+};
+
+/**
+ * Configuration options that change how the client behaves.
+ *
+ * @param safeAddress When provided, the client will use the Safe to send transactions.
+ */
+export type FeatureOverrides = {
+  safeAddress?: Address;
 };
 
 export type Contracts =

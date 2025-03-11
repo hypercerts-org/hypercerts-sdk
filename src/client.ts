@@ -29,6 +29,8 @@ import { getClaimStoredDataFromTxHash } from "./utils";
 import { isClaimOnChain } from "./utils/chains";
 import { HypercertStorage } from "./types/storage";
 import { fetchFromHttpsOrIpfs } from "./utils/fetchers";
+import { onlyProvidedContractOverrides } from "./utils/overrides";
+import { SafeTransactions } from "./safe/SafeTransactions";
 
 /**
  * The `HypercertClient` is a core class in the hypercerts SDK, providing a high-level interface to interact with the hypercerts system.
@@ -150,11 +152,14 @@ export class HypercertClient implements HypercertClientInterface {
    * This function handles the minting process of a hypercert, including fetching and parsing the allowlist if provided,
    * validating and storing metadata, and submitting the minting request.
    *
-   * @param metaData - The metadata for the hypercert.
-   * @param totalUnits - The total units of the hypercert.
-   * @param transferRestriction - The transfer restrictions for the hypercert.
-   * @param allowList - The allowlist for the hypercert, either as a URI to a CSV file or an array of allowlist entries.
-   * @param overrides - Optional overrides for the transaction.
+   * If you provide a `safeAddress` in the `overrides` parameter, the minting will be performed as a Safe transaction.
+   *
+   * @param params - The parameters for minting a hypercert
+   * @param params.metaData - The metadata for the hypercert.
+   * @param params.totalUnits - The total units of the hypercert.
+   * @param params.transferRestriction - The transfer restrictions for the hypercert.
+   * @param params.allowList - The allowlist for the hypercert, either as a URI to a CSV file or an array of allowlist entries.
+   * @param params.overrides - Optional overrides for the transaction.
    * @returns A promise that resolves to the transaction hash of the minting request.
    * @throws Will throw a `ClientError` if any validation or request submission fails.
    */
@@ -235,10 +240,21 @@ export class HypercertClient implements HypercertClientInterface {
 
     const cid = metadataRes.data.data?.cid;
     const method = allowList && tree ? "createAllowlist" : "mintClaim";
+    const accountAddress = overrides?.safeAddress ?? account.address;
     const params =
       allowList && tree
-        ? [account?.address, totalUnits, tree.root, cid, transferRestriction]
-        : [account?.address, totalUnits, cid, transferRestriction];
+        ? [accountAddress, totalUnits, tree.root, cid, transferRestriction]
+        : [accountAddress, totalUnits, cid, transferRestriction];
+
+    // If a safe address is provided, use the SafeTransactions class to mint the hypercert
+    if (overrides?.safeAddress) {
+      if (!this._walletClient) {
+        throw new ClientError("Safe address provided but no wallet client found");
+      }
+
+      const safeTransactions = new SafeTransactions(overrides.safeAddress, this._walletClient, this._getContract());
+      return safeTransactions.mintHypercert(method, params, overrides);
+    }
 
     const request = await this.simulateRequest(account, method, params, overrides);
     return this.submitRequest(request);
@@ -590,16 +606,6 @@ export class HypercertClient implements HypercertClientInterface {
     });
   };
 
-  private getCleanedOverrides = (overrides?: SupportedOverrides) => {
-    const _overrides = {
-      value: overrides?.value,
-      gas: overrides?.gasLimit,
-      gasPrice: overrides?.gasPrice,
-    };
-
-    return Object.fromEntries(Object.entries(_overrides).filter(([_, value]) => value !== undefined));
-  };
-
   private getConnected = () => {
     if (!this._walletClient) {
       throw new ClientError("Could not connect to wallet; sending transactions not allowed.", { client: this });
@@ -632,7 +638,7 @@ export class HypercertClient implements HypercertClientInterface {
         args,
         abi: HypercertMinterAbi,
         address: readContract.address,
-        ...this.getCleanedOverrides(overrides),
+        ...onlyProvidedContractOverrides(overrides),
       });
 
       return request;
