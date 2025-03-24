@@ -253,7 +253,7 @@ export class HypercertClient implements HypercertClientInterface {
       }
 
       const safeTransactions = new SafeTransactions(overrides.safeAddress, this._walletClient, this._getContract());
-      return safeTransactions.mintHypercert(method, params, overrides);
+      return safeTransactions.sendTransaction(method, params, overrides);
     }
 
     const request = await this.simulateRequest(account, method, params, overrides);

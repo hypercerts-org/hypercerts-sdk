@@ -30,7 +30,7 @@ export class SafeTransactions {
     });
   }
 
-  public mintHypercert = (
+  public sendTransaction = (
     functionName: string,
     params: unknown[],
     overrides?: SupportedOverrides,
