@@ -469,6 +469,8 @@ export class HypercertClient implements HypercertClientInterface {
    * This function handles the claiming of a fraction from an allowlist for the connected account.
    * It verifies the Merkle proof if a root is provided and then submits the minting request.
    *
+   * If you provide `overrides.safeAddress`, the transaction will be sent as a Safe transaction instead.
+   *
    * @param params - The parameters for the claim operation.
    * @param params.hypercertTokenId - The ID of the hypercert token to claim.
    * @param params.units - The number of units to claim.
@@ -497,12 +499,20 @@ export class HypercertClient implements HypercertClientInterface {
       );
     }
 
-    const request = await this.simulateRequest(
-      account,
-      "mintClaimFromAllowlist",
-      [account.address, proof, hypercertTokenId, units],
-      overrides,
-    );
+    const accountAddress = overrides?.safeAddress ?? account.address;
+    const params = [accountAddress, proof, hypercertTokenId, units];
+
+    // If a safe address is provided, use the SafeTransactions class
+    if (overrides?.safeAddress) {
+      if (!this._walletClient) {
+        throw new ClientError("Safe address provided but no wallet client found");
+      }
+
+      const safeTransactions = new SafeTransactions(overrides.safeAddress, this._walletClient, this._getContract());
+      return safeTransactions.sendTransaction("mintClaimFromAllowlist", params, overrides);
+    }
+
+    const request = await this.simulateRequest(account, "mintClaimFromAllowlist", params, overrides);
     return this.submitRequest(request);
   };
 
