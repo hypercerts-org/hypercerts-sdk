@@ -171,6 +171,29 @@ describe("SafeTransactions", () => {
       });
     });
   });
+
+  describe("constructor", () => {
+    it("throws error when wallet client has no chain ID", () => {
+      chai.Assertion.expectAssertions(2);
+
+      const invalidWalletClient = { ...walletClient, chain: undefined };
+
+      try {
+        new SafeTransactions(
+          safeAddress,
+          invalidWalletClient as any,
+          {
+            address: contractAddress,
+            abi: HypercertMinterAbi,
+          } as any,
+        );
+        expect.fail("Should throw Error");
+      } catch (e) {
+        expect(e).to.be.instanceOf(Error);
+        expect((e as Error).message).to.eq("No chain ID found in wallet client");
+      }
+    });
+  });
 });
 
 function createConnectedSafeStub(contractAddress: string, mockTxHash: `0x${string}`, mockSignature: `0x${string}`) {
