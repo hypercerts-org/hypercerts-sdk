@@ -40,7 +40,7 @@ describe("SafeTransactions", () => {
     } as any);
   });
 
-  describe("mintHypercert", () => {
+  describe("sendTransaction", () => {
     const validParams = [senderAddress, 1000n, "0xcid", 0];
 
     it("correctly encodes function data for transaction", async () => {
@@ -52,7 +52,7 @@ describe("SafeTransactions", () => {
         args: validParams,
       });
 
-      await safeTransactions.mintHypercert(functionName, validParams, {
+      await safeTransactions.sendTransaction(functionName, validParams, {
         safeAddress,
       });
 
@@ -70,7 +70,7 @@ describe("SafeTransactions", () => {
     it("uses correct nonce from API", async () => {
       safeApiKitStub.getNextNonce.resolves("42");
 
-      await safeTransactions.mintHypercert("mintClaim", validParams, {
+      await safeTransactions.sendTransaction("mintClaim", validParams, {
         safeAddress,
       });
 
@@ -95,7 +95,7 @@ describe("SafeTransactions", () => {
       );
 
       try {
-        await safeTransactions.mintHypercert("mintClaim", validParams, { safeAddress });
+        await safeTransactions.sendTransaction("mintClaim", validParams, { safeAddress });
         expect.fail("Should throw ClientError");
       } catch (e) {
         expect(e).to.be.instanceOf(ClientError);
@@ -104,7 +104,7 @@ describe("SafeTransactions", () => {
     });
 
     it("follows complete transaction flow", async () => {
-      const hash = await safeTransactions.mintHypercert("mintClaim", validParams, {
+      const hash = await safeTransactions.sendTransaction("mintClaim", validParams, {
         safeAddress,
       });
 
@@ -123,7 +123,7 @@ describe("SafeTransactions", () => {
       safeApiKitStub.proposeTransaction.rejects(new Error(errorMessage));
 
       try {
-        await safeTransactions.mintHypercert("mintClaim", validParams, { safeAddress });
+        await safeTransactions.sendTransaction("mintClaim", validParams, { safeAddress });
         expect.fail("Should throw SafeTransactionError");
       } catch (e) {
         expect(e).to.be.instanceOf(SafeTransactionError);
@@ -142,7 +142,7 @@ describe("SafeTransactions", () => {
       connectedSafeStub.createTransaction.rejects(new Error(errorMessage));
 
       try {
-        await safeTransactions.mintHypercert("mintClaim", [senderAddress, 1000n, "0xcid", 0], { safeAddress });
+        await safeTransactions.sendTransaction("mintClaim", [senderAddress, 1000n, "0xcid", 0], { safeAddress });
         expect.fail("Should throw SafeTransactionError");
       } catch (e) {
         expect(e).to.be.instanceOf(SafeTransactionError);
@@ -155,7 +155,7 @@ describe("SafeTransactions", () => {
     });
 
     it("properly proposes transaction with correct parameters", async () => {
-      await safeTransactions.mintHypercert("mintClaim", [senderAddress, 1000n, "0xcid", 0], { safeAddress });
+      await safeTransactions.sendTransaction("mintClaim", [senderAddress, 1000n, "0xcid", 0], { safeAddress });
 
       const proposeCall = safeApiKitStub.proposeTransaction.getCall(0);
       expect(proposeCall.args[0]).to.deep.include({
@@ -169,6 +169,29 @@ describe("SafeTransactions", () => {
         senderAddress,
         senderSignature: mockSignature,
       });
+    });
+  });
+
+  describe("constructor", () => {
+    it("throws error when wallet client has no chain ID", () => {
+      chai.Assertion.expectAssertions(2);
+
+      const invalidWalletClient = { ...walletClient, chain: undefined };
+
+      try {
+        new SafeTransactions(
+          safeAddress,
+          invalidWalletClient as any,
+          {
+            address: contractAddress,
+            abi: HypercertMinterAbi,
+          } as any,
+        );
+        expect.fail("Should throw Error");
+      } catch (e) {
+        expect(e).to.be.instanceOf(Error);
+        expect((e as Error).message).to.eq("No chain ID found in wallet client");
+      }
     });
   });
 });
