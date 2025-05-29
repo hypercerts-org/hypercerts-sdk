@@ -50,7 +50,7 @@ const getNftStorageGatewayUri = (cidOrIpfsUri: string) => {
 };
 
 const getWeb3UpGatewayUri = (cidOrIpfsUri: string) => {
-  const WEB3_STORAGE_IPFS_GATEWAY = "https://w3s.link/ipfs/{cid}";
+  const WEB3_STORAGE_IPFS_GATEWAY = "https://{cid}.ipfs.w3s.link/";
   return WEB3_STORAGE_IPFS_GATEWAY.replace("{cid}", getCid(cidOrIpfsUri));
 };
 
