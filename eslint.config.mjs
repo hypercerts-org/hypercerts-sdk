@@ -10,5 +10,6 @@ export default  {
   rules: {
     "no-unused-expressions": "off",
     "chai-friendly/no-unused-expressions": "error",
+    "body-max-line-length":  [0, 'always'],
   },
 };

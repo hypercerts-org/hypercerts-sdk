@@ -48,6 +48,14 @@ export type Contracts =
   | "StrategyHypercertFractionOffer";
 
 /**
+ * The periphery contracts for the Hypercert client.
+ * Not all contracts are supported on all chains.
+ */
+export type PeripheryContracts = {
+  batchTransferFraction?: `0x${string}`;
+};
+
+/**
  * Represents the hypercerts deployments on a specific network.
  */
 export type Deployment = {
@@ -56,6 +64,7 @@ export type Deployment = {
   addresses: Partial<Record<Contracts, `0x${string}`>>;
   isTestnet: boolean;
   easSchemas?: { [key: string]: { [key: string]: string | boolean } };
+  periphery: PeripheryContracts;
 };
 
 /**
@@ -135,6 +144,13 @@ export interface TransferParams extends TransactionParams {
 export interface BatchTransferParams extends TransactionParams {
   fractionIds: bigint[];
   to: `0x${string}`;
+}
+
+export interface BatchTransferFractionsToRecipientsParams extends TransactionParams {
+  transfers: {
+    fractionId: bigint;
+    to: `0x${string}`;
+  }[];
 }
 
 export interface SplitFractionParams extends TransactionParams {

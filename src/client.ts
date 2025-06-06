@@ -1,9 +1,10 @@
 import { HypercertMinterAbi } from "@hypercerts-org/contracts";
-import { Account, ByteArray, Hex, PublicClient, WalletClient, getAddress, getContract } from "viem";
+import { Account, Address, ByteArray, Hex, PublicClient, WalletClient, getAddress, getContract } from "viem";
 import { getStorage } from "./storage";
 import {
   AllowlistEntry,
   BatchClaimFractionsFromAllowlistsParams,
+  BatchTransferFractionsToRecipientsParams,
   BatchTransferParams,
   BurnFractionParams,
   ClaimFractionFromAllowlistParams,
@@ -31,6 +32,7 @@ import { HypercertStorage } from "./types/storage";
 import { fetchFromHttpsOrIpfs } from "./utils/fetchers";
 import { onlyProvidedContractOverrides } from "./utils/overrides";
 import { SafeTransactions } from "./safe/SafeTransactions";
+import { BatchTransferFractionAbi } from "./abis/periphery/BatchTransferFraction";
 
 /**
  * The `HypercertClient` is a core class in the hypercerts SDK, providing a high-level interface to interact with the hypercerts system.
@@ -316,6 +318,50 @@ export class HypercertClient implements HypercertClientInterface {
       account,
       "safeBatchTransferFrom",
       [account?.address, to, fractionIds, fractionIds.map(() => 1n), "0x"],
+      overrides,
+    );
+
+    return this.submitRequest(request);
+  };
+
+  /**
+   * Transfers multiple fractions to multiple recipients.
+   *
+   * This function handles the batch transfer of multiple fractions from the connected account to multiple recipients.
+   *
+   * @param params - The parameters for the batch transfer.
+   * @param params.transfers - The transfers to perform.
+   * @param params.overrides - Optional overrides for the transaction.
+   * @returns A promise that resolves to the transaction hash of the batch transfer request.
+   * @throws Will throw a `ClientError` if the request fails.
+   */
+  batchTransferFractionsToRecipients = async ({ transfers, overrides }: BatchTransferFractionsToRecipientsParams) => {
+    const { account } = this.getConnected();
+
+    const readContract = this._getContract();
+
+    await Promise.all(
+      transfers.map(async (transfer) => {
+        const fractionOwner = (await readContract.read.ownerOf([transfer.fractionId])) as `0x${string}`;
+        if (fractionOwner.toLowerCase() !== account?.address.toLowerCase()) {
+          throw new ClientError("Fraction is not owned by the signer", { signer: account?.address, fractionOwner });
+        }
+      }),
+    );
+
+    const batchTransferFractionContractAddress =
+      this.config.deployments?.[this._walletClient?.chain?.id as SupportedChainIds].periphery.batchTransferFraction;
+
+    if (!batchTransferFractionContractAddress) {
+      throw new ClientError("Batch transfer fraction contract address not found for chain");
+    }
+
+    const request = await this.simulateRequestWithAddressAndAbi(
+      batchTransferFractionContractAddress,
+      BatchTransferFractionAbi,
+      account,
+      "batchTransfer",
+      [account?.address, transfers.map((t) => [t.fractionId, t.to])],
       overrides,
     );
 
@@ -658,6 +704,31 @@ export class HypercertClient implements HypercertClientInterface {
         args,
         abi: HypercertMinterAbi,
         address: readContract.address,
+        ...onlyProvidedContractOverrides(overrides),
+      });
+
+      return request;
+    } catch (err) {
+      throw handleSimulatedContractError(err);
+    }
+  };
+
+  private simulateRequestWithAddressAndAbi = async (
+    address: Address,
+    abi: Parameters<typeof getContract>[0]["abi"],
+    account: Account,
+    functionName: string,
+    args: unknown[],
+    overrides?: SupportedOverrides,
+  ) => {
+    const { publicClient } = this.getConnected();
+    try {
+      const { request } = await publicClient.simulateContract({
+        functionName,
+        account: account.address,
+        args,
+        abi,
+        address,
         ...onlyProvidedContractOverrides(overrides),
       });
 
