@@ -1,4 +1,4 @@
-# Hypercert SDK
+# Hypercerts SDK
 
 ## Quickstart Guide
 
