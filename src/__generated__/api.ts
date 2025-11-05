@@ -55,22 +55,13 @@ adminAddress: string;
 signature: string;
 };
 
-export type ValidateOrder200DataItem = {
-  id: string;
-  invalidated: boolean;
-  validator_codes: OrderValidatorCode[];
-};
-
 export type ValidateOrder200 = {
-  data: ValidateOrder200DataItem[];
+  data: unknown[];
   message: string;
   success: boolean;
 };
 
 export type UpdateOrderNonce200Data = {
-  address: string;
-  chain_id: number;
-  created_at: string;
   nonce_counter: number;
 };
 
@@ -91,62 +82,14 @@ export type DeleteOrderBody = {
   signature: string;
 };
 
-export type StoreOrder201AnyOfFourData = {
-  additionalParameters: string;
-  amounts: number[];
-  chainId: number;
-  collection: string;
-  collectionType: number;
-  createdAt: string;
-  currency: string;
-  endTime: number;
-  globalNonce: string;
-  hash: string;
-  hypercert_id: string;
-  id: string;
-  invalidated: boolean;
-  itemIds: string[];
-  orderNonce: string;
-  price: string;
-  quoteType: number;
-  signature: string;
-  signer: string;
-  startTime: number;
-  status: string;
-  strategyId: number;
-  subsetNonce: number;
-  validator_codes: number[];
-};
-
-export type StoreOrder201AnyOfFour = {
-  data: StoreOrder201AnyOfFourData;
-  error?: unknown;
-  message: string;
-  success: boolean;
-};
-
-export type StoreOrder201AnyOfTwoData = {
-  id: string;
-  order: PickAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayExcludeKeyofAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayIdOrCreatedAtOrInvalidatedOrValidatorCodes;
-  valid: boolean;
-  validatorCodes: OrderValidatorCode[];
-};
-
-export type StoreOrder201AnyOfTwo = {
-  data: StoreOrder201AnyOfTwoData;
-  error?: unknown;
-  message: string;
-  success: boolean;
-};
-
 export type StoreOrder201AnyOf = {
-  data: unknown;
-  error: unknown;
+  error: string;
   message: string;
+  result?: RecordStringUnknown;
   success: boolean;
 };
 
-export type StoreOrder201 = StoreOrder201AnyOf | StoreOrder201AnyOfTwo | StoreOrder201AnyOfFour;
+export type StoreOrder201 = BaseResponse | StoreOrder201AnyOf;
 
 export type StoreMetadata201AnyOfFourErrors = {
   metadata: string;
@@ -159,8 +102,6 @@ export type StoreMetadata201AnyOfFour = {
   success: boolean;
   valid?: unknown;
 };
-
-export type StoreMetadata201 = StoreMetadata201AnyOf | StoreMetadata201AnyOfTwo | StoreMetadata201AnyOfFour;
 
 export type StoreMetadata201AnyOfTwoData = {
   cid: string;
@@ -176,10 +117,19 @@ export type StoreMetadata201AnyOfTwo = {
 
 export type StoreMetadata201AnyOf = {
   data?: unknown;
-  errors: unknown;
+  errors: RecordStringStringOrStringArray;
   message: string;
   success: boolean;
   valid: boolean;
+};
+
+export type StoreMetadata201 = StoreMetadata201AnyOf | StoreMetadata201AnyOfTwo | StoreMetadata201AnyOfFour;
+
+export type HealthCheck200 = {
+  memory: ProcessNodeJSMemoryUsage;
+  status: string;
+  timestamp: number;
+  uptime: number;
 };
 
 export type ProcessSignatureRequests200 = {
@@ -236,7 +186,7 @@ export type BlueprintResponseData = {
 
 export interface BlueprintResponse {
   data?: BlueprintResponseData;
-  errors?: RecordStringStringOrStringArray;
+  errors?: RecordStringUnknown;
   message?: string;
   success: boolean;
 }
@@ -270,6 +220,16 @@ export interface HyperboardUpdateRequest {
   title: string;
 }
 
+export interface HyperboardCreateRequest {
+  adminAddress: string;
+  backgroundImg?: string;
+  borderColor: string;
+  chainIds: number[];
+  collections: HyperboardCreateRequestCollectionsItem[];
+  signature: string;
+  title: string;
+}
+
 export type HyperboardCreateRequestCollectionsItemHypercertsItem = {
   factor: number;
   hypercertId: string;
@@ -288,23 +248,13 @@ export type HyperboardCreateRequestCollectionsItem = {
   title: string;
 };
 
-export interface HyperboardCreateRequest {
-  adminAddress: string;
-  backgroundImg?: string;
-  borderColor: string;
-  chainIds: number[];
-  collections: HyperboardCreateRequestCollectionsItem[];
-  signature: string;
-  title: string;
-}
-
 export type HyperboardResponseData = {
   id: string;
 };
 
 export interface HyperboardResponse {
   data?: HyperboardResponseData;
-  errors?: RecordStringStringOrStringArray;
+  errors?: RecordStringUnknown;
   message?: string;
   success: boolean;
 }
@@ -319,7 +269,10 @@ export interface UpdateOrderNonceRequest {
   chainId: number;
 }
 
-export interface CreateOrderRequest {
+/**
+ * From T, pick a set of properties whose keys are in the union K
+ */
+export interface PickEOACreateOrderRequestExcludeKeyofEOACreateOrderRequestType {
   additionalParameters: string;
   amounts: number[];
   chainId: number;
@@ -339,67 +292,63 @@ export interface CreateOrderRequest {
   subsetNonce: number;
 }
 
-/**
- * From T, pick a set of properties whose keys are in the union K
- */
-export interface PickAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayExcludeKeyofAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayIdOrCreatedAtOrInvalidatedOrValidatorCodes { [key: string]: unknown }
+export type CreateOrderRequest = EOACreateOrderRequest | MultisigCreateOrderRequest | PickEOACreateOrderRequestExcludeKeyofEOACreateOrderRequestType;
+
+export type LegacyCreateOrderRequest = PickEOACreateOrderRequestExcludeKeyofEOACreateOrderRequestType;
 
 /**
  * Construct a type with the properties of T except for those in type K.
  */
-export type OmitAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayIdOrCreatedAtOrInvalidatedOrValidatorCodes = PickAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayExcludeKeyofAdditionalParametersStringAmountsNumberArrayChainIdNumberCollectionStringCollectionTypeNumberCreatedAtStringCurrencyStringEndTimeNumberGlobalNonceStringIdStringInvalidatedBooleanItemIdsStringArrayOrderNonceStringPriceStringQuoteTypeNumberSignatureStringSignerStringStartTimeNumberStrategyIdNumberSubsetNonceNumberValidatorCodesNumberArrayIdOrCreatedAtOrInvalidatedOrValidatorCodes;
+export type OmitEOACreateOrderRequestType = PickEOACreateOrderRequestExcludeKeyofEOACreateOrderRequestType;
 
 /**
- * Error errors returned by the order validator contract
  */
-export type OrderValidatorCode = typeof OrderValidatorCode[keyof typeof OrderValidatorCode];
+export type MultisigCreateOrderRequestType = typeof MultisigCreateOrderRequestType[keyof typeof MultisigCreateOrderRequestType];
 
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
-export const OrderValidatorCode = {
-  NUMBER_0: 0,
-  NUMBER_101: 101,
-  NUMBER_111: 111,
-  NUMBER_112: 112,
-  NUMBER_113: 113,
-  NUMBER_201: 201,
-  NUMBER_211: 211,
-  NUMBER_212: 212,
-  NUMBER_213: 213,
-  NUMBER_301: 301,
-  NUMBER_311: 311,
-  NUMBER_312: 312,
-  NUMBER_321: 321,
-  NUMBER_322: 322,
-  NUMBER_401: 401,
-  NUMBER_402: 402,
-  NUMBER_411: 411,
-  NUMBER_412: 412,
-  NUMBER_413: 413,
-  NUMBER_414: 414,
-  NUMBER_415: 415,
-  NUMBER_421: 421,
-  NUMBER_422: 422,
-  NUMBER_501: 501,
-  NUMBER_502: 502,
-  NUMBER_503: 503,
-  NUMBER_601: 601,
-  NUMBER_611: 611,
-  NUMBER_612: 612,
-  NUMBER_621: 621,
-  NUMBER_622: 622,
-  NUMBER_623: 623,
-  NUMBER_631: 631,
-  NUMBER_632: 632,
-  NUMBER_633: 633,
-  NUMBER_634: 634,
-  NUMBER_701: 701,
-  NUMBER_702: 702,
-  NUMBER_801: 801,
-  NUMBER_802: 802,
-  NUMBER_901: 901,
-  NUMBER_902: 902,
+export const MultisigCreateOrderRequestType = {
+  multisig: 'multisig',
 } as const;
+
+export interface MultisigCreateOrderRequest {
+  chainId: number;
+  messageHash: string;
+  /** */
+  type: MultisigCreateOrderRequestType;
+}
+
+/**
+ */
+export type EOACreateOrderRequestType = typeof EOACreateOrderRequestType[keyof typeof EOACreateOrderRequestType];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const EOACreateOrderRequestType = {
+  eoa: 'eoa',
+} as const;
+
+export interface EOACreateOrderRequest {
+  additionalParameters: string;
+  amounts: number[];
+  chainId: number;
+  collection: string;
+  collectionType: number;
+  currency: string;
+  endTime: number;
+  globalNonce: string;
+  itemIds: string[];
+  orderNonce: string;
+  price: string;
+  quoteType: number;
+  signature: string;
+  signer: string;
+  startTime: number;
+  strategyId: number;
+  subsetNonce: number;
+  /** */
+  type: EOACreateOrderRequestType;
+}
 
 export interface ValidateMetadataRequest {
   metadata: HypercertMetadata;
@@ -407,7 +356,7 @@ export interface ValidateMetadataRequest {
 
 export interface ValidationResponse {
   data?: unknown;
-  errors?: RecordStringStringOrStringArray;
+  errors?: RecordStringUnknown;
   message?: string;
   success: boolean;
   valid: boolean;
@@ -419,16 +368,10 @@ export type StorageResponseData = {
 
 export interface StorageResponse {
   data?: StorageResponseData;
-  errors?: RecordStringStringOrStringArray;
+  errors?: RecordStringUnknown;
   message?: string;
   success: boolean;
 }
-
-export type HypercertMetadataPropertiesItem = {
-  trait_type?: string;
-  value?: string;
-  [key: string]: unknown;
-};
 
 /**
  * Claim data for hypercert. ERC1155 Metadata compliant
@@ -461,6 +404,20 @@ export interface StoreMetadataWithAllowlistRequest {
 export interface StoreMetadataRequest {
   metadata: HypercertMetadata;
 }
+
+export type HypercertMetadataPropertiesItemAnyOfTwo = {
+  name: string;
+  src: string;
+  trait_type: string;
+  type: string;
+};
+
+export type HypercertMetadataPropertiesItemAnyOf = {
+  trait_type: string;
+  value: string;
+};
+
+export type HypercertMetadataPropertiesItem = HypercertMetadataPropertiesItemAnyOf | HypercertMetadataPropertiesItemAnyOfTwo;
 
 /**
  * Work time period. The value is UNIX time in seconds from epoch.
@@ -542,6 +499,19 @@ export interface HypercertClaimdata {
   /** Work time period. The value is UNIX time in seconds from epoch. */
   work_timeframe: HypercertClaimdataWorkTimeframe;
   [key: string]: unknown;
+}
+
+/**
+ * Construct a type with a set of properties K of type T
+ */
+export interface RecordStringStringOrStringArray { [key: string]: unknown }
+
+export interface ProcessNodeJSMemoryUsage {
+  arrayBuffers: number;
+  external: number;
+  heapTotal: number;
+  heapUsed: number;
+  rss: number;
 }
 
 export interface CancelSignatureRequest {
@@ -633,17 +603,17 @@ export type UserResponseData = {
 /**
  * Construct a type with a set of properties K of type T
  */
-export interface RecordStringStringOrStringArray {[key: string]: string | string[]}
+export interface RecordStringUnknown {[key: string]: unknown}
 
 export interface BaseResponse {
-  errors?: RecordStringStringOrStringArray;
+  errors?: RecordStringUnknown;
   message?: string;
   success: boolean;
 }
 
 export interface UserResponse {
   data?: UserResponseData;
-  errors?: RecordStringStringOrStringArray;
+  errors?: RecordStringUnknown;
   message?: string;
   success: boolean;
 }
@@ -660,7 +630,7 @@ export const addOrUpdateUser = <TData = AxiosResponse<UserResponse>>(
     addOrUpdateUserRequest: AddOrUpdateUserRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/users/${address}`,
+      `/v2/users/${address}`,
       addOrUpdateUserRequest,options
     );
   }
@@ -680,7 +650,7 @@ if(uploadBody?.jsonData !== undefined) {
  }
 
     return axios.post(
-      `/v1/upload`,
+      `/v2/upload`,
       formData,options
     );
   }
@@ -691,7 +661,7 @@ export const cancelSignatureRequest = <TData = AxiosResponse<CancelSignatureRequ
     cancelSignatureRequest: CancelSignatureRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/signature-requests/${safeAddress}-${messageHash}/cancel`,
+      `/v2/signature-requests/${safeAddress}-${messageHash}/cancel`,
       cancelSignatureRequest,options
     );
   }
@@ -700,7 +670,15 @@ export const processSignatureRequests = <TData = AxiosResponse<ProcessSignatureR
      options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/signature-requests/process`,undefined,options
+      `/v2/signature-requests/process`,undefined,options
+    );
+  }
+
+export const healthCheck = <TData = AxiosResponse<HealthCheck200>>(
+     options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.get(
+      `/v2/monitoring/health`,options
     );
   }
 
@@ -714,7 +692,7 @@ export const storeMetadata = <TData = AxiosResponse<StoreMetadata201>>(
     storeMetadataRequest: StoreMetadataRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/metadata`,
+      `/v2/metadata`,
       storeMetadataRequest,options
     );
   }
@@ -729,7 +707,7 @@ export const storeMetadataWithAllowlist = <TData = AxiosResponse<StorageResponse
     storeMetadataWithAllowlistRequest: StoreMetadataWithAllowlistRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/metadata/with-allowlist`,
+      `/v2/metadata/with-allowlist`,
       storeMetadataWithAllowlistRequest,options
     );
   }
@@ -741,7 +719,7 @@ export const validateMetadata = <TData = AxiosResponse<ValidationResponse>>(
     validateMetadataRequest: ValidateMetadataRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/metadata/validate`,
+      `/v2/metadata/validate`,
       validateMetadataRequest,options
     );
   }
@@ -753,19 +731,21 @@ export const validateMetadataWithAllowlist = <TData = AxiosResponse<ValidationRe
     storeMetadataWithAllowlistRequest: StoreMetadataWithAllowlistRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/metadata/with-allowlist/validate`,
+      `/v2/metadata/with-allowlist/validate`,
       storeMetadataWithAllowlistRequest,options
     );
   }
 
 /**
  * Submits a new order for validation and storage on the database.
+
+For backwards compatibility, the old v1 order format is also supported. (Example 3)
  */
 export const storeOrder = <TData = AxiosResponse<StoreOrder201>>(
     createOrderRequest: CreateOrderRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/marketplace/orders`,
+      `/v2/marketplace/orders`,
       createOrderRequest,options
     );
   }
@@ -777,7 +757,7 @@ export const deleteOrder = <TData = AxiosResponse<DeleteOrder200>>(
     deleteOrderBody: DeleteOrderBody, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.delete(
-      `/v1/marketplace/orders`,{data:
+      `/v2/marketplace/orders`,{data:
       deleteOrderBody, ...options}
     );
   }
@@ -789,7 +769,7 @@ export const updateOrderNonce = <TData = AxiosResponse<UpdateOrderNonce200>>(
     updateOrderNonceRequest: UpdateOrderNonceRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/marketplace/order-nonce`,
+      `/v2/marketplace/order-nonce`,
       updateOrderNonceRequest,options
     );
   }
@@ -801,7 +781,7 @@ export const validateOrder = <TData = AxiosResponse<ValidateOrder200>>(
     validateOrderRequest: ValidateOrderRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/marketplace/orders/validate`,
+      `/v2/marketplace/orders/validate`,
       validateOrderRequest,options
     );
   }
@@ -813,7 +793,7 @@ export const createHyperboard = <TData = AxiosResponse<HyperboardResponse>>(
     hyperboardCreateRequest: HyperboardCreateRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/hyperboards`,
+      `/v2/hyperboards`,
       hyperboardCreateRequest,options
     );
   }
@@ -823,7 +803,7 @@ export const updateHyperboard = <TData = AxiosResponse<HyperboardResponse>>(
     hyperboardUpdateRequest: HyperboardUpdateRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.patch(
-      `/v1/hyperboards/${hyperboardId}`,
+      `/v2/hyperboards/${hyperboardId}`,
       hyperboardUpdateRequest,options
     );
   }
@@ -833,7 +813,7 @@ export const deleteHyperboard = <TData = AxiosResponse<BaseResponse>>(
     params: DeleteHyperboardParams, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.delete(
-      `/v1/hyperboards/${hyperboardId}`,{
+      `/v2/hyperboards/${hyperboardId}`,{
     ...options,
         params: {...params, ...options?.params},}
     );
@@ -843,7 +823,7 @@ export const createBlueprint = <TData = AxiosResponse<BlueprintResponse>>(
     blueprintCreateRequest: BlueprintCreateRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/blueprints`,
+      `/v2/blueprints`,
       blueprintCreateRequest,options
     );
   }
@@ -853,7 +833,7 @@ export const deleteBlueprint = <TData = AxiosResponse<DeleteBlueprint200>>(
     blueprintDeleteRequest: BlueprintDeleteRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.delete(
-      `/v1/blueprints/${blueprintId}`,{data:
+      `/v2/blueprints/${blueprintId}`,{data:
       blueprintDeleteRequest, ...options}
     );
   }
@@ -863,7 +843,7 @@ export const mintBlueprint = <TData = AxiosResponse<BlueprintResponse>>(
     blueprintQueueMintRequest: BlueprintQueueMintRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/blueprints/mint/${blueprintId}`,
+      `/v2/blueprints/mint/${blueprintId}`,
       blueprintQueueMintRequest,options
     );
   }
@@ -878,7 +858,7 @@ export const storeAllowList = <TData = AxiosResponse<StorageResponse>>(
     storeAllowListRequest: StoreAllowListRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/allowlists`,
+      `/v2/allowlists`,
       storeAllowListRequest,options
     );
   }
@@ -892,7 +872,7 @@ export const validateAllowList = <TData = AxiosResponse<ValidationResponse>>(
     validateAllowListRequest: ValidateAllowListRequest, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
-      `/v1/allowlists/validate`,
+      `/v2/allowlists/validate`,
       validateAllowListRequest,options
     );
   }
@@ -901,6 +881,7 @@ export type AddOrUpdateUserResult = AxiosResponse<UserResponse>
 export type UploadResult = AxiosResponse<UploadResponse>
 export type CancelSignatureRequestResult = AxiosResponse<CancelSignatureRequest200>
 export type ProcessSignatureRequestsResult = AxiosResponse<ProcessSignatureRequests200>
+export type HealthCheckResult = AxiosResponse<HealthCheck200>
 export type StoreMetadataResult = AxiosResponse<StoreMetadata201>
 export type StoreMetadataWithAllowlistResult = AxiosResponse<StorageResponse>
 export type ValidateMetadataResult = AxiosResponse<ValidationResponse>
