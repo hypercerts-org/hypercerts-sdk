@@ -77,7 +77,7 @@
   },
   "scripts": {
     "build": "pnpm types:json && pnpm codegen:api && rollup -c",
-    "codegen:api": "npx orval --input https://api.hypercerts.org/swagger.json --output ./src/__generated__/api.ts",
+    "codegen:api": "npx orval --input https://api-v2.hypercerts.org/swagger.json --output ./src/__generated__/api.ts",
     "clean": "rm -rf ./dist",
     "prebuild": "pnpm clean",
     "prepack": "pnpm build",

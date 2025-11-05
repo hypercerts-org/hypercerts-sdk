@@ -12,8 +12,8 @@ export const DEFAULT_ENVIRONMENT: Environment = "production";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const ENDPOINTS: { [key: string]: string } = {
-  test: "https://staging-api.hypercerts.org",
-  production: "https://api.hypercerts.org",
+  test: "https://staging-api-v2.hypercerts.org",
+  production: "https://api-v2.hypercerts.org",
 };
 
 const SUPPORTED_EAS_SCHEMAS: { [key: string]: { [key: string]: string | boolean } } = {
