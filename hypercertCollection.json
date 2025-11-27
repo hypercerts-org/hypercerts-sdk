@@ -1,0 +1,62 @@
+{
+  "lexicon": 1,
+  "id": "org.hypercerts.collection",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A collection/group of hypercerts that have a specific property.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["title", "claims", "createdAt"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "The title of this collection",
+            "maxLength": 800,
+            "maxGraphemes": 80
+          },
+          "shortDescription": {
+            "type": "string",
+            "maxLength": 3000,
+            "maxGraphemes": 300,
+            "description": "A short description of this collection"
+          },
+          "coverPhoto": {
+            "type": "union",
+            "refs": ["app.certified.defs#uri", "app.certified.defs#smallBlob"],
+            "description": "The cover photo of this collection (either in URI format or in a blob)."
+          },
+          "claims": {
+            "type": "array",
+            "description": "Array of claims with their associated weights in this collection",
+            "items": {
+              "type": "ref",
+              "ref": "#claimItem"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Client-declared timestamp when this record was originally created"
+          }
+        }
+      }
+    },
+      "claimItem": {
+        "type": "object",
+        "required": ["claim", "weight"],
+        "properties": {
+          "claim": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "A strong reference to a hypercert claim record. This claim must conform to the lexicon org.hypercerts.claim.record"
+          },
+          "weight": {
+            "type": "string",
+            "description": "The weight/importance of this hypercert claim in the collection (a percentage from 0-100, stored as a string to avoid float precision issues). The total claim weights should add up to 100."
+          }
+      }
+    }
+  }
+}

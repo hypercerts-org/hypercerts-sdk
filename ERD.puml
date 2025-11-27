@@ -1,0 +1,62 @@
+@startuml "HypercertERD"
+title "Hypercert ERD"
+
+hide empty fields
+hide empty methods
+hide stereotypes
+
+!define REVIEW_COLOR #FFFACD
+!define ARROW_COLOR #666666
+
+<style>
+document {
+    title {
+        FontSize 24
+        FontStyle bold
+    }
+}
+classDiagram {
+    arrow {
+        LineColor ARROW_COLOR
+        FontColor ARROW_COLOR
+        FontSize 10
+    }
+    .largeBold {
+        FontSize 20
+        FontStyle bold
+    }
+}
+</style>
+
+entity contributors #FFD4A3
+dataclass "impact claim" as claim <<largeBold>> #B4E5D0
+dataclass evidence
+dataclass measurements
+dataclass evaluations
+dataclass contributions
+dataclass location
+dataclass rights
+dataclass "evidence review" as review_evidence #FFFACD
+dataclass "measurement review" as review_measurement #FFFACD
+dataclass "evaluation review" as review_evaluation #FFFACD
+dataclass "contribution review" as review_contribution #FFFACD
+protocol token <<largeBold>> #FFB6C1
+
+evidence --> claim : supports
+measurements --> claim : quantifies
+measurements --> location : located by
+evidence --> location : located by
+evaluations --> evidence : evaluates
+evaluations --> measurements : evaluates
+rights --> claim : defines\nrights for
+claim <-- token : tokenizes
+contributors --> contributions : make
+contributors --> rights : have
+contributions --> claim : contributes to
+review_evidence --> evidence : evaluates
+review_measurement --> measurements : evaluates
+review_evaluation --> evaluations : evaluates
+review_contribution --> contributions : evaluates
+
+@enduml
+
