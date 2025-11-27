@@ -18,7 +18,7 @@ const getPlugins = () => [
     tsconfig: resolve(__dirname, "tsconfig.json"),
     declaration: false,
     declarationMap: false,
-    rootDir: resolve(__dirname, "src"),
+    rootDir: resolve(__dirname),
     outDir: resolve(__dirname, "dist"),
   }),
   nodeResolve({
