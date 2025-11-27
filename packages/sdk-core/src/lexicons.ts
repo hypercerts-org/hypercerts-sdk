@@ -61,4 +61,4 @@
 export { LexiconRegistry } from "./repository/LexiconRegistry.js";
 export type { ValidationResult } from "./repository/LexiconRegistry.js";
 
-export { HYPERCERT_LEXICONS, HYPERCERT_COLLECTIONS } from "./lexicons/hypercerts/index.js";
+export { HYPERCERT_LEXICONS, HYPERCERT_COLLECTIONS } from "@hypercerts-org/lexicon";

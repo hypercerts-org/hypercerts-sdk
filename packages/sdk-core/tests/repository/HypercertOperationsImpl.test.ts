@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { HypercertOperationsImpl } from "../../src/repository/HypercertOperationsImpl.js";
 import { LexiconRegistry } from "../../src/repository/LexiconRegistry.js";
 import { NetworkError, ValidationError } from "../../src/core/errors.js";
-import { HYPERCERT_LEXICONS } from "../../src/lexicons/hypercerts/index.js";
+import { HYPERCERT_LEXICONS } from "@hypercerts-org/lexicon";
 
 describe("HypercertOperationsImpl", () => {
   let mockAgent: any;

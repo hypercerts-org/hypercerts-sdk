@@ -12,20 +12,19 @@ import type { Agent } from "@atproto/api";
 import { EventEmitter } from "eventemitter3";
 import { NetworkError, ValidationError } from "../core/errors.js";
 import type { LoggerInterface } from "../core/interfaces.js";
-import { HYPERCERT_COLLECTIONS } from "../lexicons/hypercerts/index.js";
 import type { LexiconRegistry } from "./LexiconRegistry.js";
-import type {
-  BlobRef,
-  CollectionRecord,
-  ContributionRecord,
-  EvaluationRecord,
-  HypercertEvidence,
-  HypercertRecord,
-  LocationRecord,
-  MeasurementRecord,
-  RightsRecord,
+import {
+  HYPERCERT_COLLECTIONS,
+  type BlobRef,
+  type HypercertEvidence,
+  type HypercertClaim,
+  type HypercertRights,
+  type HypercertContribution,
+  type HypercertMeasurement,
+  type HypercertEvaluation,
+  type HypercertCollection,
+  type HypercertLocation,
 } from "../services/hypercerts/types.js";
-import { HypercertRecordSchema, CollectionRecordSchema } from "../services/hypercerts/schemas.js";
 import type {
   HypercertOperations,
   HypercertEvents,
@@ -230,7 +229,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
       // Step 2: Create rights record
       this.emitProgress(params.onProgress, { name: "createRights", status: "start" });
-      const rightsRecord: RightsRecord = {
+      const rightsRecord: Omit<HypercertRights, "$type"> = {
         rightsName: params.rights.name,
         rightsType: params.rights.type,
         rightsDescription: params.rights.description,
@@ -407,7 +406,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async update(params: {
     uri: string;
-    updates: Partial<Omit<HypercertRecord, "createdAt" | "rights">>;
+    updates: Partial<Omit<HypercertClaim, "$type" | "createdAt" | "rights">>;
     image?: Blob | null;
   }): Promise<UpdateResult> {
     try {
@@ -424,8 +423,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       });
 
       // The existing record comes from ATProto, use it directly
-      // TypeScript ensures type safety through the HypercertRecord interface
-      const existingRecord = existing.data.value as HypercertRecord;
+      // TypeScript ensures type safety through the HypercertClaim interface
+      const existingRecord = existing.data.value as HypercertClaim;
 
       const recordForUpdate: Record<string, unknown> = {
         ...existingRecord,
@@ -500,7 +499,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * console.log(`${record.title}: ${record.description}`);
    * ```
    */
-  async get(uri: string): Promise<{ uri: string; cid: string; record: HypercertRecord }> {
+  async get(uri: string): Promise<{ uri: string; cid: string; record: HypercertClaim }> {
     try {
       const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
       if (!uriMatch) {
@@ -518,16 +517,16 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         throw new NetworkError("Failed to get hypercert");
       }
 
-      // Parse and validate with Zod schema
-      const parseResult = HypercertRecordSchema.safeParse(result.data.value);
-      if (!parseResult.success) {
-        throw new ValidationError(`Invalid hypercert record format: ${parseResult.error.message}`);
+      // Validate with lexicon registry (more lenient - doesn't require $type)
+      const validation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.CLAIM, result.data.value);
+      if (!validation.valid) {
+        throw new ValidationError(`Invalid hypercert record format: ${validation.error}`);
       }
 
       return {
         uri: result.data.uri,
         cid: result.data.cid ?? "",
-        record: parseResult.data as HypercertRecord,
+        record: result.data.value as HypercertClaim,
       };
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
@@ -553,7 +552,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * }
    * ```
    */
-  async list(params?: ListParams): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertRecord }>> {
+  async list(params?: ListParams): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertClaim }>> {
     try {
       const result = await this.agent.com.atproto.repo.listRecords({
         repo: this.repoDid,
@@ -568,14 +567,11 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
       return {
         records:
-          result.data.records?.map((r) => {
-            const parseResult = HypercertRecordSchema.safeParse(r.value);
-            return {
-              uri: r.uri,
-              cid: r.cid,
-              record: parseResult.success ? (parseResult.data as HypercertRecord) : (r.value as HypercertRecord),
-            };
-          }) || [],
+          result.data.records?.map((r) => ({
+            uri: r.uri,
+            cid: r.cid,
+            record: r.value as HypercertClaim,
+          })) || [],
         cursor: result.data.cursor ?? undefined,
       };
     } catch (error) {
@@ -687,7 +683,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         }
       }
 
-      const locationRecord: LocationRecord = {
+      const locationRecord: Omit<HypercertLocation, "$type"> = {
         hypercert: { uri: hypercert.uri, cid: hypercert.cid },
         value: locationValue,
         createdAt,
@@ -788,7 +784,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }): Promise<CreateResult> {
     try {
       const createdAt = new Date().toISOString();
-      const contributionRecord: ContributionRecord = {
+      const contributionRecord: Omit<HypercertContribution, "$type"> = {
         contributors: params.contributors,
         role: params.role,
         createdAt,
@@ -867,7 +863,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const hypercert = await this.get(params.hypercertUri);
       const createdAt = new Date().toISOString();
 
-      const measurementRecord: MeasurementRecord = {
+      const measurementRecord: Omit<HypercertMeasurement, "$type"> = {
         hypercert: { uri: hypercert.uri, cid: hypercert.cid },
         measurers: params.measurers,
         metric: params.metric,
@@ -926,7 +922,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const subject = await this.get(params.subjectUri);
       const createdAt = new Date().toISOString();
 
-      const evaluationRecord: EvaluationRecord = {
+      const evaluationRecord: Omit<HypercertEvaluation, "$type"> = {
         subject: { uri: subject.uri, cid: subject.cid },
         evaluators: params.evaluators,
         summary: params.summary,
@@ -1065,7 +1061,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * console.log(`Contains ${record.claims.length} hypercerts`);
    * ```
    */
-  async getCollection(uri: string): Promise<{ uri: string; cid: string; record: CollectionRecord }> {
+  async getCollection(uri: string): Promise<{ uri: string; cid: string; record: HypercertCollection }> {
     try {
       const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
       if (!uriMatch) {
@@ -1083,16 +1079,16 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         throw new NetworkError("Failed to get collection");
       }
 
-      // Parse and validate with Zod schema
-      const parseResult = CollectionRecordSchema.safeParse(result.data.value);
-      if (!parseResult.success) {
-        throw new ValidationError(`Invalid collection record format: ${parseResult.error.message}`);
+      // Validate with lexicon registry (more lenient - doesn't require $type)
+      const validation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.COLLECTION, result.data.value);
+      if (!validation.valid) {
+        throw new ValidationError(`Invalid collection record format: ${validation.error}`);
       }
 
       return {
         uri: result.data.uri,
         cid: result.data.cid ?? "",
-        record: parseResult.data as CollectionRecord,
+        record: result.data.value as HypercertCollection,
       };
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
@@ -1117,7 +1113,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async listCollections(
     params?: ListParams,
-  ): Promise<PaginatedList<{ uri: string; cid: string; record: CollectionRecord }>> {
+  ): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertCollection }>> {
     try {
       const result = await this.agent.com.atproto.repo.listRecords({
         repo: this.repoDid,
@@ -1132,14 +1128,11 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
       return {
         records:
-          result.data.records?.map((r) => {
-            const parseResult = CollectionRecordSchema.safeParse(r.value);
-            return {
-              uri: r.uri,
-              cid: r.cid,
-              record: parseResult.success ? (parseResult.data as CollectionRecord) : (r.value as CollectionRecord),
-            };
-          }) || [],
+          result.data.records?.map((r) => ({
+            uri: r.uri,
+            cid: r.cid,
+            record: r.value as HypercertCollection,
+          })) || [],
         cursor: result.data.cursor ?? undefined,
       };
     } catch (error) {

@@ -10,7 +10,7 @@
  *
  * ```typescript
  * import type {
- *   HypercertRecord,
+ *   HypercertClaim,
  *   Session,
  *   CreateHypercertParams,
  * } from "@hypercerts-org/sdk/types";
@@ -21,7 +21,7 @@
  * - Entity types (Organization, Collaborator)
  * - Repository types (CreateResult, PaginatedList)
  * - Operation interfaces (RecordOperations, HypercertOperations)
- * - Hypercert record types (HypercertRecord, RightsRecord, etc.)
+ * - Hypercert record types (HypercertClaim, HypercertRights, etc.)
  * - Zod schemas for runtime validation
  *
  * @packageDocumentation
@@ -71,14 +71,14 @@ export type {
 
 // Hypercert types
 export type {
-  HypercertRecord,
-  RightsRecord,
-  LocationRecord,
-  ContributionRecord,
-  MeasurementRecord,
-  EvaluationRecord,
-  CollectionRecord,
-  CollectionClaimItem,
+  HypercertClaim,
+  HypercertRights,
+  HypercertLocation,
+  HypercertContribution,
+  HypercertMeasurement,
+  HypercertEvaluation,
+  HypercertCollection,
+  HypercertCollectionClaimItem,
   HypercertEvidence,
   HypercertImage,
   BlobRef,

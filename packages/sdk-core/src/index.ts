@@ -1,54 +1,6 @@
 /**
  * Hypercerts SDK - Main entrypoint.
  *
- * This is the primary entry point for the `@hypercerts-org/sdk` package.
- * It exports all public APIs needed to work with hypercerts on the
- * AT Protocol.
- *
- * @remarks
- * **Quick Start**:
- * ```typescript
- * import { ATProtoSDK } from "@hypercerts-org/sdk";
- *
- * const sdk = new ATProtoSDK({
- *   oauth: {
- *     clientId: "https://my-app.com/client-metadata.json",
- *     redirectUri: "https://my-app.com/callback",
- *     scope: "atproto transition:generic",
- *     jwksUri: "https://my-app.com/.well-known/jwks.json",
- *     jwkPrivate: process.env.JWK_PRIVATE_KEY!,
- *   },
- *   servers: {
- *     pds: "https://bsky.social",
- *     sds: "https://sds.hypercerts.org",
- *   },
- * });
- *
- * // Start OAuth flow
- * const authUrl = await sdk.authorize("user.bsky.social");
- *
- * // After callback
- * const session = await sdk.callback(params);
- * const repo = sdk.repository(session);
- *
- * // Create a hypercert
- * const result = await repo.hypercerts.create({
- *   title: "My Impact",
- *   description: "...",
- *   workScope: "Climate",
- *   workTimeframeFrom: "2024-01-01",
- *   workTimeframeTo: "2024-12-31",
- *   rights: { name: "CC-BY", type: "license", description: "..." },
- * });
- * ```
- *
- * **Sub-entrypoints**:
- * - `@hypercerts-org/sdk/types` - TypeScript types only
- * - `@hypercerts-org/sdk/errors` - Error classes
- * - `@hypercerts-org/sdk/lexicons` - Lexicon registry and constants
- * - `@hypercerts-org/sdk/storage` - Storage implementations
- * - `@hypercerts-org/sdk/testing` - Test utilities
- *
  * @packageDocumentation
  */
 
@@ -87,42 +39,52 @@ export type {
 export { LexiconRegistry } from "./repository/LexiconRegistry.js";
 export type { ValidationResult } from "./repository/LexiconRegistry.js";
 
-// Hypercert types
+// ============================================================================
+// Lexicon Types and Validation (from @hypercerts-org/lexicon)
+// ============================================================================
+
+// Namespaced types with validation functions (isRecord, validateRecord)
+export {
+  OrgHypercertsClaim,
+  OrgHypercertsClaimRights,
+  OrgHypercertsClaimContribution,
+  OrgHypercertsClaimMeasurement,
+  OrgHypercertsClaimEvaluation,
+  OrgHypercertsClaimEvidence,
+  OrgHypercertsCollection,
+  AppCertifiedLocation,
+  ComAtprotoRepoStrongRef,
+  // Validation utilities
+  validate,
+  schemas,
+  schemaDict,
+  lexicons,
+  ids,
+  // Lexicon constants
+  HYPERCERT_LEXICONS,
+  HYPERCERT_COLLECTIONS,
+} from "./services/hypercerts/types.js";
+
+// Type-only exports
+export type { AppCertifiedDefs } from "./services/hypercerts/types.js";
+
+// Type aliases for generated lexicon types
 export type {
-  HypercertRecord,
-  RightsRecord,
-  LocationRecord,
-  ContributionRecord,
-  MeasurementRecord,
-  EvaluationRecord,
-  CollectionRecord,
-  CollectionClaimItem,
+  StrongRef,
+  HypercertClaim,
+  HypercertRights,
+  HypercertContribution,
+  HypercertMeasurement,
+  HypercertEvaluation,
+  HypercertCollection,
+  HypercertCollectionClaimItem,
+  HypercertLocation,
+  // SDK-specific types
   HypercertEvidence,
   HypercertImage,
   BlobRef,
   HypercertWithMetadata,
 } from "./services/hypercerts/types.js";
-
-// Hypercert Zod schemas (for runtime validation)
-export {
-  HypercertRecordSchema,
-  RightsRecordSchema,
-  LocationRecordSchema,
-  ContributionRecordSchema,
-  MeasurementRecordSchema,
-  EvaluationRecordSchema,
-  CollectionRecordSchema,
-  StrongRefSchema,
-  BlobRefSchema,
-  HypercertEvidenceSchema,
-  parseHypercertRecord,
-  parseCollectionRecord,
-  safeParseHypercertRecord,
-  safeParseCollectionRecord,
-} from "./services/hypercerts/schemas.js";
-
-// Lexicon constants
-export { HYPERCERT_LEXICONS, HYPERCERT_COLLECTIONS } from "./lexicons/hypercerts/index.js";
 
 // Errors
 export {

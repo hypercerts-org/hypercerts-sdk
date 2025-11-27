@@ -9,7 +9,7 @@
  */
 
 import type { EventEmitter } from "eventemitter3";
-import type { CollectionRecord, HypercertEvidence, HypercertRecord } from "../services/hypercerts/types.js";
+import type { HypercertCollection, HypercertEvidence, HypercertClaim } from "../services/hypercerts/types.js";
 import type {
   CreateResult,
   UpdateResult,
@@ -628,7 +628,7 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    */
   update(params: {
     uri: string;
-    updates: Partial<Omit<HypercertRecord, "createdAt" | "rights">>;
+    updates: Partial<Omit<HypercertClaim, "$type" | "createdAt" | "rights">>;
     image?: Blob | null;
   }): Promise<UpdateResult>;
 
@@ -638,7 +638,7 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    * @param uri - AT-URI of the hypercert
    * @returns Promise resolving to hypercert data
    */
-  get(uri: string): Promise<{ uri: string; cid: string; record: HypercertRecord }>;
+  get(uri: string): Promise<{ uri: string; cid: string; record: HypercertClaim }>;
 
   /**
    * Lists hypercerts with pagination.
@@ -646,7 +646,7 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    * @param params - Optional pagination parameters
    * @returns Promise resolving to paginated list
    */
-  list(params?: ListParams): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertRecord }>>;
+  list(params?: ListParams): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertClaim }>>;
 
   /**
    * Deletes a hypercert.
@@ -740,7 +740,7 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    * @param uri - AT-URI of the collection
    * @returns Promise resolving to collection data
    */
-  getCollection(uri: string): Promise<{ uri: string; cid: string; record: CollectionRecord }>;
+  getCollection(uri: string): Promise<{ uri: string; cid: string; record: HypercertCollection }>;
 
   /**
    * Lists collections with pagination.
@@ -748,7 +748,9 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    * @param params - Optional pagination parameters
    * @returns Promise resolving to paginated list
    */
-  listCollections(params?: ListParams): Promise<PaginatedList<{ uri: string; cid: string; record: CollectionRecord }>>;
+  listCollections(
+    params?: ListParams,
+  ): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertCollection }>>;
 }
 
 /**
