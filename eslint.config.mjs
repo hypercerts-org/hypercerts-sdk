@@ -13,7 +13,7 @@ import tseslint from "typescript-eslint";
  *   { // package-specific overrides }
  * ];
  */
-export default tseslint.config(
+export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -32,4 +32,4 @@ export default tseslint.config(
   {
     ignores: ["**/dist/**", "**/node_modules/**", "**/*.config.*", "**/.rollup.cache/**", "**/coverage/**"],
   },
-);
+];
