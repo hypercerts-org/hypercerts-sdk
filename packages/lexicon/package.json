@@ -3,18 +3,20 @@
   "version": "0.1.0",
   "description": "ATProto lexicon definitions and TypeScript types for the Hypercerts protocol",
   "type": "module",
-  "main": "./index.js",
-  "types": "./index.ts",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./index.ts",
-      "import": "./index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
     }
   },
   "files": [
-    "index.ts",
-    "types",
-    "lexicons"
+    "dist",
+    "lexicons",
+    "src"
   ],
   "keywords": [
     "hypercerts",
@@ -22,30 +24,40 @@
     "lexicon",
     "typescript"
   ],
-  "author": "",
+  "author": "Hypercerts Foundation",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git@github.com:hypercerts-org/hypercerts-sdk.git"
   },
   "scripts": {
-    "list": "find ./lexicons -name '*.json'",
-    "check": "npm run gen-api",
-    "gen-api": "find ./lexicons -name '*.json' | xargs lex gen-api --yes ./types",
+    "build": "rollup -c",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "gen-api": "find ./lexicons -name '*.json' | xargs lex gen-api --yes ./src",
     "gen-md": "find ./lexicons -name '*.json' | xargs lex gen-md --yes ./lexicons.md",
-    "gen-ts": "find ./lexicons -name '*.json' | xargs lex gen-ts-obj > lexicons.ts",
+    "gen-ts": "find ./lexicons -name '*.json' | xargs lex gen-ts-obj > src/lexicons.ts",
     "lex": "lex",
-    "prepublishOnly": "npm run check"
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@atproto/lex-cli": "^0.9.5"
-  },
-  "peerDependencies": {
-    "@atproto/xrpc": "*",
-    "@atproto/lexicon": "*"
+    "@atproto/lexicon": "^0.5.1",
+    "multiformats": "^13.3.6"
   },
   "devDependencies": {
+    "@atproto/lex-cli": "^0.9.5",
     "@atproto/xrpc": "^0.7.5",
-    "@atproto/lexicon": "^0.5.1"
-  }
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "rollup": "^4.53.3",
+    "rollup-plugin-dts": "^6.2.3"
+  },
+  "peerDependencies": {
+    "@atproto/xrpc": "*"
+  },
+  "sideEffects": false
 }
