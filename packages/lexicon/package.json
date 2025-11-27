@@ -1,0 +1,63 @@
+{
+  "name": "@hypercerts-org/lexicon",
+  "version": "0.1.0",
+  "description": "ATProto lexicon definitions and TypeScript types for the Hypercerts protocol",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "lexicons",
+    "src"
+  ],
+  "keywords": [
+    "hypercerts",
+    "atproto",
+    "lexicon",
+    "typescript"
+  ],
+  "author": "Hypercerts Foundation",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:hypercerts-org/hypercerts-sdk.git"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "gen-api": "find ./lexicons -name '*.json' | xargs lex gen-api --yes ./src",
+    "gen-md": "find ./lexicons -name '*.json' | xargs lex gen-md --yes ./lexicons.md",
+    "gen-ts": "find ./lexicons -name '*.json' | xargs lex gen-ts-obj > src/lexicons.ts",
+    "lex": "lex",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@atproto/lexicon": "^0.5.1",
+    "multiformats": "^13.3.6"
+  },
+  "devDependencies": {
+    "@atproto/lex-cli": "^0.9.5",
+    "@atproto/xrpc": "^0.7.5",
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "rollup": "^4.53.3",
+    "rollup-plugin-dts": "^6.2.3"
+  },
+  "peerDependencies": {
+    "@atproto/xrpc": "*"
+  },
+  "sideEffects": false
+}

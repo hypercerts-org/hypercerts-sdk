@@ -1,0 +1,46 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+      - run: pnpm install
+      - run: pnpm build
+      - run: pnpm test
+      - run: pnpm lint
+
+  changeset-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+      - run: pnpm install
+      - name: Check for changeset
+        run: |
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^packages/"; then
+            if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^\.changeset/.*\.md$"; then
+              echo "Changeset found"
+            else
+              echo "::warning::No changeset found. Run 'pnpm changeset' if this PR includes user-facing changes."
+            fi
+          else
+            echo "No package changes detected"
+          fi

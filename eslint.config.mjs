@@ -1,14 +1,35 @@
-export default  {
-  root: true,
-  env: {
-    browser: true,
-    node: true,
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
+
+/**
+ * Shared ESLint base configuration for all packages.
+ * Packages should import and extend this config.
+ *
+ * @example
+ * // packages/sdk-core/eslint.config.mjs
+ * import baseConfig from "../../eslint.config.mjs";
+ * export default [
+ *   ...baseConfig,
+ *   { // package-specific overrides }
+ * ];
+ */
+export default [
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+    },
   },
-  extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended", "plugin:chai-friendly/recommended"],
-  parser: "@typescript-eslint/parser",
-  plugins: ["@typescript-eslint", "chai-friendly"],
-  rules: {
-    "no-unused-expressions": "off",
-    "chai-friendly/no-unused-expressions": "error",
+  {
+    ignores: ["**/dist/**", "**/node_modules/**", "**/*.config.*", "**/.rollup.cache/**", "**/coverage/**"],
   },
-};
+];
