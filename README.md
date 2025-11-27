@@ -6,6 +6,7 @@ A monorepo containing SDK packages for the Hypercerts protocol on ATProto.
 
 | Package | Description | Status |
 |---------|-------------|--------|
+| [`@hypercerts-org/lexicon`](./packages/lexicon) | ATProto lexicon definitions and generated TypeScript types for Hypercerts | ✅ Complete |
 | [`@hypercerts-org/sdk-core`](./packages/sdk-core) | Framework-agnostic core SDK for ATProto authentication, repository operations, and lexicon management | ✅ Complete |
 | [`@hypercerts-org/sdk-react`](./packages/sdk-react) | React hooks and components for ATProto integration | ✅ Complete |
 
@@ -44,8 +45,33 @@ The SDK provides a unified `Repository` that works with both server types, with 
 │  - Repository (records, blobs, profiles)                │
 │  - Domain services (hypercerts, organizations)          │
 │  - Lexicon registry and validation                      │
+│  - Re-exports types from @hypercerts-org/lexicon        │
+├─────────────────────────────────────────────────────────┤
+│  @hypercerts-org/lexicon                                │
+│  - ATProto lexicon JSON definitions                     │
+│  - Generated TypeScript types (via @atproto/lex-cli)    │
+│  - Runtime validation (isRecord, validateRecord)        │
 └─────────────────────────────────────────────────────────┘
 ```
+
+### Type Inheritance
+
+Types flow from the lexicon package through sdk-core to sdk-react:
+
+```
+@hypercerts-org/lexicon          → Generated types with $type field
+    ↓                               (OrgHypercertsClaim.Main, etc.)
+@hypercerts-org/sdk-core         → Re-exports with friendly aliases
+    ↓                               (HypercertClaim, HypercertRights, etc.)
+@hypercerts-org/sdk-react        → Consumes types from sdk-core
+                                    (Hypercert extends HypercertClaim)
+```
+
+This architecture ensures:
+- **Single source of truth**: Lexicon definitions generate all types
+- **Consistent validation**: Runtime validation using `@atproto/lexicon`
+- **Clean API surface**: sdk-core provides user-friendly type aliases
+- **Simplified dependencies**: sdk-react only depends on sdk-core
 
 ## Getting Started
 
@@ -215,13 +241,18 @@ Available tasks defined in `turbo.json`:
 ```
 hypercerts-sdk/
 ├── packages/
+│   ├── lexicon/            # Lexicon definitions package
+│   │   ├── lexicons/       # ATProto lexicon JSON files
+│   │   └── src/
+│   │       ├── types/      # Generated TypeScript types
+│   │       ├── lexicons.ts # Lexicon registry
+│   │       └── index.ts    # Package exports
 │   ├── sdk-core/           # Core SDK package
 │   │   ├── src/
 │   │   │   ├── auth/       # OAuth client
 │   │   │   ├── core/       # SDK class, types, errors
 │   │   │   ├── repository/ # Repository operations
-│   │   │   ├── services/   # Domain services
-│   │   │   ├── lexicons/   # Hypercert lexicons
+│   │   │   ├── services/   # Domain services (re-exports lexicon types)
 │   │   │   └── storage/    # In-memory stores
 │   │   └── tests/
 │   └── sdk-react/          # React package

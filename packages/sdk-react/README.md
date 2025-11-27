@@ -14,6 +14,23 @@ pnpm add @hypercerts-org/sdk-react @hypercerts-org/sdk-core @tanstack/react-quer
 └── /testing       → TestProvider, mocks, createMockATProtoReact
 ```
 
+## Type System
+
+Types are inherited from `@hypercerts-org/sdk-core` (which re-exports from `@hypercerts-org/lexicon`):
+
+```typescript
+import type { 
+  HypercertClaim,      // Base claim type from lexicon
+  HypercertCollection,
+  CreateHypercertParams,
+  Session 
+} from "@hypercerts-org/sdk-react";
+
+// The Hypercert type extends HypercertClaim with ATProto metadata
+import type { Hypercert } from "@hypercerts-org/sdk-react";
+// Hypercert = HypercertClaim & { uri: string; cid: string }
+```
+
 ## Usage
 
 ```typescript

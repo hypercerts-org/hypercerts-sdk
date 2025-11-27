@@ -25,7 +25,7 @@ export function createMockSession(overrides: Partial<Session & { did?: string; h
  * Create mock collaborator permissions.
  */
 export function createMockPermissions(
-  role: "viewer" | "editor" | "admin" | "owner" = "viewer"
+  role: "viewer" | "editor" | "admin" | "owner" = "viewer",
 ): CollaboratorPermissions {
   switch (role) {
     case "viewer":
@@ -81,14 +81,15 @@ export function createMockHypercert(overrides: Partial<Hypercert> = {}): Hyperce
   const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
   return {
-    uri: "at://did:plc:test123/org.hypercerts.hypercert/test-rkey",
+    uri: "at://did:plc:test123/org.hypercerts.claim/test-rkey",
     cid: "bafyreitesthypercertcid123456789",
-    $type: "org.hypercerts.hypercert",
+    $type: "org.hypercerts.claim",
     title: "Test Hypercert",
+    shortDescription: "A test hypercert",
     description: "A test hypercert for testing purposes",
     workScope: "Testing",
-    workTimeframeFrom: yearAgo.toISOString().split("T")[0],
-    workTimeframeTo: now.toISOString().split("T")[0],
+    workTimeFrameFrom: yearAgo.toISOString().split("T")[0],
+    workTimeFrameTo: now.toISOString().split("T")[0],
     createdAt: now.toISOString(),
     ...overrides,
   };
@@ -100,10 +101,10 @@ export function createMockHypercert(overrides: Partial<Hypercert> = {}): Hyperce
 export function createMockHypercertList(count: number = 5): Hypercert[] {
   return Array.from({ length: count }, (_, i) =>
     createMockHypercert({
-      uri: `at://did:plc:test123/org.hypercerts.hypercert/test-rkey-${i}`,
+      uri: `at://did:plc:test123/org.hypercerts.claim/test-rkey-${i}`,
       cid: `bafyreitesthypercertcid${i}`,
       title: `Test Hypercert ${i + 1}`,
-    })
+    }),
   );
 }
 

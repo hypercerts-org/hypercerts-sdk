@@ -146,7 +146,7 @@ export type {
   Repository,
   Collaborator,
   CollaboratorPermissions,
-  HypercertRecord,
+  HypercertClaim,
   CreateHypercertParams,
   CreateHypercertResult,
   OrganizationInfo,

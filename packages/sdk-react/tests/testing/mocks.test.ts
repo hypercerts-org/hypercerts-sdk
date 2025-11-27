@@ -166,7 +166,7 @@ describe("createMockHypercert", () => {
 
     expect(hc.title).toBe("Mock Hypercert");
     expect(hc.workScope).toBe("Testing");
-    expect(hc.$type).toBe("org.hypercerts.hypercert");
+    expect(hc.$type).toBe("org.hypercerts.claim");
     expect(hc.uri).toContain("at://");
     expect(hc.cid).toBeTruthy();
   });
@@ -184,8 +184,8 @@ describe("createMockHypercert", () => {
   it("should set valid date ranges", () => {
     const hc = createMockHypercert();
 
-    const from = new Date(hc.workTimeframeFrom!);
-    const to = new Date(hc.workTimeframeTo!);
+    const from = new Date(hc.workTimeFrameFrom);
+    const to = new Date(hc.workTimeFrameTo);
 
     expect(from).toBeInstanceOf(Date);
     expect(to).toBeInstanceOf(Date);

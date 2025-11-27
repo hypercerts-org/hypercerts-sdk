@@ -1,27 +1,33 @@
-# Hypercerts Lexicon Documentation
+# @hypercerts-org/lexicon
 
-This repository contains ATProto lexicon definitions for the
-Hypercerts protocol. Each lexicon defines a record type that can be
-stored on the ATProto network.
+ATProto lexicon definitions and generated TypeScript types for the Hypercerts protocol.
 
 ## Installation
 
+```bash
+pnpm add @hypercerts-org/lexicon
 ```
-npm i @hypercerts-org/lexicon
-```
+
+## Features
+
+- **Lexicon JSON Definitions**: ATProto-compliant lexicon schemas for all Hypercerts record types
+- **Generated TypeScript Types**: Strongly-typed interfaces generated via `@atproto/lex-cli`
+- **Runtime Validation**: `isRecord` and `validateRecord` functions for each type
+- **Lexicon Registry**: Pre-configured registry for schema validation
 
 ## Usage
 
+### Using Types
+
 ```typescript
-import { AtpBaseClient } from '@hypercerts-org/lexicon'
-import type { HypercertClaim } from '@hypercerts-org/lexicon'
+import type { 
+  OrgHypercertsClaim,
+  OrgHypercertsCollection,
+  OrgHypercertsClaimRights 
+} from '@hypercerts-org/lexicon';
 
-const client = new AtpBaseClient({
-  service: 'https://bsky.social',
-  headers: { Authorization: `Bearer ${token}` }
-})
-
-const hypercert: HypercertClaim = {
+// Use the Main type for full records (includes $type)
+const claim: OrgHypercertsClaim.Main = {
   $type: 'org.hypercerts.claim',
   title: 'My Impact Work',
   shortDescription: 'Description here',
@@ -29,13 +35,75 @@ const hypercert: HypercertClaim = {
   workTimeFrameFrom: '2023-01-01T00:00:00Z',
   workTimeFrameTo: '2023-12-31T23:59:59Z',
   createdAt: new Date().toISOString()
+};
+```
+
+### Runtime Validation
+
+```typescript
+import { OrgHypercertsClaim } from '@hypercerts-org/lexicon';
+
+// Check if a value matches the type
+if (OrgHypercertsClaim.isRecord(unknownValue)) {
+  // unknownValue is now typed as OrgHypercertsClaim.Main
+  console.log(unknownValue.title);
 }
 
-await client.org.hypercerts.claim.create(
-  { repo: 'did:plc:example' },
-  hypercert
-)
+// Validate with detailed error information
+const result = OrgHypercertsClaim.validateRecord(data);
+if (result.success) {
+  // data is valid
+} else {
+  console.error(result.error);
+}
 ```
+
+### Using Lexicon Constants
+
+```typescript
+import { HYPERCERT_LEXICONS, HYPERCERT_COLLECTIONS } from '@hypercerts-org/lexicon';
+
+// Collection names for ATProto operations
+console.log(HYPERCERT_COLLECTIONS.CLAIM);       // 'org.hypercerts.claim'
+console.log(HYPERCERT_COLLECTIONS.COLLECTION);  // 'org.hypercerts.collection'
+console.log(HYPERCERT_COLLECTIONS.RIGHTS);      // 'org.hypercerts.claim.rights'
+
+// Full lexicon documents for registry
+import { Lexicons } from '@atproto/lexicon';
+const registry = new Lexicons(HYPERCERT_LEXICONS);
+```
+
+## Type Inheritance
+
+This package is the source of truth for Hypercerts types. The SDK packages re-export these types with friendly aliases:
+
+```
+@hypercerts-org/lexicon
+├── OrgHypercertsClaim.Main      → sdk-core: HypercertClaim
+├── OrgHypercertsClaimRights.Main → sdk-core: HypercertRights
+├── OrgHypercertsCollection.Main  → sdk-core: HypercertCollection
+└── ...etc
+```
+
+**Recommendation**: Import types from `@hypercerts-org/sdk-core` for cleaner imports, unless you need direct access to validation functions.
+
+## Development
+
+### Regenerating Types
+
+Types are generated from the lexicon JSON files using `@atproto/lex-cli`:
+
+```bash
+pnpm generate  # Regenerates src/types/ from lexicons/
+pnpm build     # Build the package
+```
+
+### Adding New Lexicons
+
+1. Add lexicon JSON file to `lexicons/` directory
+2. Run `pnpm generate` to regenerate types
+3. Export new types from `src/index.ts`
+4. Update `HYPERCERT_COLLECTIONS` if adding a new collection
 
 ## Certified Lexicons
 

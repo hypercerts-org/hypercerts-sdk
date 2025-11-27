@@ -11,11 +11,36 @@ pnpm add @hypercerts-org/sdk-core
 ```
 @hypercerts-org/sdk-core
 ├── /              → Full SDK (createATProtoSDK, Repository, types, errors)
-├── /types         → TypeScript types & Zod schemas
+├── /types         → TypeScript types (re-exported from @hypercerts-org/lexicon)
 ├── /errors        → Error classes
-├── /lexicons      → LexiconRegistry, HYPERCERT_LEXICONS
+├── /lexicons      → LexiconRegistry, HYPERCERT_LEXICONS, HYPERCERT_COLLECTIONS
 ├── /storage       → InMemorySessionStore, InMemoryStateStore
 └── /testing       → createMockSession, MockSessionStore
+```
+
+## Type System
+
+Types are generated from ATProto lexicon definitions in `@hypercerts-org/lexicon` and re-exported with friendly aliases:
+
+| Lexicon Type | SDK Alias |
+|--------------|-----------|
+| `OrgHypercertsClaim.Main` | `HypercertClaim` |
+| `OrgHypercertsClaimRights.Main` | `HypercertRights` |
+| `OrgHypercertsClaimContribution.Main` | `HypercertContribution` |
+| `OrgHypercertsClaimMeasurement.Main` | `HypercertMeasurement` |
+| `OrgHypercertsClaimEvaluation.Main` | `HypercertEvaluation` |
+| `OrgHypercertsCollection.Main` | `HypercertCollection` |
+| `AppCertifiedLocation.Main` | `HypercertLocation` |
+
+```typescript
+import type { HypercertClaim, HypercertRights } from "@hypercerts-org/sdk-core";
+
+// For validation functions, import the namespaced types
+import { OrgHypercertsClaim } from "@hypercerts-org/sdk-core";
+
+if (OrgHypercertsClaim.isRecord(data)) {
+  // data is typed as HypercertClaim
+}
 ```
 
 ## Usage

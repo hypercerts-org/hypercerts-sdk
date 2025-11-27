@@ -11,7 +11,7 @@ import type {
     CollaboratorPermissions,
     CreateHypercertParams,
     CreateHypercertResult,
-    HypercertRecord,
+    HypercertClaim,
     OrganizationInfo,
     Repository,
     RepositoryRole,
@@ -298,7 +298,7 @@ export interface UseCollaboratorsResult {
 /**
  * Hypercert with metadata for display.
  */
-export interface Hypercert extends HypercertRecord {
+export interface Hypercert extends HypercertClaim {
   uri: string;
   cid: string;
 }
@@ -413,8 +413,15 @@ export interface SyncMessage {
 
 export type {
     ATProtoSDK,
-    ATProtoSDKConfig, Collaborator,
-    CollaboratorPermissions, CreateHypercertParams,
-    CreateHypercertResult, HypercertRecord, OrganizationInfo, Repository, RepositoryRole, Session
+    ATProtoSDKConfig,
+    Collaborator,
+    CollaboratorPermissions,
+    CreateHypercertParams,
+    CreateHypercertResult,
+    HypercertClaim,
+    OrganizationInfo,
+    Repository,
+    RepositoryRole,
+    Session
 };
 
