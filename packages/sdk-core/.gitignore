@@ -1,0 +1,8 @@
+dist/
+specs/
+IMPLEMENTATION_PLAN.MD
+.rollup.cache/
+node_modules/
+
+.env
+.env.local

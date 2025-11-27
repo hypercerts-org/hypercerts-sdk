@@ -1,26 +1,17 @@
 {
   "compilerOptions": {
-    "lib": ["ES6", "DOM", "ESNext"],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "baseUrl": ".",
-    "outDir": "dist",
-    "allowJs": true,
-    "allowSyntheticDefaultImports": true,
-    "declaration": true,
-    "declarationMap": true,
-    "emitDecoratorMetadata": true,
-    "esModuleInterop": true,
-    "experimentalDecorators": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": true,
-    "removeComments": true,
-    "resolveJsonModule": true,
-    "sourceMap": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2020",
+    "lib": ["ES2020"],
     "strict": true,
+    "esModuleInterop": true,
     "skipLibCheck": true,
-    "strictNullChecks": true
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": false
   },
-  "exclude": ["node_modules"],
-  "include": ["./src/*.ts", "./src/**/*", "./test/*.ts", "./test/**/*.ts"]
+  "exclude": ["node_modules", "dist", "packages"]
 }

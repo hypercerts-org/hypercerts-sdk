@@ -1,13 +1,14 @@
-name: 'Docs Request'
+name: "Docs Request"
 description: A request to update or improve documentation
-title: 'Docs: '
+title: "Docs: "
 labels:
-  - 'category:docs'
+  - "category:docs"
 body:
   - type: textarea
     attributes:
       label: What is the improvement or update you wish to see?
-      description: 'Example: I would like to see more examples of how to use the SDK to detect hypercert claim collisions.'
+      description:
+        "Example: I would like to see more examples of how to use the SDK to detect hypercert claim collisions."
     validations:
       required: true
   - type: textarea
@@ -19,6 +20,6 @@ body:
   - type: input
     attributes:
       label: Does the docs page already exist? Please link to it.
-      description: 'Example: https://hypercerts.org/docs/api-reference/'
+      description: "Example: https://hypercerts.org/docs/api-reference/"
     validations:
       required: false

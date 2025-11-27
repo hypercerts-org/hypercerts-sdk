@@ -1,101 +1,197 @@
 # Hypercerts SDK
 
-## Quickstart Guide
+A monorepo containing SDK packages for the Hypercerts protocol on ATProto.
 
-1. Install the SDK using npm or yarn:
+## Packages
 
-```bash
-pnpm install @hypercerts-org/sdk
+| Package | Description | Status |
+|---------|-------------|--------|
+| [`@hypercerts-org/sdk-core`](./packages/sdk-core) | Framework-agnostic core SDK for ATProto authentication, repository operations, and lexicon management | ✅ Complete |
+| `@hypercerts-org/sdk-react` | React hooks and components for ATProto integration | 🚧 Planned |
+
+## Architecture
+
+This SDK is designed around the ATProto (AT Protocol) ecosystem, providing tools for:
+
+- **OAuth Authentication** - DPoP-bound token management with automatic refresh
+- **Repository Operations** - Unified interface for PDS (Personal Data Server) and SDS (Shared Data Server)
+- **Lexicon Management** - Schema validation and registration for hypercert record types
+- **Domain Services** - High-level services for hypercerts, collaborators, and organizations
+
+### Core Concepts
+
+#### PDS vs SDS
+
+- **PDS (Personal Data Server)**: Standard ATProto server for single-user repositories
+- **SDS (Shared Data Server)**: Extended ATProto server with RBAC for multi-user collaboration
+
+The SDK provides a unified `RepositoryClient` that works with both server types, with SDS-specific features (collaborator management) available when connected to an SDS.
+
+### Package Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Your Application                      │
+├─────────────────────────────────────────────────────────┤
+│  @hypercerts-org/sdk-react (optional)                   │
+│  - React hooks (useATProtoAuth, useRepository, etc.)    │
+│  - Context providers                                     │
+├─────────────────────────────────────────────────────────┤
+│  @hypercerts-org/sdk-core                               │
+│  - ATProtoSDK (OAuth, session management)               │
+│  - RepositoryClient (records, blobs, profiles)          │
+│  - Domain services (hypercerts, organizations)          │
+│  - Lexicon registry and validation                      │
+└─────────────────────────────────────────────────────────┘
 ```
 
-or
+## Getting Started
+
+### Installation
 
 ```bash
- pnpm add @hypercerts-org/sdk
+# Core SDK (required)
+pnpm add @hypercerts-org/sdk-core
+
+# React integration (optional)
+pnpm add @hypercerts-org/sdk-react
 ```
 
-2. Import the SDK into your project:
+### Basic Usage
 
-```bash
-import { HypercertClient } from "@hypercerts-org/sdk";
-```
+```typescript
+import { ATProtoSDK } from "@hypercerts-org/sdk-core";
 
-3. Create a new instance of the HypercertClient class with your configuration options:
+// Initialize the SDK
+const sdk = new ATProtoSDK({
+  oauth: {
+    clientId: "https://your-app.com/client-metadata.json",
+    redirectUri: "https://your-app.com/callback",
+    scope: "atproto transition:generic",
+  },
+  servers: {
+    pds: "https://bsky.social",
+    sds: "https://your-sds.example.com",
+  },
+});
 
-```js
-const client = new HypercertClient({
-  environment: "test",
-  walletClient, // optional, client will default to read-only mode if not provided
-  publicClient, // optional, can be infered from walletClient if present
+// Start OAuth flow
+const authUrl = await sdk.authorize("user.bsky.social");
+
+// After callback, restore session
+const session = await sdk.restoreSession(did);
+
+// Get repository client
+const repo = sdk.getRepository(session);
+
+// Create a record
+await repo.records.create({
+  repo: session.did,
+  collection: "org.hypercerts.hypercert",
+  record: {
+    title: "My Hypercert",
+    description: "Impact claim description",
+    // ...
+  },
 });
 ```
 
-> **Note** If there's no `walletClient` provided the client will run in [read-only mode](#read-only-mode)
+## Development
 
-4. Use the client object to interact with the Hypercert network.
+This monorepo uses [Turborepo](https://turbo.build/repo) for build orchestration and [pnpm](https://pnpm.io) for package management.
 
-For example, you can use the `client.mintClaim` method to create a new claim:
+### Prerequisites
 
-```ts
-const hash = await client.mintHypercert({
-  metaData: { ... },
-  totalUnits: 1000n,
-  transferRestriction: TransferRestrictions.AllowAll,
-});
+- Node.js >= 20
+- pnpm >= 9.2.0
+
+### Setup
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build all packages
+pnpm build
+
+# Run tests
+pnpm test
+
+# Lint code
+pnpm lint
+
+# Format code
+pnpm format
 ```
 
-This will validate the metadata, store it on IPFS, create a new hypercert on-chain and return a transaction receipt.
+### Turborepo Commands
 
-For more information on how to use the SDK, check out the
-[developer documentation](https://hypercerts.org/docs/developer/) and the
-[Graph playground](https://thegraph.com/hosted-service/subgraph/hypercerts-admin/hypercerts-testnet).
+Turborepo orchestrates tasks across all packages with smart caching:
 
-That's it! With these simple steps, you can start using the Hypercert SDK in your own projects.
+```bash
+# Run a task across all packages
+pnpm turbo <task>
 
-## Config
+# Run with no cache (force re-run)
+pnpm turbo <task> --force
 
-HypercertClientConfig is a configuration object used when initializing a new instance of the HypercertClient. It allows
-you to customize the client by setting your own providers or deployments. At it's simplest, you only need to provide
-`chain.id` to initalize the client in `readonly` mode.
+# Run only for specific package
+pnpm turbo <task> --filter=@hypercerts-org/sdk-core
 
-| Field          | Type                     | Description                                                                                  |
-| -------------- | ------------------------ | -------------------------------------------------------------------------------------------- |
-| `environment`  | `'test' \| 'production'` | Defines the environment the client will connect with.                                        |
-| `deployments`  | Object                   | The deployments of the contracts on various networks.                                        |
-| `readOnly`     | Boolean                  | Boolean to assert if the client is in read-only mode.                                        |
-| `graphUrl`     | String                   | The URL of the graph endpoint.                                                               |
-| `publicClient` | Object                   | The `PublicClient` is inherently read-only and is used for reading data from the blockchain. |
-| `walletClient` | Object                   | The `WalletClient` is used for signing and sending transactions.                             |
-
-### Read-only mode
-
-The SDK client will be in read-only mode if any of the following conditions are true:
-
-- The client was initialized without a wallet client.
-- The client was initialized with a wallet client connected to a chain that is not supported in the environment.
-
-### Logging
-
-The logger for the SDK uses the log level based on the value of the LOG_LEVEL environment variable. The log level
-determines which log messages are printed to the console. By default, the logger is configured to log messages with a
-level of info or higher to the console.
-
-## Modules
-
-### Storage
-
-The `storage` module is an utility service for easy access to the hypercerts API. It's built based on the OpenAPI spec
-exposed by the hypercerts API.
-
-```js
- const client = new HypercertClient({
-  environment: "test",
-  walletClient, // optional, client will default to read-only mode if not provided
-  publicClient, // optional, can be infered from walletClient if present
-});
-
-const storage = client.storage;
-
-const storageRequest = { metadata: {...}}
-const storageResponse = await client.storage.storeMetadata(storageRequest);
+# View dependency graph
+pnpm turbo <task> --graph
 ```
+
+Available tasks defined in `turbo.json`:
+
+| Task | Description |
+|------|-------------|
+| `build` | Build all packages (outputs cached in `dist/`) |
+| `test` | Run tests across all packages |
+| `lint` | Run ESLint across all packages |
+| `typecheck` | Run TypeScript type checking |
+| `dev` | Start development mode (persistent, no cache) |
+| `clean` | Remove build artifacts |
+
+### Project Structure
+
+```
+hypercerts-sdk/
+├── packages/
+│   ├── sdk-core/           # Core SDK package
+│   │   ├── src/
+│   │   │   ├── auth/       # OAuth client
+│   │   │   ├── core/       # SDK class, types, errors
+│   │   │   ├── repository/ # Repository operations
+│   │   │   ├── services/   # Domain services
+│   │   │   ├── lexicons/   # Hypercert lexicons
+│   │   │   └── storage/    # In-memory stores
+│   │   └── tests/
+│   └── sdk-react/          # React package (planned)
+├── specs/                  # Implementation specifications
+├── turbo.json              # Turborepo configuration
+├── pnpm-workspace.yaml     # pnpm workspace configuration
+└── package.json            # Root package.json
+```
+
+### Adding a New Package
+
+1. Create directory under `packages/`
+2. Add `package.json` with appropriate name and scripts
+3. Extend shared configs:
+   - ESLint: `import baseConfig from "../../eslint.config.mjs"`
+   - TypeScript: `"extends": "../../tsconfig.json"`
+4. Prettier config is inherited from root automatically
+
+## Documentation
+
+- [Implementation Plan](./IMPLEMENTATION_PLAN.MD) - Detailed architecture and implementation phases
+- [Core & Auth Spec](./specs/01-core-and-auth.md) - OAuth and session management
+- [Repository & Lexicons Spec](./specs/02-repository-and-lexicons.md) - Repository operations
+- [Domain Services Spec](./specs/03-domain-services-and-workflow.md) - High-level services
+- [React & Clients Spec](./specs/04-react-and-clients.md) - React integration
+- [Tooling & Testing Spec](./specs/05-tooling-docs-testing.md) - Build and test infrastructure
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
