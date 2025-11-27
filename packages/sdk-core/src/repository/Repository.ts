@@ -11,7 +11,7 @@ import { Agent } from "@atproto/api";
 import { SDSRequiredError } from "../core/errors.js";
 import type { LoggerInterface } from "../core/interfaces.js";
 import type { Session } from "../core/types.js";
-import { HYPERCERT_LEXICONS } from "../lexicons/hypercerts/index.js";
+import { HYPERCERT_LEXICONS } from "@hypercerts-org/lexicon";
 import type { LexiconRegistry } from "./LexiconRegistry.js";
 
 // Types

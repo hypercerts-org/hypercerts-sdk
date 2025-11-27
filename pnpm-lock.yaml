@@ -27,6 +27,19 @@ importers:
         specifier: ^8.47.0
         version: 8.48.0(eslint@9.39.1)(typescript@5.9.3)
 
+  packages/lexicon:
+    dependencies:
+      '@atproto/lex-cli':
+        specifier: ^0.9.5
+        version: 0.9.7
+    devDependencies:
+      '@atproto/lexicon':
+        specifier: ^0.5.1
+        version: 0.5.2
+      '@atproto/xrpc':
+        specifier: ^0.7.5
+        version: 0.7.6
+
   packages/sdk-core:
     dependencies:
       '@atproto/api':
@@ -41,6 +54,9 @@ importers:
       '@atproto/oauth-client-node':
         specifier: ^0.3.10
         version: 0.3.11
+      '@hypercerts-org/lexicon':
+        specifier: workspace:*
+        version: link:../lexicon
       eventemitter3:
         specifier: ^5.0.1
         version: 5.0.1
@@ -191,6 +207,11 @@ packages:
 
   '@atproto/jwk@0.6.0':
     resolution: {integrity: sha512-bDoJPvt7TrQVi/rBfBrSSpGykhtIriKxeYCYQTiPRKFfyRhbgpElF0wPXADjIswnbzZdOwbY63az4E/CFVT3Tw==}
+
+  '@atproto/lex-cli@0.9.7':
+    resolution: {integrity: sha512-UZVf0pK0mB4qiuwbnrxmV0mC9/Vk2v7W3u9pd4wc4GFojzAyGP76MF2TiwWFya5mgzC7723/r5Jb4ADg0rtfng==}
+    engines: {node: '>=18.7.0'}
+    hasBin: true
 
   '@atproto/lex-data@0.0.1':
     resolution: {integrity: sha512-DrS/8cQcQs3s5t9ELAFNtyDZ8/PdiCx47ALtFEP2GnX2uCBHZRkqWG7xmu6ehjc787nsFzZBvlnz3T/gov5fGA==}
@@ -711,6 +732,9 @@ packages:
       '@types/react-dom':
         optional: true
 
+  '@ts-morph/common@0.25.0':
+    resolution: {integrity: sha512-kMnZz+vGGHi4GoHnLmMhGNjm44kGtKUXGnOvrKmMwAuvNjM/PgKVGfUnL7IDvK7Jb2QQ82jq3Zmp04Gy+r3Dkg==}
+
   '@types/aria-query@5.0.4':
     resolution: {integrity: sha512-rfT93uj5s0PRL7EzccGMs3brplhcrghnDoV26NqKhCAS1hVo+WdNsPvE/yb6ilfr5hi2MEk6d5EWJTKdxg8jVw==}
 
@@ -922,12 +946,19 @@ packages:
     resolution: {integrity: sha512-OAlb+T7V4Op9OwdkjmguYRqncdlx5JiofwOAUkmTF+jNdHwzTaTs4sRAGpzLF3oOz5xAyDGrPgeIDFQmDOTiJw==}
     engines: {node: '>= 16'}
 
+  code-block-writer@13.0.3:
+    resolution: {integrity: sha512-Oofo0pq3IKnsFtuHqSF7TqBfr71aeyZDVJ0HpmqB7FBM2qEigL0iPONSCZSO9pE9dZTAxANe5XHG9Uy0YMv8cg==}
+
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
     engines: {node: '>=7.0.0'}
 
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
+
+  commander@9.5.0:
+    resolution: {integrity: sha512-KRs7WVDKg86PWiuAqhDrAQnTXZKraVcCc6vFdL14qrZ/DcWwuRo7VoiYXalXO7S5GKpqYiVEwCbgFDfxNHKJBQ==}
+    engines: {node: ^12.20.0 || >=14}
 
   commondir@1.0.1:
     resolution: {integrity: sha512-W9pAhw0ja1Edb5GVdIF1mjZw/ASI0AlShXM83UUGe2DVr5TdAPEA1OA8m/g8zWp9x6On7gqufY+FatDbC3MDQg==}
@@ -1363,6 +1394,9 @@ packages:
   parse5@7.3.0:
     resolution: {integrity: sha512-IInvU7fabl34qmi9gY8XOVxhYyMyuH2xUNpb2q8/Y+7552KlejkRvqvD19nMoUW/uQGGbqNpA6Tufu5FL5BZgw==}
 
+  path-browserify@1.0.1:
+    resolution: {integrity: sha512-b7uo2UCUOYZcnF/3ID0lulOJi/bafxa1xPe7ZPsammBSpjSWQkjNxlt635YGS2MiR9GjvuXCtz2emr3jbsz98g==}
+
   path-exists@4.0.0:
     resolution: {integrity: sha512-ak9Qy5Q7jYb2Wwcey5Fpvg2KoAc/ZIhLSLOSBmRmygPsGwkVVt0fZa0qrtMz+m6tJTAHfZQ8FnmB4MG4LWy7/w==}
     engines: {node: '>=8'}
@@ -1590,6 +1624,9 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4'
 
+  ts-morph@24.0.0:
+    resolution: {integrity: sha512-2OAOg/Ob5yx9Et7ZX4CvTCc0UFoZHwLEJ+dpDPSUi5TgwwlTlX47w+iFRrEwzUZwYACjq83cgjS/Da50Ga37uw==}
+
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
@@ -1793,6 +1830,9 @@ packages:
   xmlchars@2.2.0:
     resolution: {integrity: sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==}
 
+  yesno@0.4.0:
+    resolution: {integrity: sha512-tdBxmHvbXPBKYIg81bMCB7bVeDmHkRzk5rVJyYYXurwKkHq/MCd8rz4HSJUP7hW0H2NlXiq8IFiWvYKEHhlotA==}
+
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
@@ -1899,6 +1939,17 @@ snapshots:
   '@atproto/jwk@0.6.0':
     dependencies:
       multiformats: 9.9.0
+      zod: 3.25.76
+
+  '@atproto/lex-cli@0.9.7':
+    dependencies:
+      '@atproto/lexicon': 0.5.2
+      '@atproto/syntax': 0.4.1
+      chalk: 4.1.2
+      commander: 9.5.0
+      prettier: 3.6.2
+      ts-morph: 24.0.0
+      yesno: 0.4.0
       zod: 3.25.76
 
   '@atproto/lex-data@0.0.1':
@@ -2330,6 +2381,12 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.27
 
+  '@ts-morph/common@0.25.0':
+    dependencies:
+      minimatch: 9.0.5
+      path-browserify: 1.0.1
+      tinyglobby: 0.2.15
+
   '@types/aria-query@5.0.4': {}
 
   '@types/chai@5.2.3':
@@ -2593,11 +2650,15 @@ snapshots:
 
   check-error@2.1.1: {}
 
+  code-block-writer@13.0.3: {}
+
   color-convert@2.0.1:
     dependencies:
       color-name: 1.1.4
 
   color-name@1.1.4: {}
+
+  commander@9.5.0: {}
 
   commondir@1.0.1: {}
 
@@ -3046,6 +3107,8 @@ snapshots:
     dependencies:
       entities: 6.0.1
 
+  path-browserify@1.0.1: {}
+
   path-exists@4.0.0: {}
 
   path-key@3.1.1: {}
@@ -3261,6 +3324,11 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
+  ts-morph@24.0.0:
+    dependencies:
+      '@ts-morph/common': 0.25.0
+      code-block-writer: 13.0.3
+
   tslib@2.8.1: {}
 
   turbo-darwin-64@2.6.1:
@@ -3442,6 +3510,8 @@ snapshots:
   xml-name-validator@5.0.0: {}
 
   xmlchars@2.2.0: {}
+
+  yesno@0.4.0: {}
 
   yocto-queue@0.1.0: {}
 

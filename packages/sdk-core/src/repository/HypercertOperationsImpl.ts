@@ -285,14 +285,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         hypercertRecord.evidence = params.evidence;
       }
 
-      const hypercertValidation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.RECORD, hypercertRecord);
+      const hypercertValidation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.CLAIM, hypercertRecord);
       if (!hypercertValidation.valid) {
         throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error}`);
       }
 
       const hypercertResult = await this.agent.com.atproto.repo.createRecord({
         repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.RECORD,
+        collection: HYPERCERT_COLLECTIONS.CLAIM,
         record: hypercertRecord,
       });
 
@@ -557,7 +557,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     try {
       const result = await this.agent.com.atproto.repo.listRecords({
         repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.RECORD,
+        collection: HYPERCERT_COLLECTIONS.CLAIM,
         limit: params?.limit,
         cursor: params?.cursor,
       });
