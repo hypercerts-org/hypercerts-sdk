@@ -4,26 +4,32 @@ This document provides instructions for AI agents working in the Hypercerts SDK 
 
 ## Project Overview
 
-The Hypercerts SDK is a TypeScript SDK for the Hypercerts protocol built on AT Protocol (ATProto). It provides OAuth
-authentication, repository operations, and domain-specific services for managing hypercerts, collaborators, and
-organizations.
+The Hypercerts SDK is a TypeScript SDK for the Hypercerts protocol built on AT Protocol (ATProto). It provides OAuth authentication, repository operations, and domain-specific services for managing hypercerts, collaborators, and organizations.
 
 ## Repository Structure
 
 ```
 hypercerts-sdk/
 ├── packages/
-│   └── sdk-core/           # Core SDK implementation
-│       ├── src/
-│       │   ├── auth/       # OAuth authentication client
-│       │   ├── core/       # SDK main class, types, errors, config
-│       │   ├── events/     # Event handling utilities
-│       │   ├── lexicons/   # Hypercert lexicon definitions
-│       │   ├── repository/ # Repository operations (CRUD, blobs, profiles)
-│       │   ├── services/   # Domain services (hypercerts)
-│       │   ├── storage/    # Storage implementations (in-memory)
-│       │   └── testing/    # Testing utilities and mocks
-│       └── tests/          # Test files organized by module
+│   ├── sdk-core/           # Core SDK implementation (framework-agnostic)
+│   │   ├── src/
+│   │   │   ├── auth/       # OAuth authentication client
+│   │   │   ├── core/       # SDK main class, types, errors, config
+│   │   │   ├── events/     # Event handling utilities
+│   │   │   ├── lexicons/   # Hypercert lexicon definitions
+│   │   │   ├── repository/ # Repository operations (CRUD, blobs, profiles)
+│   │   │   ├── services/   # Domain services (hypercerts)
+│   │   │   ├── storage/    # Storage implementations (in-memory)
+│   │   │   └── testing/    # Testing utilities and mocks
+│   │   └── tests/          # Test files organized by module
+│   └── sdk-react/          # React hooks and components
+│       └── src/
+│           ├── context/    # ATProtoProvider, context types
+│           ├── factory/    # createATProtoReact factory function
+│           ├── hooks/      # React hooks (useAuth, useProfile, etc.)
+│           ├── queries/    # Query keys for React Query
+│           ├── testing/    # TestProvider, mocks
+│           └── utils/      # SSR helpers, cross-tab sync
 ├── specs/                  # Implementation specifications
 ├── .github/                # CI/CD workflows
 └── .husky/                 # Git hooks
@@ -42,9 +48,14 @@ hypercerts-sdk/
 
 ### Key Dependencies
 
+#### sdk-core
 - `@atproto/*` - AT Protocol SDK packages (API, lexicon, OAuth)
 - `zod` - Runtime schema validation
 - `eventemitter3` - Event handling
+
+#### sdk-react
+- `@tanstack/react-query` - Data fetching and caching
+- `react` - React 18/19
 
 ## Development Commands
 
@@ -74,16 +85,40 @@ pnpm clean                # Remove build artifacts
 
 ### Package-specific commands
 
-From `packages/sdk-core/`:
-
 ```bash
-pnpm test                 # Run sdk-core tests only
-pnpm build                # Build sdk-core only
+# sdk-core
+pnpm --filter @hypercerts-org/sdk-core build
+pnpm --filter @hypercerts-org/sdk-core test
+pnpm --filter @hypercerts-org/sdk-core lint
+
+# sdk-react
+pnpm --filter @hypercerts-org/sdk-react build
+pnpm --filter @hypercerts-org/sdk-react typecheck
+pnpm --filter @hypercerts-org/sdk-react lint
 ```
 
 ## Architecture
 
-### Core Components
+### Package Hierarchy
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Your Application                      │
+├─────────────────────────────────────────────────────────┤
+│  @hypercerts-org/sdk-react                              │
+│  - React hooks (useAuth, useProfile, useHypercerts)     │
+│  - Factory pattern (createATProtoReact)                 │
+│  - React Query integration                              │
+├─────────────────────────────────────────────────────────┤
+│  @hypercerts-org/sdk-core                               │
+│  - ATProtoSDK (OAuth, session management)               │
+│  - Repository (records, blobs, profiles)                │
+│  - Domain services (hypercerts, organizations)          │
+│  - Lexicon registry and validation                      │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Core Components (sdk-core)
 
 1. **ATProtoSDK** (`src/core/SDK.ts`) - Main SDK entry point
    - `authorize(identifier)` - Start OAuth flow
@@ -107,6 +142,23 @@ pnpm build                # Build sdk-core only
 4. **LexiconRegistry** (`src/repository/LexiconRegistry.ts`) - Schema validation
    - Runtime validation using Zod
    - Lexicon registration and lookup
+
+### React Components (sdk-react)
+
+1. **createATProtoReact** (`src/factory/createATProtoReact.tsx`) - Factory function
+   - Creates isolated SDK instances (SSR-safe)
+   - Returns Provider component and bound hooks
+   - Follows Wagmi v2 / tRPC pattern
+
+2. **Hooks**
+   - `useAuth()` - Authentication state and actions
+   - `useProfile(did?)` - Profile read/write
+   - `useRepository(opts?)` - Repository client with smart server routing
+   - `useOrganizations()` / `useOrganization(did)` - Organization management
+   - `useCollaborators(did)` - Collaborator management
+   - `useHypercerts(did?)` / `useHypercert(uri)` - Hypercert CRUD
+
+3. **Query Keys** (`src/queries/keys.ts`) - For manual cache management
 
 ### Data Flow
 
@@ -138,16 +190,18 @@ User → ATProtoSDK → OAuthClient → AT Protocol Server
 - Files: PascalCase for classes, camelCase for utilities
 - Types/Interfaces: PascalCase with descriptive names
 - Constants: UPPER_SNAKE_CASE
+- React hooks: camelCase with `use` prefix
 
 ### Error Handling
 
-Use the error hierarchy in `src/core/errors.ts`:
+Use the error hierarchy in `sdk-core/src/core/errors.ts`:
 
 - `HypercertsError` - Base error class
 - `ValidationError` - Schema/data validation failures
 - `AuthenticationError` - OAuth/session errors
 - `NetworkError` - HTTP/network failures
 - `NotFoundError` - Resource not found
+- `SDSRequiredError` - Operation requires SDS
 
 ### Testing Requirements
 
@@ -158,16 +212,23 @@ Use the error hierarchy in `src/core/errors.ts`:
 
 ## Build Output
 
-The SDK produces multiple entrypoints:
+### sdk-core
 
-| Entrypoint    | Import Path                          | Purpose                |
-| ------------- | ------------------------------------ | ---------------------- |
-| Main          | `@hypercerts-org/sdk`                | Full SDK               |
-| Types         | `@hypercerts-org/sdk/types`          | TypeScript types only  |
-| Errors        | `@hypercerts-org/sdk/errors`         | Error classes          |
-| Lexicons      | `@hypercerts-org/sdk/lexicons`       | Lexicon definitions    |
-| Storage       | `@hypercerts-org/sdk/storage`        | Storage implementations|
-| Testing       | `@hypercerts-org/sdk/testing`        | Test utilities         |
+| Entrypoint | Import Path                           | Purpose                |
+|------------|---------------------------------------|------------------------|
+| Main       | `@hypercerts-org/sdk-core`            | Full SDK               |
+| Types      | `@hypercerts-org/sdk-core/types`      | TypeScript types only  |
+| Errors     | `@hypercerts-org/sdk-core/errors`     | Error classes          |
+| Lexicons   | `@hypercerts-org/sdk-core/lexicons`   | Lexicon definitions    |
+| Storage    | `@hypercerts-org/sdk-core/storage`    | Storage implementations|
+| Testing    | `@hypercerts-org/sdk-core/testing`    | Test utilities         |
+
+### sdk-react
+
+| Entrypoint | Import Path                            | Purpose                |
+|------------|----------------------------------------|------------------------|
+| Main       | `@hypercerts-org/sdk-react`            | Factory, hooks, types  |
+| Testing    | `@hypercerts-org/sdk-react/testing`    | TestProvider, mocks    |
 
 Each entrypoint outputs:
 - `.mjs` - ES Modules
@@ -192,6 +253,8 @@ docs(readme): update installation instructions
 
 ## Key Files Reference
 
+### sdk-core
+
 | File | Purpose |
 |------|---------|
 | `packages/sdk-core/src/core/SDK.ts` | Main SDK class |
@@ -199,23 +262,43 @@ docs(readme): update installation instructions
 | `packages/sdk-core/src/repository/Repository.ts` | Repository API |
 | `packages/sdk-core/src/core/errors.ts` | Error definitions |
 | `packages/sdk-core/src/services/hypercerts/types.ts` | Hypercert types |
-| `packages/sdk-core/vitest.config.ts` | Test configuration |
-| `packages/sdk-core/rollup.config.js` | Build configuration |
+| `packages/sdk-core/src/repository/interfaces.ts` | Repository interfaces |
+
+### sdk-react
+
+| File | Purpose |
+|------|---------|
+| `packages/sdk-react/src/factory/createATProtoReact.tsx` | Factory function |
+| `packages/sdk-react/src/context/ATProtoProvider.tsx` | Provider component |
+| `packages/sdk-react/src/hooks/useATProtoAuth.ts` | Auth hook |
+| `packages/sdk-react/src/hooks/useHypercerts.ts` | Hypercerts hooks |
+| `packages/sdk-react/src/queries/keys.ts` | Query key factory |
+| `packages/sdk-react/src/types.ts` | React-specific types |
 
 ## Common Tasks
 
 ### Adding a New Record Type
 
-1. Define types in `src/services/<domain>/types.ts`
-2. Create Zod schemas in `src/services/<domain>/schemas.ts`
-3. Register lexicon in `src/lexicons/<domain>/index.ts`
-4. Add operations in `src/repository/<Domain>OperationsImpl.ts`
+1. Define types in `sdk-core/src/services/<domain>/types.ts`
+2. Create Zod schemas in `sdk-core/src/services/<domain>/schemas.ts`
+3. Register lexicon in `sdk-core/src/lexicons/<domain>/index.ts`
+4. Add operations in `sdk-core/src/repository/<Domain>OperationsImpl.ts`
 5. Expose via Repository class
-6. Add tests in `tests/repository/`
+6. Add tests in `sdk-core/tests/repository/`
+7. (Optional) Add React hook in `sdk-react/src/hooks/`
+
+### Adding a New React Hook
+
+1. Create hook file in `sdk-react/src/hooks/use<Name>.ts`
+2. Define types in `sdk-react/src/types.ts`
+3. Add query key in `sdk-react/src/queries/keys.ts`
+4. Export from `sdk-react/src/index.ts`
+5. Add to `ATProtoReactInstance` interface in factory
+6. Return from `createATProtoReact`
 
 ### Adding a New API Method
 
-1. Define interface in `src/repository/interfaces.ts`
+1. Define interface in `sdk-core/src/repository/interfaces.ts`
 2. Implement in appropriate `*OperationsImpl.ts`
 3. Add to Repository class if needed
 4. Write unit tests
@@ -225,4 +308,3 @@ docs(readme): update installation instructions
 
 - Source maps are generated for all builds
 - Coverage reports in `packages/sdk-core/coverage/`
-
