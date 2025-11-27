@@ -5,7 +5,8 @@
     "jsx": "react-jsx",
     "noEmit": true,
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "types": ["vitest/globals", "@testing-library/jest-dom"]
   },
   "include": ["src/**/*", "tests/**/*"],
   "exclude": ["node_modules", "dist"]
