@@ -6,25 +6,86 @@ import { InMemorySessionStore } from "../storage/InMemorySessionStore.js";
 import { InMemoryStateStore } from "../storage/InMemoryStateStore.js";
 
 /**
- * Options for authorization
+ * Options for the OAuth authorization flow.
+ *
+ * @internal
  */
 interface AuthorizeOptions {
   /**
-   * OAuth scope string (overrides config default)
+   * OAuth scope string to request specific permissions.
+   * Overrides the default scope from the SDK configuration.
    */
   scope?: string;
 }
 
 /**
- * OAuth client wrapper for ATProto authentication
- * Handles DPoP-bound tokens and automatic session management
+ * OAuth 2.0 client for AT Protocol authentication with DPoP support.
+ *
+ * This class wraps the `@atproto/oauth-client-node` library to provide
+ * OAuth 2.0 authentication with the following features:
+ *
+ * - **DPoP (Demonstrating Proof of Possession)**: Binds tokens to cryptographic keys
+ *   to prevent token theft and replay attacks
+ * - **PKCE (Proof Key for Code Exchange)**: Protects against authorization code interception
+ * - **Automatic Token Refresh**: Transparently refreshes expired access tokens
+ * - **Session Persistence**: Stores sessions in configurable storage backends
+ *
+ * @remarks
+ * This class is typically used internally by {@link ATProtoSDK}. Direct usage
+ * is only needed for advanced scenarios.
+ *
+ * The client uses lazy initialization - the underlying `NodeOAuthClient` is
+ * created asynchronously on first use. This allows the constructor to return
+ * synchronously while deferring async key parsing.
+ *
+ * @example Direct usage (advanced)
+ * ```typescript
+ * import { OAuthClient } from "@hypercerts-org/sdk";
+ *
+ * const client = new OAuthClient({
+ *   oauth: {
+ *     clientId: "https://my-app.com/client-metadata.json",
+ *     redirectUri: "https://my-app.com/callback",
+ *     scope: "atproto transition:generic",
+ *     jwksUri: "https://my-app.com/.well-known/jwks.json",
+ *     jwkPrivate: process.env.JWK_PRIVATE_KEY!,
+ *   },
+ *   servers: { pds: "https://bsky.social" },
+ * });
+ *
+ * // Start authorization
+ * const authUrl = await client.authorize("user.bsky.social");
+ *
+ * // Handle callback
+ * const session = await client.callback(new URLSearchParams(callbackUrl.search));
+ * ```
+ *
+ * @see {@link ATProtoSDK} for the recommended high-level API
+ * @see https://atproto.com/specs/oauth for AT Protocol OAuth specification
  */
 export class OAuthClient {
+  /** The underlying NodeOAuthClient instance (lazily initialized) */
   private client: NodeOAuthClient | null = null;
+
+  /** Promise that resolves to the initialized client */
   private clientPromise: Promise<NodeOAuthClient>;
+
+  /** SDK configuration */
   private config: ATProtoSDKConfig;
+
+  /** Optional logger for debugging */
   private logger?: LoggerInterface;
 
+  /**
+   * Creates a new OAuth client.
+   *
+   * @param config - SDK configuration including OAuth credentials and server URLs
+   * @throws {@link AuthenticationError} if the JWK private key is not valid JSON
+   *
+   * @remarks
+   * The constructor validates the JWK format synchronously but defers
+   * the actual client initialization to the first API call.
+   */
   constructor(config: ATProtoSDKConfig) {
     this.config = config;
     this.logger = config.logger;
@@ -41,8 +102,15 @@ export class OAuthClient {
   }
 
   /**
-   * Initialize the NodeOAuthClient (async)
-   * This is called lazily on first use
+   * Initializes the NodeOAuthClient asynchronously.
+   *
+   * This method is called lazily on first use. It:
+   * 1. Parses the JWK private key(s)
+   * 2. Builds OAuth client metadata
+   * 3. Creates the underlying NodeOAuthClient
+   *
+   * @returns Promise resolving to the initialized client
+   * @internal
    */
   private async initializeClient(): Promise<NodeOAuthClient> {
     if (this.client) {
@@ -84,14 +152,30 @@ export class OAuthClient {
   }
 
   /**
-   * Get the OAuth client instance, initializing if needed
+   * Gets the OAuth client instance, initializing if needed.
+   *
+   * @returns Promise resolving to the initialized client
+   * @internal
    */
   private async getClient(): Promise<NodeOAuthClient> {
     return this.clientPromise;
   }
 
   /**
-   * Build client metadata from config
+   * Builds OAuth client metadata from configuration.
+   *
+   * The metadata describes your application to the authorization server
+   * and must match what's published at your `clientId` URL.
+   *
+   * @returns OAuth client metadata object
+   * @internal
+   *
+   * @remarks
+   * Key metadata fields:
+   * - `client_id`: URL to your client metadata JSON
+   * - `redirect_uris`: Where to redirect after auth (must match config)
+   * - `dpop_bound_access_tokens`: Always true for AT Protocol
+   * - `token_endpoint_auth_method`: Uses private_key_jwt for security
    */
   private buildClientMetadata() {
     const clientIdUrl = new URL(this.config.oauth.clientId);
@@ -112,7 +196,11 @@ export class OAuthClient {
   }
 
   /**
-   * Create fetch handler with timeout
+   * Creates a fetch handler with timeout support.
+   *
+   * @param timeoutMs - Request timeout in milliseconds
+   * @returns A fetch function that aborts after the timeout
+   * @internal
    */
   private createFetchWithTimeout(timeoutMs: number): typeof fetch {
     return async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -137,7 +225,11 @@ export class OAuthClient {
   }
 
   /**
-   * Create state store adapter from interface
+   * Creates a state store adapter compatible with NodeOAuthClient.
+   *
+   * @param store - The StateStore implementation to adapt
+   * @returns An adapter compatible with NodeOAuthClient
+   * @internal
    */
   private createStateStoreAdapter(store: StateStore): import("@atproto/oauth-client-node").NodeSavedStateStore {
     return {
@@ -148,7 +240,11 @@ export class OAuthClient {
   }
 
   /**
-   * Create session store adapter from interface
+   * Creates a session store adapter compatible with NodeOAuthClient.
+   *
+   * @param store - The SessionStore implementation to adapt
+   * @returns An adapter compatible with NodeOAuthClient
+   * @internal
    */
   private createSessionStoreAdapter(store: SessionStore): import("@atproto/oauth-client-node").NodeSavedSessionStore {
     return {
@@ -159,10 +255,32 @@ export class OAuthClient {
   }
 
   /**
-   * Initiate OAuth authorization flow
-   * @param identifier - ATProto identifier (handle, DID, or PDS URL)
-   * @param options - Authorization options
-   * @returns Authorization URL to redirect user to
+   * Initiates the OAuth authorization flow.
+   *
+   * This method resolves the user's identity from their identifier,
+   * generates PKCE codes, creates OAuth state, and returns an
+   * authorization URL to redirect the user to.
+   *
+   * @param identifier - The user's ATProto identifier. Accepts:
+   *   - Handle (e.g., `"alice.bsky.social"`)
+   *   - DID (e.g., `"did:plc:abc123..."`)
+   *   - PDS URL (e.g., `"https://bsky.social"`)
+   * @param options - Optional authorization settings
+   * @returns A Promise resolving to the authorization URL
+   * @throws {@link AuthenticationError} if authorization setup fails
+   * @throws {@link NetworkError} if identity resolution fails
+   *
+   * @example
+   * ```typescript
+   * // Get authorization URL
+   * const authUrl = await client.authorize("user.bsky.social");
+   *
+   * // Redirect user (in a web app)
+   * window.location.href = authUrl;
+   *
+   * // Or return to client (in an API)
+   * res.json({ authUrl });
+   * ```
    */
   async authorize(identifier: string, options?: AuthorizeOptions): Promise<string> {
     try {
@@ -188,9 +306,44 @@ export class OAuthClient {
   }
 
   /**
-   * Handle OAuth callback and exchange authorization code for tokens
-   * @param params - URL search parameters from callback
-   * @returns OAuth session
+   * Handles the OAuth callback and exchanges the authorization code for tokens.
+   *
+   * Call this method when the user is redirected back to your application.
+   * It validates the state, exchanges the code for tokens, and creates
+   * a persistent session.
+   *
+   * @param params - URL search parameters from the callback. Expected parameters:
+   *   - `code`: The authorization code
+   *   - `state`: The state parameter (for CSRF protection)
+   *   - `iss`: The issuer (authorization server URL)
+   * @returns A Promise resolving to the authenticated OAuth session
+   * @throws {@link AuthenticationError} if:
+   *   - The callback contains an OAuth error
+   *   - The state is invalid or expired
+   *   - The code exchange fails
+   *   - Session persistence fails
+   *
+   * @example
+   * ```typescript
+   * // In your callback route handler
+   * app.get("/callback", async (req, res) => {
+   *   const params = new URLSearchParams(req.url.split("?")[1]);
+   *
+   *   try {
+   *     const session = await client.callback(params);
+   *     // Store DID for session restoration
+   *     req.session.userDid = session.sub;
+   *     res.redirect("/dashboard");
+   *   } catch (error) {
+   *     res.redirect("/login?error=auth_failed");
+   *   }
+   * });
+   * ```
+   *
+   * @remarks
+   * After successful token exchange, this method verifies that the session
+   * was properly persisted by attempting to restore it. This ensures the
+   * storage backend is working correctly.
    */
   async callback(params: URLSearchParams): Promise<import("@atproto/oauth-client").OAuthSession> {
     try {
@@ -239,10 +392,37 @@ export class OAuthClient {
   }
 
   /**
-   * Restore OAuth session by DID
-   * Automatically refreshes expired tokens
-   * @param did - User DID
-   * @returns OAuth session or null if not found
+   * Restores an OAuth session by DID.
+   *
+   * Use this method to restore a previously authenticated session.
+   * The method automatically refreshes expired access tokens using
+   * the stored refresh token.
+   *
+   * @param did - The user's Decentralized Identifier (e.g., `"did:plc:abc123..."`)
+   * @returns A Promise resolving to the session, or `null` if not found
+   * @throws {@link AuthenticationError} if session restoration fails (not for missing sessions)
+   * @throws {@link NetworkError} if token refresh requires network and fails
+   *
+   * @example
+   * ```typescript
+   * // On application startup or request
+   * const userDid = req.session.userDid;
+   * if (userDid) {
+   *   const session = await client.restore(userDid);
+   *   if (session) {
+   *     // Session restored, user is authenticated
+   *     req.atprotoSession = session;
+   *   } else {
+   *     // No session found, user needs to log in
+   *     delete req.session.userDid;
+   *   }
+   * }
+   * ```
+   *
+   * @remarks
+   * Token refresh is handled automatically by the underlying OAuth client.
+   * If the refresh token has expired or been revoked, this method will
+   * throw an {@link AuthenticationError}.
    */
   async restore(did: string): Promise<import("@atproto/oauth-client").OAuthSession | null> {
     try {
@@ -271,8 +451,32 @@ export class OAuthClient {
   }
 
   /**
-   * Revoke OAuth session
-   * @param did - User DID
+   * Revokes an OAuth session.
+   *
+   * This method invalidates the session's tokens both locally and
+   * (if supported) on the authorization server. After revocation,
+   * the session cannot be restored.
+   *
+   * @param did - The user's DID to revoke
+   * @throws {@link AuthenticationError} if revocation fails
+   *
+   * @example
+   * ```typescript
+   * // Log out endpoint
+   * app.post("/logout", async (req, res) => {
+   *   const userDid = req.session.userDid;
+   *   if (userDid) {
+   *     await client.revoke(userDid);
+   *     delete req.session.userDid;
+   *   }
+   *   res.redirect("/");
+   * });
+   * ```
+   *
+   * @remarks
+   * Even if revocation fails on the server, the local session is
+   * removed. The error is thrown to inform you that remote revocation
+   * may not have succeeded.
    */
   async revoke(did: string): Promise<void> {
     try {

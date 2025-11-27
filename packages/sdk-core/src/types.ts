@@ -1,5 +1,29 @@
 /**
- * Types entrypoint - All TypeScript types and interfaces
+ * Types entrypoint - All TypeScript types and interfaces.
+ *
+ * This sub-entrypoint exports only TypeScript types and Zod schemas,
+ * with no runtime code. Use this for type-only imports to reduce
+ * bundle size when you only need types.
+ *
+ * @remarks
+ * Import from `@hypercerts-org/sdk/types` when you only need types:
+ *
+ * ```typescript
+ * import type {
+ *   HypercertRecord,
+ *   Session,
+ *   CreateHypercertParams,
+ * } from "@hypercerts-org/sdk/types";
+ * ```
+ *
+ * **Categories of exports**:
+ * - Core types (DID, Session, Config)
+ * - Entity types (Organization, Collaborator)
+ * - Repository types (CreateResult, PaginatedList)
+ * - Operation interfaces (RecordOperations, HypercertOperations)
+ * - Hypercert record types (HypercertRecord, RightsRecord, etc.)
+ * - Zod schemas for runtime validation
+ *
  * @packageDocumentation
  */
 

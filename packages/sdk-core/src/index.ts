@@ -1,5 +1,54 @@
 /**
- * @hypercerts-org/sdk-core - Main entrypoint
+ * Hypercerts SDK - Main entrypoint.
+ *
+ * This is the primary entry point for the `@hypercerts-org/sdk` package.
+ * It exports all public APIs needed to work with hypercerts on the
+ * AT Protocol.
+ *
+ * @remarks
+ * **Quick Start**:
+ * ```typescript
+ * import { ATProtoSDK } from "@hypercerts-org/sdk";
+ *
+ * const sdk = new ATProtoSDK({
+ *   oauth: {
+ *     clientId: "https://my-app.com/client-metadata.json",
+ *     redirectUri: "https://my-app.com/callback",
+ *     scope: "atproto transition:generic",
+ *     jwksUri: "https://my-app.com/.well-known/jwks.json",
+ *     jwkPrivate: process.env.JWK_PRIVATE_KEY!,
+ *   },
+ *   servers: {
+ *     pds: "https://bsky.social",
+ *     sds: "https://sds.hypercerts.org",
+ *   },
+ * });
+ *
+ * // Start OAuth flow
+ * const authUrl = await sdk.authorize("user.bsky.social");
+ *
+ * // After callback
+ * const session = await sdk.callback(params);
+ * const repo = sdk.repository(session);
+ *
+ * // Create a hypercert
+ * const result = await repo.hypercerts.create({
+ *   title: "My Impact",
+ *   description: "...",
+ *   workScope: "Climate",
+ *   workTimeframeFrom: "2024-01-01",
+ *   workTimeframeTo: "2024-12-31",
+ *   rights: { name: "CC-BY", type: "license", description: "..." },
+ * });
+ * ```
+ *
+ * **Sub-entrypoints**:
+ * - `@hypercerts-org/sdk/types` - TypeScript types only
+ * - `@hypercerts-org/sdk/errors` - Error classes
+ * - `@hypercerts-org/sdk/lexicons` - Lexicon registry and constants
+ * - `@hypercerts-org/sdk/storage` - Storage implementations
+ * - `@hypercerts-org/sdk/testing` - Test utilities
+ *
  * @packageDocumentation
  */
 
