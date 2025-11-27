@@ -63,7 +63,7 @@ export function createMockSession(overrides: Partial<Session> = {}): Session {
     accessJwt: "mock-access-jwt",
     refreshJwt: "mock-refresh-jwt",
     active: true,
-    fetchHandler: async (input: RequestInfo | URL, init?: RequestInit) => {
+    fetchHandler: async (_input: RequestInfo | URL, _init?: RequestInit) => {
       return new Response(JSON.stringify({}), {
         status: 200,
         headers: { "Content-Type": "application/json" },

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Repository } from "../../src/repository/Repository.js";
-import { LexiconRegistry } from "../../src/repository/LexiconRegistry.js";
+import { beforeEach, describe, expect, it } from "vitest";
 import { SDSRequiredError } from "../../src/core/errors.js";
+import { LexiconRegistry } from "../../src/repository/LexiconRegistry.js";
+import { Repository } from "../../src/repository/Repository.js";
 import { createMockSession } from "../utils/repository-fixtures.js";
 
 describe("Repository", () => {
