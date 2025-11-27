@@ -1,1 +1,10 @@
 pnpm build
+
+# Warn if committing package changes without a changeset
+if git diff --cached --name-only | grep -q "^packages/" && \
+   ! git diff --cached --name-only | grep -q "^\.changeset/.*\.md$"; then
+  echo ""
+  echo "Warning: You are committing package changes without a changeset."
+  echo "Run 'pnpm changeset' before pushing if this includes user-facing changes."
+  echo ""
+fi

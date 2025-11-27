@@ -278,6 +278,60 @@ hypercerts-sdk/
    - TypeScript: `"extends": "../../tsconfig.json"`
 4. Prettier config is inherited from root automatically
 
+## Releasing
+
+This project uses [Changesets](https://github.com/changesets/changesets) for version management and npm publishing.
+
+### Release Flow
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                                                                    │
+│  feature/* ──────────────────┐                                     │
+│       │                      │                                     │
+│       │  pnpm changeset      │ PR                                  │
+│       │  (describe changes)  │                                     │
+│       ▼                      ▼                                     │
+│  ┌─────────┐  merge    ┌──────────┐                               │
+│  │ commit  │ ────────► │ develop  │ ──► Auto-publish @beta        │
+│  │  + .md  │           └────┬─────┘     (0.2.0-beta.0)            │
+│  └─────────┘                │                                      │
+│                             │ PR (after: pnpm changeset pre exit)  │
+│                             ▼                                      │
+│                        ┌────────┐                                  │
+│                        │  main  │ ──► Creates "Release PR"         │
+│                        └────┬───┘                                  │
+│                             │                                      │
+│                             │ merge Release PR                     │
+│                             ▼                                      │
+│                     ┌──────────────┐                               │
+│                     │ npm publish  │ ──► @latest (0.2.0)           │
+│                     └──────────────┘                               │
+│                                                                    │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### For Contributors
+
+When making changes to packages, add a changeset:
+
+```bash
+pnpm changeset
+```
+
+Follow the prompts to:
+1. Select changed packages
+2. Choose version bump type (major/minor/patch)
+3. Write a summary for the changelog
+
+### Installing Pre-release Versions
+
+```bash
+# Install beta versions
+npm install @hypercerts-org/sdk-core@beta
+npm install @hypercerts-org/sdk-react@beta
+```
+
 ## Documentation
 
 - [Implementation Plan](./IMPLEMENTATION_PLAN.MD) - Detailed architecture and implementation phases

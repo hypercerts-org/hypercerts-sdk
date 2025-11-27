@@ -235,6 +235,40 @@ Each entrypoint outputs:
 - `.cjs` - CommonJS
 - `.d.ts` - TypeScript declarations
 
+## Release Process
+
+Uses [Changesets](https://github.com/changesets/changesets) for versioning.
+
+**Flow:** `feature` → `develop` (beta) → `main` (stable)
+
+### Commands
+
+```bash
+pnpm changeset          # Add changeset (required for package changes)
+pnpm version-packages   # Apply changesets locally
+pnpm release            # Build and publish
+```
+
+### Branches
+
+- **develop**: Auto-publishes `@beta` tag (e.g., `0.2.0-beta.0`)
+- **main**: Creates Release PR → merge to publish `@latest`
+
+### Before merging develop → main
+
+```bash
+pnpm changeset pre exit
+git add .changeset/pre.json
+git commit -m "chore: exit prerelease mode"
+```
+
+### Key Files
+
+- `.changeset/config.json` - Configuration
+- `.changeset/*.md` - Pending changesets
+- `.github/workflows/release.yml` - Stable releases
+- `.github/workflows/release-beta.yml` - Beta releases
+
 ## PR and Commit Guidelines
 
 ### Commit Messages
