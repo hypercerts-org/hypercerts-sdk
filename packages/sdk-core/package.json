@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "Framework-agnostic ATProto SDK core for authentication, repository operations, and lexicon management",
   "main": "dist/index.cjs",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "test": "vitest",
     "build": "rollup -c",
