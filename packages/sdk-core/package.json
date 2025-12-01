@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Framework-agnostic ATProto SDK core for authentication, repository operations, and lexicon management",
   "main": "dist/index.cjs",
+  "repository": {
+    "url": "https://github.com/hypercerts-org/hypercerts-sdk.git"
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
