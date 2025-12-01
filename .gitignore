@@ -22,3 +22,4 @@ yarn-error.log*
 /.idea
 stats.html
 coverage/
+.npmrc
