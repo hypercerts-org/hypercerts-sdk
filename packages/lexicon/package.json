@@ -31,8 +31,7 @@
   "author": "Hypercerts Foundation",
   "license": "MIT",
   "repository": {
-    "type": "git",
-    "url": "git@github.com:hypercerts-org/hypercerts-sdk.git"
+    "url": "https://github.com/hypercerts-org/hypercerts-sdk.git"
   },
   "scripts": {
     "build": "rollup -c",
