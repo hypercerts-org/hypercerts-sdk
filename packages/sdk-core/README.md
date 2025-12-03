@@ -77,13 +77,56 @@ const existingSession = await sdk.restoreSession("did:plc:...");
 
 ```
 repo
-├── .records      → create, get, update, delete, list
-├── .blobs        → upload, get
-├── .profile      → get, update
-├── .hypercerts   → create, get, update, delete, list, addContribution, addMeasurement
-├── .collaborators → grant, revoke, list, hasAccess (SDS only)
+├── .records       → create, get, update, delete, list
+├── .blobs         → upload, get
+├── .profile       → get, update (PDS only)
+├── .hypercerts    → create, get, update, delete, list, addContribution, addMeasurement
+├── .collaborators → grant, revoke, list, hasAccess, getRole, getPermissions, transferOwnership (SDS only)
 └── .organizations → create, get, list (SDS only)
 ```
+
+### Collaborator Operations (SDS only)
+
+```typescript
+// Grant access to a user
+await repo.collaborators.grant({
+  userDid: "did:plc:user123",
+  role: "editor", // viewer | editor | admin | owner
+});
+
+// Revoke access
+await repo.collaborators.revoke({ userDid: "did:plc:user123" });
+
+// List all collaborators
+const collaborators = await repo.collaborators.list();
+
+// Check if user has access
+const hasAccess = await repo.collaborators.hasAccess("did:plc:user123");
+
+// Get user's role
+const role = await repo.collaborators.getRole("did:plc:user123");
+
+// Get current user's permissions
+const permissions = await repo.collaborators.getPermissions();
+if (permissions.admin) {
+  // Can manage collaborators
+}
+
+// Transfer ownership (irreversible!)
+await repo.collaborators.transferOwnership({
+  newOwnerDid: "did:plc:new-owner",
+});
+```
+
+### SDS vs PDS Operations
+
+| Operation | PDS | SDS | Namespace |
+|-----------|-----|-----|-----------|
+| Records (CRUD) | ✅ | ✅ | `com.atproto.repo.*` |
+| Blobs | ✅ | ✅ | `com.atproto.repo.uploadBlob`, `com.atproto.sync.getBlob` |
+| Profile | ✅ | ❌ | `app.bsky.actor.profile` |
+| Organizations | ❌ | ✅ | `com.sds.organization.*` |
+| Collaborators | ❌ | ✅ | `com.sds.repo.*` |
 
 ## Errors
 

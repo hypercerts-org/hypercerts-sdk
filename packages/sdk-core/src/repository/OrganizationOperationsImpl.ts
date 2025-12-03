@@ -29,8 +29,8 @@ import type { OrganizationInfo } from "./types.js";
  * {@link Repository.organizations} on an SDS-connected repository.
  *
  * **SDS API Endpoints Used**:
- * - `com.atproto.sds.createRepository`: Create a new organization
- * - `com.atproto.sds.listRepositories`: List accessible organizations
+ * - `com.sds.organization.create`: Create a new organization
+ * - `com.sds.organization.list`: List accessible organizations
  *
  * **Access Types**:
  * - `"owner"`: User created or owns the organization
@@ -109,7 +109,7 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
    * ```
    */
   async create(params: { name: string; description?: string; handle?: string }): Promise<OrganizationInfo> {
-    const response = await this.session.fetchHandler(`${this.serverUrl}/xrpc/com.atproto.sds.createRepository`, {
+    const response = await this.session.fetchHandler(`${this.serverUrl}/xrpc/com.sds.organization.create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
@@ -203,7 +203,7 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
    */
   async list(): Promise<OrganizationInfo[]> {
     const response = await this.session.fetchHandler(
-      `${this.serverUrl}/xrpc/com.atproto.sds.listRepositories?userDid=${encodeURIComponent(this.session.did || this.session.sub)}`,
+      `${this.serverUrl}/xrpc/com.sds.organization.list?userDid=${encodeURIComponent(this.session.did || this.session.sub)}`,
       { method: "GET" },
     );
 
