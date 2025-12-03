@@ -159,11 +159,11 @@ describe("OrganizationOperationsImpl", () => {
 
       const result = await orgOps.list();
 
-      expect(result).toHaveLength(2);
-      expect(result[0].did).toBe("did:plc:org1");
-      expect(result[0].accessType).toBe("owner");
-      expect(result[1].did).toBe("did:plc:org2");
-      expect(result[1].accessType).toBe("shared");
+      expect(result.organizations).toHaveLength(2);
+      expect(result.organizations[0].did).toBe("did:plc:org1");
+      expect(result.organizations[0].accessType).toBe("owner");
+      expect(result.organizations[1].did).toBe("did:plc:org2");
+      expect(result.organizations[1].accessType).toBe("shared");
     });
 
     it("should handle empty repositories list", async () => {
@@ -174,7 +174,7 @@ describe("OrganizationOperationsImpl", () => {
 
       const result = await orgOps.list();
 
-      expect(result).toHaveLength(0);
+      expect(result.organizations).toHaveLength(0);
     });
 
     it("should use session DID in query", async () => {
@@ -234,7 +234,7 @@ describe("OrganizationOperationsImpl", () => {
 
       const result = await orgOps.list();
 
-      expect(result[0].createdAt).toBeDefined();
+      expect(result.organizations[0].createdAt).toBeDefined();
     });
   });
 });

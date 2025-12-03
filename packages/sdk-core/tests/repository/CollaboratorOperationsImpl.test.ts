@@ -147,10 +147,10 @@ describe("CollaboratorOperationsImpl", () => {
 
       const result = await collaboratorOps.list();
 
-      expect(result).toHaveLength(2);
-      expect(result[0].userDid).toBe("did:plc:user1");
-      expect(result[0].role).toBe("editor");
-      expect(result[1].role).toBe("viewer");
+      expect(result.collaborators).toHaveLength(2);
+      expect(result.collaborators[0].userDid).toBe("did:plc:user1");
+      expect(result.collaborators[0].role).toBe("editor");
+      expect(result.collaborators[1].role).toBe("viewer");
     });
 
     it("should handle empty collaborators list", async () => {
@@ -161,7 +161,7 @@ describe("CollaboratorOperationsImpl", () => {
 
       const result = await collaboratorOps.list();
 
-      expect(result).toHaveLength(0);
+      expect(result.collaborators).toHaveLength(0);
     });
 
     it("should correctly map permissions to roles", async () => {
@@ -187,8 +187,8 @@ describe("CollaboratorOperationsImpl", () => {
 
       const result = await collaboratorOps.list();
 
-      expect(result[0].role).toBe("owner");
-      expect(result[1].role).toBe("admin");
+      expect(result.collaborators[0].role).toBe("owner");
+      expect(result.collaborators[1].role).toBe("admin");
     });
 
     it("should throw NetworkError on failure", async () => {

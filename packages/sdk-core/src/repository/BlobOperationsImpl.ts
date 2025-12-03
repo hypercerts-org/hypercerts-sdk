@@ -122,7 +122,7 @@ export class BlobOperationsImpl implements BlobOperations {
       }
 
       return {
-        ref: result.data.blob.ref,
+        ref: { $link: result.data.blob.ref.toString() },
         mimeType: result.data.blob.mimeType,
         size: result.data.blob.size,
       };

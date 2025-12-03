@@ -809,9 +809,15 @@ export interface CollaboratorOperations {
   /**
    * Lists all collaborators on the repository.
    *
-   * @returns Promise resolving to array of access grants
+   * @param params - Optional pagination parameters
+   * @param params.limit - Maximum number of results (1-100, default 50)
+   * @param params.cursor - Pagination cursor from previous response
+   * @returns Promise resolving to collaborators and optional cursor
    */
-  list(): Promise<RepositoryAccessGrant[]>;
+  list(params?: { limit?: number; cursor?: string }): Promise<{
+    collaborators: RepositoryAccessGrant[];
+    cursor?: string;
+  }>;
 
   /**
    * Checks if a user has any access to the repository.
@@ -891,7 +897,13 @@ export interface OrganizationOperations {
   /**
    * Lists organizations the current user has access to.
    *
-   * @returns Promise resolving to array of organization info
+   * @param params - Optional pagination parameters
+   * @param params.limit - Maximum number of results (1-100, default 50)
+   * @param params.cursor - Pagination cursor from previous response
+   * @returns Promise resolving to organizations and optional cursor
    */
-  list(): Promise<OrganizationInfo[]>;
+  list(params?: { limit?: number; cursor?: string }): Promise<{
+    organizations: OrganizationInfo[];
+    cursor?: string;
+  }>;
 }

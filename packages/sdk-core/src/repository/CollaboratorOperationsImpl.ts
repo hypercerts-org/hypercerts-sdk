@@ -209,7 +209,10 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
   /**
    * Lists all collaborators on the repository.
    *
-   * @returns Promise resolving to array of access grants
+   * @param params - Optional pagination parameters
+   * @param params.limit - Maximum number of results (1-100, default 50)
+   * @param params.cursor - Pagination cursor from previous response
+   * @returns Promise resolving to collaborators and optional cursor
    * @throws {@link NetworkError} if the list operation fails
    *
    * @remarks
@@ -218,23 +221,37 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
    *
    * @example
    * ```typescript
-   * const collaborators = await repo.collaborators.list();
+   * // Get first page
+   * const page1 = await repo.collaborators.list({ limit: 10 });
+   * console.log(`Found ${page1.collaborators.length} collaborators`);
+   *
+   * // Get next page if available
+   * if (page1.cursor) {
+   *   const page2 = await repo.collaborators.list({ limit: 10, cursor: page1.cursor });
+   * }
    *
    * // Filter active collaborators
-   * const active = collaborators.filter(c => !c.revokedAt);
-   *
-   * // Group by role
-   * const byRole = {
-   *   owners: active.filter(c => c.role === "owner"),
-   *   admins: active.filter(c => c.role === "admin"),
-   *   editors: active.filter(c => c.role === "editor"),
-   *   viewers: active.filter(c => c.role === "viewer"),
-   * };
+   * const active = page1.collaborators.filter(c => !c.revokedAt);
    * ```
    */
-  async list(): Promise<RepositoryAccessGrant[]> {
+  async list(params?: { limit?: number; cursor?: string }): Promise<{
+    collaborators: RepositoryAccessGrant[];
+    cursor?: string;
+  }> {
+    const queryParams = new URLSearchParams({
+      repo: this.repoDid,
+    });
+
+    if (params?.limit !== undefined) {
+      queryParams.set("limit", params.limit.toString());
+    }
+
+    if (params?.cursor) {
+      queryParams.set("cursor", params.cursor);
+    }
+
     const response = await this.session.fetchHandler(
-      `${this.serverUrl}/xrpc/com.sds.repo.listCollaborators?repo=${encodeURIComponent(this.repoDid)}`,
+      `${this.serverUrl}/xrpc/com.sds.repo.listCollaborators?${queryParams.toString()}`,
       { method: "GET" },
     );
 
@@ -243,7 +260,7 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
     }
 
     const data = await response.json();
-    return (data.collaborators || []).map(
+    const collaborators = (data.collaborators || []).map(
       (c: {
         userDid: string;
         permissions: string[]; // SDS API returns string array
@@ -262,6 +279,11 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
         };
       },
     );
+
+    return {
+      collaborators,
+      cursor: data.cursor,
+    };
   }
 
   /**
@@ -285,7 +307,7 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
    */
   async hasAccess(userDid: string): Promise<boolean> {
     try {
-      const collaborators = await this.list();
+      const { collaborators } = await this.list();
       return collaborators.some((c) => c.userDid === userDid && !c.revokedAt);
     } catch {
       return false;
@@ -307,7 +329,7 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
    * ```
    */
   async getRole(userDid: string): Promise<RepositoryRole | null> {
-    const collaborators = await this.list();
+    const { collaborators } = await this.list();
     const collab = collaborators.find((c) => c.userDid === userDid && !c.revokedAt);
     return collab?.role ?? null;
   }

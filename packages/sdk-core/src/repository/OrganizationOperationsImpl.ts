@@ -170,8 +170,8 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
    */
   async get(did: string): Promise<OrganizationInfo | null> {
     try {
-      const orgs = await this.list();
-      return orgs.find((o) => o.did === did) ?? null;
+      const { organizations } = await this.list();
+      return organizations.find((o) => o.did === did) ?? null;
     } catch {
       return null;
     }
@@ -180,7 +180,10 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
   /**
    * Lists organizations the current user has access to.
    *
-   * @returns Promise resolving to array of organization info
+   * @param params - Optional pagination parameters
+   * @param params.limit - Maximum number of results (1-100, default 50)
+   * @param params.cursor - Pagination cursor from previous response
+   * @returns Promise resolving to organizations and optional cursor
    * @throws {@link NetworkError} if the list operation fails
    *
    * @remarks
@@ -192,21 +195,25 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
    *
    * @example
    * ```typescript
-   * const orgs = await repo.organizations.list();
+   * // Get first page
+   * const page1 = await repo.organizations.list({ limit: 20 });
+   * console.log(`Found ${page1.organizations.length} organizations`);
+   *
+   * // Get next page if available
+   * if (page1.cursor) {
+   *   const page2 = await repo.organizations.list({ limit: 20, cursor: page1.cursor });
+   * }
    *
    * // Filter by access type
-   * const owned = orgs.filter(o => o.accessType === "owner");
-   * const collaborated = orgs.filter(o => o.accessType === "collaborator");
-   *
-   * console.log(`You own ${owned.length} organizations`);
-   * console.log(`You collaborate on ${collaborated.length} organizations`);
+   * const owned = page1.organizations.filter(o => o.accessType === "owner");
+   * const shared = page1.organizations.filter(o => o.accessType === "shared");
    * ```
    *
    * @example Display organization details
    * ```typescript
-   * const orgs = await repo.organizations.list();
+   * const { organizations } = await repo.organizations.list();
    *
-   * for (const org of orgs) {
+   * for (const org of organizations) {
    *   console.log(`${org.name} (@${org.handle})`);
    *   console.log(`  DID: ${org.did}`);
    *   console.log(`  Access: ${org.accessType}`);
@@ -216,14 +223,29 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
    * }
    * ```
    */
-  async list(): Promise<OrganizationInfo[]> {
+  async list(params?: { limit?: number; cursor?: string }): Promise<{
+    organizations: OrganizationInfo[];
+    cursor?: string;
+  }> {
     const userDid = this.session.did || this.session.sub;
     if (!userDid) {
       throw new NetworkError("No authenticated user found");
     }
 
+    const queryParams = new URLSearchParams({
+      userDid,
+    });
+
+    if (params?.limit !== undefined) {
+      queryParams.set("limit", params.limit.toString());
+    }
+
+    if (params?.cursor) {
+      queryParams.set("cursor", params.cursor);
+    }
+
     const response = await this.session.fetchHandler(
-      `${this.serverUrl}/xrpc/com.sds.organization.list?userDid=${encodeURIComponent(userDid)}`,
+      `${this.serverUrl}/xrpc/com.sds.organization.list?${queryParams.toString()}`,
       { method: "GET" },
     );
 
@@ -232,7 +254,7 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
     }
 
     const data = await response.json();
-    return (data.organizations || []).map(
+    const organizations = (data.organizations || []).map(
       (r: {
         did: string;
         handle: string;
@@ -251,5 +273,10 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
         permissions: r.permissions,
       }),
     );
+
+    return {
+      organizations,
+      cursor: data.cursor,
+    };
   }
 }
