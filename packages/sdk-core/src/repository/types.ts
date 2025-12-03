@@ -85,7 +85,7 @@ export interface OrganizationInfo {
   name: string;
   description?: string;
   createdAt: string;
-  accessType: "owner" | "collaborator";
+  accessType: "owner" | "shared" | "none";
   permissions: CollaboratorPermissions;
   collaboratorCount?: number;
   profile?: {

@@ -108,6 +108,27 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
   }
 
   /**
+   * Converts a permission string array to a permissions object.
+   *
+   * The SDS API returns permissions as an array of strings (e.g., ["read", "create"]).
+   * This method converts them to the boolean flag format used by the SDK.
+   *
+   * @param permissionArray - Array of permission strings from SDS API
+   * @returns Permission flags object
+   * @internal
+   */
+  private parsePermissions(permissionArray: string[]): CollaboratorPermissions {
+    return {
+      read: permissionArray.includes("read"),
+      create: permissionArray.includes("create"),
+      update: permissionArray.includes("update"),
+      delete: permissionArray.includes("delete"),
+      admin: permissionArray.includes("admin"),
+      owner: permissionArray.includes("owner"),
+    };
+  }
+
+  /**
    * Grants repository access to a user.
    *
    * @param params - Grant parameters
@@ -225,18 +246,21 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
     return (data.collaborators || []).map(
       (c: {
         userDid: string;
-        permissions: CollaboratorPermissions;
+        permissions: string[]; // SDS API returns string array
         grantedBy: string;
         grantedAt: string;
         revokedAt?: string;
-      }) => ({
-        userDid: c.userDid,
-        role: this.permissionsToRole(c.permissions),
-        permissions: c.permissions,
-        grantedBy: c.grantedBy,
-        grantedAt: c.grantedAt,
-        revokedAt: c.revokedAt,
-      }),
+      }) => {
+        const permissions = this.parsePermissions(c.permissions);
+        return {
+          userDid: c.userDid,
+          role: this.permissionsToRole(permissions),
+          permissions: permissions,
+          grantedBy: c.grantedBy,
+          grantedAt: c.grantedAt,
+          revokedAt: c.revokedAt,
+        };
+      },
     );
   }
 

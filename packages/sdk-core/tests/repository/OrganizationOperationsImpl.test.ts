@@ -74,9 +74,7 @@ describe("OrganizationOperationsImpl", () => {
         statusText: "Conflict",
       });
 
-      await expect(
-        orgOps.create({ name: "Test Org" }),
-      ).rejects.toThrow(NetworkError);
+      await expect(orgOps.create({ name: "Test Org" })).rejects.toThrow(NetworkError);
     });
   });
 
@@ -85,7 +83,7 @@ describe("OrganizationOperationsImpl", () => {
       mockSession.fetchHandler.mockResolvedValue({
         ok: true,
         json: async () => ({
-          repositories: [
+          organizations: [
             {
               did: "did:plc:org1",
               handle: "org1.example.com",
@@ -98,7 +96,7 @@ describe("OrganizationOperationsImpl", () => {
               did: "did:plc:org2",
               handle: "org2.example.com",
               name: "Organization 2",
-              accessType: "collaborator",
+              accessType: "shared",
               permissions: { read: true, create: true, update: true, delete: false, admin: false, owner: false },
             },
           ],
@@ -116,7 +114,7 @@ describe("OrganizationOperationsImpl", () => {
       mockSession.fetchHandler.mockResolvedValue({
         ok: true,
         json: async () => ({
-          repositories: [],
+          organizations: [],
         }),
       });
 
@@ -139,7 +137,7 @@ describe("OrganizationOperationsImpl", () => {
       mockSession.fetchHandler.mockResolvedValue({
         ok: true,
         json: async () => ({
-          repositories: [
+          organizations: [
             {
               did: "did:plc:org1",
               handle: "org1.example.com",
@@ -152,7 +150,7 @@ describe("OrganizationOperationsImpl", () => {
               handle: "org2.example.com",
               name: "Organization 2",
               description: "Second org",
-              accessType: "collaborator",
+              accessType: "shared",
               permissions: { read: true, create: true, update: false, delete: false, admin: false, owner: false },
             },
           ],
@@ -165,13 +163,13 @@ describe("OrganizationOperationsImpl", () => {
       expect(result[0].did).toBe("did:plc:org1");
       expect(result[0].accessType).toBe("owner");
       expect(result[1].did).toBe("did:plc:org2");
-      expect(result[1].accessType).toBe("collaborator");
+      expect(result[1].accessType).toBe("shared");
     });
 
     it("should handle empty repositories list", async () => {
       mockSession.fetchHandler.mockResolvedValue({
         ok: true,
-        json: async () => ({ repositories: [] }),
+        json: async () => ({ organizations: [] }),
       });
 
       const result = await orgOps.list();
@@ -182,7 +180,7 @@ describe("OrganizationOperationsImpl", () => {
     it("should use session DID in query", async () => {
       mockSession.fetchHandler.mockResolvedValue({
         ok: true,
-        json: async () => ({ repositories: [] }),
+        json: async () => ({ organizations: [] }),
       });
 
       await orgOps.list();
@@ -197,7 +195,7 @@ describe("OrganizationOperationsImpl", () => {
       mockSession.did = undefined;
       mockSession.fetchHandler.mockResolvedValue({
         ok: true,
-        json: async () => ({ repositories: [] }),
+        json: async () => ({ organizations: [] }),
       });
 
       await orgOps.list();
@@ -221,7 +219,7 @@ describe("OrganizationOperationsImpl", () => {
       mockSession.fetchHandler.mockResolvedValue({
         ok: true,
         json: async () => ({
-          repositories: [
+          organizations: [
             {
               did: "did:plc:org",
               handle: "org.example.com",

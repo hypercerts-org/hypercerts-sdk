@@ -131,13 +131,13 @@ describe("CollaboratorOperationsImpl", () => {
           collaborators: [
             {
               userDid: "did:plc:user1",
-              permissions: { read: true, create: true, update: true, delete: false, admin: false, owner: false },
+              permissions: ["read", "create", "update"],
               grantedBy: "did:plc:owner",
               grantedAt: "2024-01-01T00:00:00Z",
             },
             {
               userDid: "did:plc:user2",
-              permissions: { read: true, create: false, update: false, delete: false, admin: false, owner: false },
+              permissions: ["read"],
               grantedBy: "did:plc:owner",
               grantedAt: "2024-01-02T00:00:00Z",
             },
@@ -171,13 +171,13 @@ describe("CollaboratorOperationsImpl", () => {
           collaborators: [
             {
               userDid: "did:plc:owner",
-              permissions: { read: true, create: true, update: true, delete: true, admin: true, owner: true },
+              permissions: ["read", "create", "update", "delete", "admin", "owner"],
               grantedBy: "did:plc:system",
               grantedAt: "2024-01-01T00:00:00Z",
             },
             {
               userDid: "did:plc:admin",
-              permissions: { read: true, create: true, update: true, delete: true, admin: true, owner: false },
+              permissions: ["read", "create", "update", "delete", "admin"],
               grantedBy: "did:plc:owner",
               grantedAt: "2024-01-01T00:00:00Z",
             },
@@ -209,7 +209,7 @@ describe("CollaboratorOperationsImpl", () => {
           collaborators: [
             {
               userDid: "did:plc:activeuser",
-              permissions: { read: true, create: false, update: false, delete: false, admin: false, owner: false },
+              permissions: ["read"],
               grantedBy: "did:plc:owner",
               grantedAt: "2024-01-01T00:00:00Z",
             },
@@ -240,7 +240,7 @@ describe("CollaboratorOperationsImpl", () => {
           collaborators: [
             {
               userDid: "did:plc:revokeduser",
-              permissions: { read: true, create: false, update: false, delete: false, admin: false, owner: false },
+              permissions: ["read"],
               grantedBy: "did:plc:owner",
               grantedAt: "2024-01-01T00:00:00Z",
               revokedAt: "2024-02-01T00:00:00Z",
@@ -271,7 +271,7 @@ describe("CollaboratorOperationsImpl", () => {
           collaborators: [
             {
               userDid: "did:plc:editor",
-              permissions: { read: true, create: true, update: true, delete: false, admin: false, owner: false },
+              permissions: ["read", "create", "update"],
               grantedBy: "did:plc:owner",
               grantedAt: "2024-01-01T00:00:00Z",
             },
@@ -302,7 +302,7 @@ describe("CollaboratorOperationsImpl", () => {
           collaborators: [
             {
               userDid: "did:plc:revoked",
-              permissions: { read: true, create: true, update: true, delete: false, admin: false, owner: false },
+              permissions: ["read", "create", "update"],
               grantedBy: "did:plc:owner",
               grantedAt: "2024-01-01T00:00:00Z",
               revokedAt: "2024-02-01T00:00:00Z",

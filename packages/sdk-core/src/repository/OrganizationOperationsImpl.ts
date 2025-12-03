@@ -109,10 +109,18 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
    * ```
    */
   async create(params: { name: string; description?: string; handle?: string }): Promise<OrganizationInfo> {
+    const userDid = this.session.did || this.session.sub;
+    if (!userDid) {
+      throw new NetworkError("No authenticated user found");
+    }
+
     const response = await this.session.fetchHandler(`${this.serverUrl}/xrpc/com.sds.organization.create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
+      body: JSON.stringify({
+        ...params,
+        creatorDid: userDid,
+      }),
     });
 
     if (!response.ok) {
@@ -126,8 +134,15 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
       name: data.name,
       description: data.description,
       createdAt: data.createdAt || new Date().toISOString(),
-      accessType: "owner",
-      permissions: { read: true, create: true, update: true, delete: true, admin: true, owner: true },
+      accessType: data.accessType || "owner",
+      permissions: data.permissions || {
+        read: true,
+        create: true,
+        update: true,
+        delete: true,
+        admin: true,
+        owner: true,
+      },
     };
   }
 
@@ -202,8 +217,13 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
    * ```
    */
   async list(): Promise<OrganizationInfo[]> {
+    const userDid = this.session.did || this.session.sub;
+    if (!userDid) {
+      throw new NetworkError("No authenticated user found");
+    }
+
     const response = await this.session.fetchHandler(
-      `${this.serverUrl}/xrpc/com.sds.organization.list?userDid=${encodeURIComponent(this.session.did || this.session.sub)}`,
+      `${this.serverUrl}/xrpc/com.sds.organization.list?userDid=${encodeURIComponent(userDid)}`,
       { method: "GET" },
     );
 
@@ -212,20 +232,21 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
     }
 
     const data = await response.json();
-    return (data.repositories || []).map(
+    return (data.organizations || []).map(
       (r: {
         did: string;
         handle: string;
         name: string;
         description?: string;
-        accessType: "owner" | "collaborator";
+        createdAt?: string;
+        accessType: "owner" | "shared" | "none";
         permissions: CollaboratorPermissions;
       }) => ({
         did: r.did,
         handle: r.handle,
         name: r.name,
         description: r.description,
-        createdAt: new Date().toISOString(), // SDS may not return this
+        createdAt: r.createdAt || new Date().toISOString(),
         accessType: r.accessType,
         permissions: r.permissions,
       }),
