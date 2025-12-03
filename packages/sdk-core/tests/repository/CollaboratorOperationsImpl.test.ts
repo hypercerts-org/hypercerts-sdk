@@ -28,7 +28,7 @@ describe("CollaboratorOperationsImpl", () => {
       await collaboratorOps.grant({ userDid: "did:plc:newuser", role: "viewer" });
 
       expect(mockSession.fetchHandler).toHaveBeenCalledWith(
-        `${serverUrl}/xrpc/com.atproto.sds.grantAccess`,
+        `${serverUrl}/xrpc/com.sds.repo.grantAccess`,
         expect.objectContaining({
           method: "POST",
           body: expect.stringContaining('"read":true'),
@@ -88,9 +88,7 @@ describe("CollaboratorOperationsImpl", () => {
         statusText: "Forbidden",
       });
 
-      await expect(
-        collaboratorOps.grant({ userDid: "did:plc:newuser", role: "viewer" }),
-      ).rejects.toThrow(NetworkError);
+      await expect(collaboratorOps.grant({ userDid: "did:plc:newuser", role: "viewer" })).rejects.toThrow(NetworkError);
     });
   });
 
@@ -104,7 +102,7 @@ describe("CollaboratorOperationsImpl", () => {
       await collaboratorOps.revoke({ userDid: "did:plc:revokeduser" });
 
       expect(mockSession.fetchHandler).toHaveBeenCalledWith(
-        `${serverUrl}/xrpc/com.atproto.sds.revokeAccess`,
+        `${serverUrl}/xrpc/com.sds.repo.revokeAccess`,
         expect.objectContaining({
           method: "POST",
         }),
@@ -121,9 +119,7 @@ describe("CollaboratorOperationsImpl", () => {
         statusText: "Not Found",
       });
 
-      await expect(
-        collaboratorOps.revoke({ userDid: "did:plc:user" }),
-      ).rejects.toThrow(NetworkError);
+      await expect(collaboratorOps.revoke({ userDid: "did:plc:user" })).rejects.toThrow(NetworkError);
     });
   });
 
@@ -318,6 +314,125 @@ describe("CollaboratorOperationsImpl", () => {
       const result = await collaboratorOps.getRole("did:plc:revoked");
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe("getPermissions", () => {
+    it("should get current user permissions successfully", async () => {
+      mockSession.fetchHandler.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          permissions: {
+            read: true,
+            create: true,
+            update: true,
+            delete: false,
+            admin: false,
+            owner: false,
+          },
+        }),
+      });
+
+      const result = await collaboratorOps.getPermissions();
+
+      expect(mockSession.fetchHandler).toHaveBeenCalledWith(
+        `${serverUrl}/xrpc/com.sds.repo.getPermissions?repo=${encodeURIComponent(repoDid)}`,
+        expect.objectContaining({
+          method: "GET",
+        }),
+      );
+
+      expect(result.read).toBe(true);
+      expect(result.create).toBe(true);
+      expect(result.update).toBe(true);
+      expect(result.delete).toBe(false);
+      expect(result.admin).toBe(false);
+      expect(result.owner).toBe(false);
+    });
+
+    it("should handle owner permissions", async () => {
+      mockSession.fetchHandler.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          permissions: {
+            read: true,
+            create: true,
+            update: true,
+            delete: true,
+            admin: true,
+            owner: true,
+          },
+        }),
+      });
+
+      const result = await collaboratorOps.getPermissions();
+
+      expect(result.owner).toBe(true);
+      expect(result.admin).toBe(true);
+    });
+
+    it("should throw NetworkError on failure", async () => {
+      mockSession.fetchHandler.mockResolvedValue({
+        ok: false,
+        statusText: "Forbidden",
+      });
+
+      await expect(collaboratorOps.getPermissions()).rejects.toThrow(NetworkError);
+    });
+  });
+
+  describe("transferOwnership", () => {
+    it("should transfer ownership successfully", async () => {
+      mockSession.fetchHandler.mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      });
+
+      await collaboratorOps.transferOwnership({ newOwnerDid: "did:plc:new-owner" });
+
+      expect(mockSession.fetchHandler).toHaveBeenCalledWith(
+        `${serverUrl}/xrpc/com.sds.repo.transferOwnership`,
+        expect.objectContaining({
+          method: "POST",
+        }),
+      );
+
+      const body = JSON.parse(mockSession.fetchHandler.mock.calls[0][1].body);
+      expect(body.repo).toBe(repoDid);
+      expect(body.newOwner).toBe("did:plc:new-owner");
+    });
+
+    it("should throw NetworkError on failure", async () => {
+      mockSession.fetchHandler.mockResolvedValue({
+        ok: false,
+        statusText: "Forbidden",
+      });
+
+      await expect(collaboratorOps.transferOwnership({ newOwnerDid: "did:plc:new-owner" })).rejects.toThrow(
+        NetworkError,
+      );
+    });
+
+    it("should throw NetworkError when not owner", async () => {
+      mockSession.fetchHandler.mockResolvedValue({
+        ok: false,
+        statusText: "Forbidden: Only the owner can transfer ownership",
+      });
+
+      await expect(collaboratorOps.transferOwnership({ newOwnerDid: "did:plc:new-owner" })).rejects.toThrow(
+        NetworkError,
+      );
+    });
+
+    it("should throw NetworkError when new owner does not exist", async () => {
+      mockSession.fetchHandler.mockResolvedValue({
+        ok: false,
+        statusText: "Not Found: New owner DID not found",
+      });
+
+      await expect(collaboratorOps.transferOwnership({ newOwnerDid: "did:plc:nonexistent" })).rejects.toThrow(
+        NetworkError,
+      );
     });
   });
 });

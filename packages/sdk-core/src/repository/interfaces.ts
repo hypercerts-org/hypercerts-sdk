@@ -773,6 +773,17 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
  * const hasAccess = await repo.collaborators.hasAccess("did:plc:someone");
  * const role = await repo.collaborators.getRole("did:plc:someone");
  *
+ * // Get current user permissions
+ * const permissions = await repo.collaborators.getPermissions();
+ * if (permissions.admin) {
+ *   // Can manage collaborators
+ * }
+ *
+ * // Transfer ownership
+ * await repo.collaborators.transferOwnership({
+ *   newOwnerDid: "did:plc:new-owner",
+ * });
+ *
  * // Revoke access
  * await repo.collaborators.revoke({ userDid: "did:plc:former-user" });
  * ```
@@ -817,6 +828,24 @@ export interface CollaboratorOperations {
    * @returns Promise resolving to role, or `null` if no access
    */
   getRole(userDid: string): Promise<RepositoryRole | null>;
+
+  /**
+   * Gets the current user's permissions for this repository.
+   *
+   * @returns Promise resolving to permission flags
+   */
+  getPermissions(): Promise<import("../core/types.js").CollaboratorPermissions>;
+
+  /**
+   * Transfers repository ownership to another user.
+   *
+   * **WARNING**: This action is irreversible. The new owner will have
+   * full control of the repository.
+   *
+   * @param params - Transfer parameters
+   * @param params.newOwnerDid - DID of the user to transfer ownership to
+   */
+  transferOwnership(params: { newOwnerDid: string }): Promise<void>;
 }
 
 /**

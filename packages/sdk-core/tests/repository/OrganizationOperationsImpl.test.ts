@@ -44,7 +44,7 @@ describe("OrganizationOperationsImpl", () => {
       expect(result.permissions.owner).toBe(true);
 
       expect(mockSession.fetchHandler).toHaveBeenCalledWith(
-        `${serverUrl}/xrpc/com.atproto.sds.createRepository`,
+        `${serverUrl}/xrpc/com.sds.organization.create`,
         expect.objectContaining({
           method: "POST",
           headers: { "Content-Type": "application/json" },

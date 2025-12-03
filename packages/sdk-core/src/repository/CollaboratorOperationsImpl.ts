@@ -30,9 +30,11 @@ import type { RepositoryRole, RepositoryAccessGrant } from "./types.js";
  * - `owner`: Full control including ownership management
  *
  * **SDS API Endpoints Used**:
- * - `com.atproto.sds.grantAccess`: Grant access to a user
- * - `com.atproto.sds.revokeAccess`: Revoke access from a user
- * - `com.atproto.sds.listCollaborators`: List all collaborators
+ * - `com.sds.repo.grantAccess`: Grant access to a user
+ * - `com.sds.repo.revokeAccess`: Revoke access from a user
+ * - `com.sds.repo.listCollaborators`: List all collaborators
+ * - `com.sds.repo.getPermissions`: Get current user's permissions
+ * - `com.sds.repo.transferOwnership`: Transfer repository ownership
  *
  * @example
  * ```typescript
@@ -135,7 +137,7 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
   async grant(params: { userDid: string; role: RepositoryRole }): Promise<void> {
     const permissions = this.roleToPermissions(params.role);
 
-    const response = await this.session.fetchHandler(`${this.serverUrl}/xrpc/com.atproto.sds.grantAccess`, {
+    const response = await this.session.fetchHandler(`${this.serverUrl}/xrpc/com.sds.repo.grantAccess`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -169,7 +171,7 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
    * ```
    */
   async revoke(params: { userDid: string }): Promise<void> {
-    const response = await this.session.fetchHandler(`${this.serverUrl}/xrpc/com.atproto.sds.revokeAccess`, {
+    const response = await this.session.fetchHandler(`${this.serverUrl}/xrpc/com.sds.repo.revokeAccess`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -211,7 +213,7 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
    */
   async list(): Promise<RepositoryAccessGrant[]> {
     const response = await this.session.fetchHandler(
-      `${this.serverUrl}/xrpc/com.atproto.sds.listCollaborators?repo=${encodeURIComponent(this.repoDid)}`,
+      `${this.serverUrl}/xrpc/com.sds.repo.listCollaborators?repo=${encodeURIComponent(this.repoDid)}`,
       { method: "GET" },
     );
 
@@ -284,5 +286,111 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
     const collaborators = await this.list();
     const collab = collaborators.find((c) => c.userDid === userDid && !c.revokedAt);
     return collab?.role ?? null;
+  }
+
+  /**
+   * Gets the current user's permissions for this repository.
+   *
+   * @returns Promise resolving to the permission flags
+   * @throws {@link NetworkError} if the request fails
+   *
+   * @remarks
+   * This is useful for checking what actions the current user can perform
+   * before attempting operations that might fail due to insufficient permissions.
+   *
+   * @example
+   * ```typescript
+   * const permissions = await repo.collaborators.getPermissions();
+   *
+   * if (permissions.admin) {
+   *   // Show admin UI
+   *   console.log("You can manage collaborators");
+   * }
+   *
+   * if (permissions.create) {
+   *   console.log("You can create records");
+   * }
+   * ```
+   *
+   * @example Conditional UI rendering
+   * ```typescript
+   * const permissions = await repo.collaborators.getPermissions();
+   *
+   * // Show/hide UI elements based on permissions
+   * const canEdit = permissions.update;
+   * const canDelete = permissions.delete;
+   * const isAdmin = permissions.admin;
+   * const isOwner = permissions.owner;
+   * ```
+   */
+  async getPermissions(): Promise<CollaboratorPermissions> {
+    const response = await this.session.fetchHandler(
+      `${this.serverUrl}/xrpc/com.sds.repo.getPermissions?repo=${encodeURIComponent(this.repoDid)}`,
+      { method: "GET" },
+    );
+
+    if (!response.ok) {
+      throw new NetworkError(`Failed to get permissions: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.permissions as CollaboratorPermissions;
+  }
+
+  /**
+   * Transfers repository ownership to another user.
+   *
+   * @param params - Transfer parameters
+   * @param params.newOwnerDid - DID of the user to transfer ownership to
+   * @throws {@link NetworkError} if the transfer fails
+   *
+   * @remarks
+   * **IMPORTANT**: This action is irreversible. Once ownership is transferred:
+   * - The new owner gains full control of the repository
+   * - Your role will be changed to admin (or specified role)
+   * - You cannot transfer ownership back without the new owner's approval
+   *
+   * **Requirements**:
+   * - You must be the current owner
+   * - The new owner must have an existing account
+   * - The new owner will be notified of the ownership transfer
+   *
+   * @example
+   * ```typescript
+   * // Transfer ownership to another user
+   * await repo.collaborators.transferOwnership({
+   *   newOwnerDid: "did:plc:new-owner",
+   * });
+   *
+   * console.log("Ownership transferred successfully");
+   * // You are now an admin, not the owner
+   * ```
+   *
+   * @example With confirmation
+   * ```typescript
+   * const confirmTransfer = await askUser(
+   *   "Are you sure you want to transfer ownership? This cannot be undone."
+   * );
+   *
+   * if (confirmTransfer) {
+   *   await repo.collaborators.transferOwnership({
+   *     newOwnerDid: "did:plc:new-owner",
+   *   });
+   * }
+   * ```
+   */
+  async transferOwnership(params: { newOwnerDid: string }): Promise<void> {
+    const response = await this.session.fetchHandler(`${this.serverUrl}/xrpc/com.sds.repo.transferOwnership`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        repo: this.repoDid,
+        newOwner: params.newOwnerDid,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new NetworkError(`Failed to transfer ownership: ${response.statusText}`);
+    }
   }
 }
