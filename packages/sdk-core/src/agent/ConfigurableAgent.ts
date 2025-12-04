@@ -8,8 +8,13 @@
  */
 
 import { Agent } from "@atproto/api";
-import type { FetchHandler } from "@atproto/xrpc";
 import type { Session } from "../core/types.js";
+
+/**
+ * FetchHandler type - function that makes HTTP requests with authentication.
+ * Takes a pathname and request init, returns a Response promise.
+ */
+type FetchHandler = (pathname: string, init: RequestInit) => Promise<Response>;
 
 /**
  * Agent subclass that routes requests to a configurable service URL.

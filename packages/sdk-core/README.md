@@ -77,7 +77,7 @@ await orgRepo.hypercerts.list(); // Queries organization's hypercerts on SDS
 
 #### How Repository Routing Works
 
-When you create or switch repositories, the SDK ensures requests are routed to the correct server:
+The SDK uses a `ConfigurableAgent` to route requests to different servers while maintaining your OAuth authentication:
 
 1. **Initial Repository Creation**
    ```typescript
@@ -105,10 +105,11 @@ When you create or switch repositories, the SDK ensures requests are routed to t
    ```
 
 3. **Key Implementation Details**
-   - The SDK configures the AT Protocol Agent's service URL when creating repositories
-   - When you call `.repo(did)`, a new Repository instance is created that maintains the same server URL
-   - This ensures that even when querying different DIDs, requests go to the intended server
-   - User's OAuth session provides authentication, but doesn't determine routing
+   - Each Repository uses a `ConfigurableAgent` that wraps your OAuth session's fetch handler
+   - The agent routes all requests to the specified server URL (PDS, SDS, or custom)
+   - When you call `.repo(did)`, a new Repository is created with the same server configuration
+   - Your OAuth session provides authentication (DPoP, access tokens), while the agent handles routing
+   - This enables simultaneous connections to multiple servers with one authentication session
 
 #### Common Patterns
 
@@ -548,6 +549,35 @@ try {
 ```
 
 ## Advanced Usage
+
+### Multi-Server Routing with ConfigurableAgent
+
+The `ConfigurableAgent` allows you to create custom agents that route to specific servers:
+
+```typescript
+import { ConfigurableAgent } from "@hypercerts-org/sdk-core";
+
+// Authenticate once with your PDS
+const session = await sdk.callback(params);
+
+// Create agents for different servers using the same session
+const pdsAgent = new ConfigurableAgent(session, "https://bsky.social");
+const sdsAgent = new ConfigurableAgent(session, "https://sds.hypercerts.org");
+const orgAgent = new ConfigurableAgent(session, "https://sds-org-a.example.com");
+
+// Use agents directly with AT Protocol APIs
+await pdsAgent.com.atproto.repo.createRecord({...});
+await sdsAgent.com.atproto.repo.listRecords({...});
+
+// Or pass to Repository for high-level operations
+// (Repository internally uses ConfigurableAgent)
+```
+
+This is useful for:
+- Connecting to multiple SDS instances simultaneously
+- Testing against different server environments
+- Building tools that work across multiple organizations
+- Direct AT Protocol API access with custom routing
 
 ### Custom Session Storage
 
