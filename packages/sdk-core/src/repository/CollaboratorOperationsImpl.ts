@@ -108,23 +108,24 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
   }
 
   /**
-   * Converts a permission string array to a permissions object.
+   * Normalizes permissions from SDS API format to SDK format.
    *
-   * The SDS API returns permissions as an array of strings (e.g., ["read", "create"]).
-   * This method converts them to the boolean flag format used by the SDK.
+   * The SDS API returns permissions as an object with boolean flags
+   * (e.g., `{ read: true, create: true, update: false, ... }`).
+   * This method ensures all expected fields are present with default values.
    *
-   * @param permissionArray - Array of permission strings from SDS API
-   * @returns Permission flags object
+   * @param permissions - Permissions object from SDS API
+   * @returns Normalized permission flags object
    * @internal
    */
-  private parsePermissions(permissionArray: string[]): CollaboratorPermissions {
+  private parsePermissions(permissions: CollaboratorPermissions): CollaboratorPermissions {
     return {
-      read: permissionArray.includes("read"),
-      create: permissionArray.includes("create"),
-      update: permissionArray.includes("update"),
-      delete: permissionArray.includes("delete"),
-      admin: permissionArray.includes("admin"),
-      owner: permissionArray.includes("owner"),
+      read: permissions.read ?? false,
+      create: permissions.create ?? false,
+      update: permissions.update ?? false,
+      delete: permissions.delete ?? false,
+      admin: permissions.admin ?? false,
+      owner: permissions.owner ?? false,
     };
   }
 
@@ -263,7 +264,7 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
     const collaborators = (data.collaborators || []).map(
       (c: {
         userDid: string;
-        permissions: string[]; // SDS API returns string array
+        permissions: CollaboratorPermissions; // SDS API returns object with boolean flags
         grantedBy: string;
         grantedAt: string;
         revokedAt?: string;
