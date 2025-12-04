@@ -20,7 +20,7 @@
   "files": [
     "dist",
     "lexicons",
-    "src"
+    "README.md"
   ],
   "keywords": [
     "hypercerts",
