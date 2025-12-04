@@ -190,11 +190,11 @@ export interface CreateHypercertParams {
     description?: string;
 
     /**
-     * Spatial Reference System identifier.
+     * Spatial Reference System identifier (required if location is provided).
      *
      * @example "EPSG:4326" for WGS84
      */
-    srs?: string;
+    srs: string;
 
     /**
      * GeoJSON file as a Blob for precise boundaries.
@@ -663,6 +663,11 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    *
    * @param uri - AT-URI of the hypercert
    * @param location - Location data
+   * @param location.value - Location value (address, coordinates, or description)
+   * @param location.srs - Spatial Reference System (required). Use 'EPSG:4326' for WGS84 lat/lon coordinates.
+   * @param location.name - Optional human-readable location name
+   * @param location.description - Optional description of the location
+   * @param location.geojson - Optional GeoJSON blob for precise boundaries
    * @returns Promise resolving to location record result
    */
   attachLocation(
@@ -671,7 +676,7 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
       value: string;
       name?: string;
       description?: string;
-      srs?: string;
+      srs: string;
       geojson?: Blob;
     },
   ): Promise<CreateResult>;

@@ -147,7 +147,7 @@ describe("HypercertOperationsImpl", () => {
 
       const result = await hypercertOps.create({
         ...validParams,
-        location: { value: "New York, NY" },
+        location: { value: "New York, NY", srs: "EPSG:4326" },
       });
 
       expect(result.locationUri).toBe("at://did:plc:test/org.hypercerts.claim.location/ghi");

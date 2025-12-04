@@ -229,7 +229,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
       // Step 2: Create rights record
       this.emitProgress(params.onProgress, { name: "createRights", status: "start" });
-      const rightsRecord: Omit<HypercertRights, "$type"> = {
+      const rightsRecord: HypercertRights = {
+        $type: HYPERCERT_COLLECTIONS.RIGHTS,
         rightsName: params.rights.name,
         rightsType: params.rights.type,
         rightsDescription: params.rights.description,
@@ -263,6 +264,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // Step 3: Create hypercert record
       this.emitProgress(params.onProgress, { name: "createHypercert", status: "start" });
       const hypercertRecord: Record<string, unknown> = {
+        $type: HYPERCERT_COLLECTIONS.CLAIM,
         title: params.title,
         description: params.description,
         workScope: params.workScope,
@@ -641,6 +643,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * await repo.hypercerts.attachLocation(hypercertUri, {
    *   value: "San Francisco, CA",
    *   name: "SF Bay Area",
+   *   srs: "EPSG:4326",
    * });
    * ```
    *
@@ -662,34 +665,58 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     location: { value: string; name?: string; description?: string; srs?: string; geojson?: Blob },
   ): Promise<CreateResult> {
     try {
-      // Get hypercert to get CID
-      const hypercert = await this.get(hypercertUri);
+      // Validate required srs field
+      if (!location.srs) {
+        throw new ValidationError(
+          "srs (Spatial Reference System) is required. Example: 'EPSG:4326' for WGS84 coordinates, or 'http://www.opengis.net/def/crs/OGC/1.3/CRS84' for CRS84.",
+        );
+      }
+
+      // Validate that hypercert exists (unused but confirms hypercert is valid)
+      await this.get(hypercertUri);
       const createdAt = new Date().toISOString();
 
-      let locationValue: string | BlobRef = location.value;
+      // Determine location type and prepare location data
+      let locationData: { $type: string; uri: string } | BlobRef;
+      let locationType: string;
+
       if (location.geojson) {
+        // Upload GeoJSON as a blob
         const arrayBuffer = await location.geojson.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
         const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
           encoding: location.geojson.type || "application/geo+json",
         });
         if (uploadResult.success) {
-          locationValue = {
+          locationData = {
             $type: "blob",
             ref: { $link: uploadResult.data.blob.ref.toString() },
             mimeType: uploadResult.data.blob.mimeType,
             size: uploadResult.data.blob.size,
           };
+          locationType = "geojson-point";
+        } else {
+          throw new NetworkError("Failed to upload GeoJSON blob");
         }
+      } else {
+        // Use value as a URI reference
+        locationData = {
+          $type: "app.certified.defs#uri",
+          uri: location.value,
+        };
+        locationType = "coordinate-decimal";
       }
 
-      const locationRecord: Omit<HypercertLocation, "$type"> = {
-        hypercert: { uri: hypercert.uri, cid: hypercert.cid },
-        value: locationValue,
+      // Build location record according to app.certified.location lexicon
+      const locationRecord: HypercertLocation = {
+        $type: HYPERCERT_COLLECTIONS.LOCATION,
+        lpVersion: "1.0",
+        srs: location.srs,
+        locationType,
+        location: locationData,
         createdAt,
         name: location.name,
         description: location.description,
-        srs: location.srs,
       };
 
       const validation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.LOCATION, locationRecord);
@@ -784,11 +811,13 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }): Promise<CreateResult> {
     try {
       const createdAt = new Date().toISOString();
-      const contributionRecord: Omit<HypercertContribution, "$type"> = {
+      const contributionRecord: HypercertContribution = {
+        $type: HYPERCERT_COLLECTIONS.CONTRIBUTION,
         contributors: params.contributors,
         role: params.role,
         createdAt,
         description: params.description,
+        hypercert: { uri: "", cid: "" }, // Will be set below if hypercertUri provided
       };
 
       if (params.hypercertUri) {
@@ -863,7 +892,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const hypercert = await this.get(params.hypercertUri);
       const createdAt = new Date().toISOString();
 
-      const measurementRecord: Omit<HypercertMeasurement, "$type"> = {
+      const measurementRecord: HypercertMeasurement = {
+        $type: HYPERCERT_COLLECTIONS.MEASUREMENT,
         hypercert: { uri: hypercert.uri, cid: hypercert.cid },
         measurers: params.measurers,
         metric: params.metric,
@@ -922,7 +952,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const subject = await this.get(params.subjectUri);
       const createdAt = new Date().toISOString();
 
-      const evaluationRecord: Omit<HypercertEvaluation, "$type"> = {
+      const evaluationRecord: HypercertEvaluation = {
+        $type: HYPERCERT_COLLECTIONS.EVALUATION,
         subject: { uri: subject.uri, cid: subject.cid },
         evaluators: params.evaluators,
         summary: params.summary,
@@ -1007,6 +1038,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       }
 
       const collectionRecord: Record<string, unknown> = {
+        $type: HYPERCERT_COLLECTIONS.COLLECTION,
         title: params.title,
         claims: params.claims.map((c) => ({ claim: { uri: c.uri, cid: c.cid }, weight: c.weight })),
         createdAt,
