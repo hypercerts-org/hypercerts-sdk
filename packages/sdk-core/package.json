@@ -1,6 +1,6 @@
 {
   "name": "@hypercerts-org/sdk-core",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Framework-agnostic ATProto SDK core for authentication, repository operations, and lexicon management",
   "main": "dist/index.cjs",
   "repository": {
