@@ -10,6 +10,9 @@ export type { AuthorizeOptions } from "./core/SDK.js";
 export type { ATProtoSDKConfig } from "./core/config.js";
 export type { Session } from "./core/types.js";
 
+// Agent
+export { ConfigurableAgent } from "./agent/ConfigurableAgent.js";
+
 // Repository (fluent API)
 export { Repository } from "./repository/Repository.js";
 export type {
