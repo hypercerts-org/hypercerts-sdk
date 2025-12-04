@@ -44,7 +44,99 @@ const claim = await repo.hypercerts.create({
 
 ## Core Concepts
 
-### 1. Authentication
+### 1. PDS vs SDS: Understanding Server Types
+
+The SDK supports two types of AT Protocol servers:
+
+#### Personal Data Server (PDS)
+- **Purpose**: User's own data storage (e.g., Bluesky)
+- **Use case**: Individual hypercerts, personal records
+- **Features**: Profile management, basic CRUD operations
+- **Example**: `bsky.social`, any Bluesky PDS
+
+#### Shared Data Server (SDS)
+- **Purpose**: Collaborative data storage with access control
+- **Use case**: Organization hypercerts, team collaboration
+- **Features**: Organizations, multi-user access, role-based permissions
+- **Example**: `sds.hypercerts.org`
+
+```typescript
+// Connect to user's PDS (default)
+const pdsRepo = sdk.repository(session);
+await pdsRepo.hypercerts.create({ ... }); // Creates in user's PDS
+
+// Connect to SDS for collaboration features
+const sdsRepo = sdk.repository(session, { server: "sds" });
+await sdsRepo.organizations.create({ name: "My Org" }); // SDS-only feature
+
+// Switch to organization repository (still on SDS)
+const orgs = await sdsRepo.organizations.list();
+const orgRepo = sdsRepo.repo(orgs.organizations[0].did);
+await orgRepo.hypercerts.list(); // Queries organization's hypercerts on SDS
+```
+
+#### How Repository Routing Works
+
+When you create or switch repositories, the SDK ensures requests are routed to the correct server:
+
+1. **Initial Repository Creation**
+   ```typescript
+   // User authenticates (OAuth session knows user's PDS)
+   const session = await sdk.callback(params);
+   
+   // Create PDS repository - routes to user's PDS
+   const pdsRepo = sdk.repository(session);
+   
+   // Create SDS repository - routes to SDS server
+   const sdsRepo = sdk.repository(session, { server: "sds" });
+   ```
+
+2. **Switching Repositories with `.repo()`**
+   ```typescript
+   // Start with user's SDS repository
+   const userSdsRepo = sdk.repository(session, { server: "sds" });
+   
+   // Switch to organization's repository
+   const orgRepo = userSdsRepo.repo("did:plc:org-did");
+   
+   // All operations on orgRepo still route to SDS, not user's PDS
+   await orgRepo.hypercerts.list(); // ✅ Queries SDS
+   await orgRepo.collaborators.list(); // ✅ Queries SDS
+   ```
+
+3. **Key Implementation Details**
+   - The SDK configures the AT Protocol Agent's service URL when creating repositories
+   - When you call `.repo(did)`, a new Repository instance is created that maintains the same server URL
+   - This ensures that even when querying different DIDs, requests go to the intended server
+   - User's OAuth session provides authentication, but doesn't determine routing
+
+#### Common Patterns
+
+```typescript
+// Pattern 1: Personal hypercerts on PDS
+const myRepo = sdk.repository(session);
+await myRepo.hypercerts.create({ title: "My Personal Impact" });
+
+// Pattern 2: Organization hypercerts on SDS
+const sdsRepo = sdk.repository(session, { server: "sds" });
+const orgRepo = sdsRepo.repo(organizationDid);
+await orgRepo.hypercerts.create({ title: "Team Impact" });
+
+// Pattern 3: Reading another user's hypercerts
+const otherUserRepo = myRepo.repo("did:plc:other-user");
+await otherUserRepo.hypercerts.list(); // Read-only access to their PDS
+
+// Pattern 4: Collaborating on organization data
+const sdsRepo = sdk.repository(session, { server: "sds" });
+await sdsRepo.collaborators.grant({
+  userDid: "did:plc:teammate",
+  role: "editor",
+});
+const orgRepo = sdsRepo.repo(organizationDid);
+// Teammate can now access orgRepo and create hypercerts
+```
+
+### 2. Authentication
 
 The SDK uses OAuth 2.0 for authentication with support for both PDS (Personal Data Server) and SDS (Shared Data Server).
 
@@ -67,7 +159,7 @@ const session = await sdk.restoreSession("did:plc:user123");
 const repo = sdk.getRepository(session);
 ```
 
-### 2. Working with Hypercerts
+### 3. Working with Hypercerts
 
 #### Creating a Hypercert
 
@@ -144,7 +236,7 @@ await repo.hypercerts.delete(
 );
 ```
 
-### 3. Contributions and Measurements
+### 4. Contributions and Measurements
 
 #### Adding Contributions
 
@@ -174,7 +266,7 @@ const measurement = await repo.hypercerts.addMeasurement({
 });
 ```
 
-### 4. Blob Operations (Images & Files)
+### 5. Blob Operations (Images & Files)
 
 ```typescript
 // Upload an image or file
@@ -188,7 +280,7 @@ const blobData = await repo.blobs.get(
 );
 ```
 
-### 5. Organizations (SDS only)
+### 6. Organizations (SDS only)
 
 Organizations allow multiple users to collaborate on shared repositories.
 
@@ -216,7 +308,7 @@ const org = await repo.organizations.get("did:plc:org123");
 console.log(`${org.name} - ${org.description}`);
 ```
 
-### 6. Collaborator Management (SDS only)
+### 7. Collaborator Management (SDS only)
 
 Manage who has access to your repository and what they can do.
 
@@ -285,7 +377,7 @@ await repo.collaborators.transferOwnership({
 });
 ```
 
-### 7. Generic Record Operations
+### 8. Generic Record Operations
 
 For working with any ATProto record type:
 
@@ -330,7 +422,7 @@ const { records, cursor } = await repo.records.list({
 });
 ```
 
-### 8. Profile Management (PDS only)
+### 9. Profile Management (PDS only)
 
 ```typescript
 // Get user profile
