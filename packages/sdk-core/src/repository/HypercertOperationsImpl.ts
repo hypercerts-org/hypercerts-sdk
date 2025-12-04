@@ -208,7 +208,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           if (uploadResult.success) {
             imageBlobRef = {
               $type: "blob",
-              ref: uploadResult.data.blob.ref,
+              ref: { $link: uploadResult.data.blob.ref.toString() },
               mimeType: uploadResult.data.blob.mimeType,
               size: uploadResult.data.blob.size,
             };
@@ -676,7 +676,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         if (uploadResult.success) {
           locationValue = {
             $type: "blob",
-            ref: uploadResult.data.blob.ref,
+            ref: { $link: uploadResult.data.blob.ref.toString() },
             mimeType: uploadResult.data.blob.mimeType,
             size: uploadResult.data.blob.size,
           };
@@ -999,7 +999,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         if (uploadResult.success) {
           coverPhotoRef = {
             $type: "blob",
-            ref: uploadResult.data.blob.ref,
+            ref: { $link: uploadResult.data.blob.ref.toString() },
             mimeType: uploadResult.data.blob.mimeType,
             size: uploadResult.data.blob.size,
           };

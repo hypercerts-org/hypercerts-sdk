@@ -23,7 +23,7 @@ describe("useOrganizations", () => {
       });
       queryClient.setQueryData(atprotoKeys.session(), session);
 
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ organizations: [] });
       const mockRepo = { organizations: { list: mockList, create: vi.fn(), get: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
@@ -57,7 +57,7 @@ describe("useOrganizations", () => {
         createMockOrganization({ did: "did:plc:org1", name: "Org 1" }),
         createMockOrganization({ did: "did:plc:org2", name: "Org 2" }),
       ];
-      const mockList = vi.fn().mockResolvedValue(mockOrgs);
+      const mockList = vi.fn().mockResolvedValue({ organizations: mockOrgs });
       const mockRepo = { organizations: { list: mockList, create: vi.fn(), get: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
@@ -108,7 +108,7 @@ describe("useOrganizations", () => {
       });
       queryClient.setQueryData(atprotoKeys.session(), session);
 
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ organizations: [] });
       const mockCreate = vi.fn().mockResolvedValue(createMockOrganization());
       const mockRepo = { organizations: { list: mockList, create: mockCreate, get: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
@@ -137,7 +137,7 @@ describe("useOrganizations", () => {
       queryClient.setQueryData(atprotoKeys.session(), session);
 
       const newOrg = createMockOrganization({ name: "New Org" });
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ organizations: [] });
       const mockCreate = vi.fn().mockResolvedValue(newOrg);
       const mockRepo = { organizations: { list: mockList, create: mockCreate, get: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
@@ -185,7 +185,7 @@ describe("useOrganizations", () => {
       queryClient.setQueryData(atprotoKeys.session(), session);
 
       let resolveCreate: (org: ReturnType<typeof createMockOrganization>) => void;
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ organizations: [] });
       const mockCreate = vi.fn().mockImplementation(
         () =>
           new Promise((resolve) => {
@@ -240,7 +240,7 @@ describe("useOrganizations", () => {
       });
       queryClient.setQueryData(atprotoKeys.session(), session);
 
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ organizations: [] });
       const mockRepo = { organizations: { list: mockList, create: vi.fn(), get: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 

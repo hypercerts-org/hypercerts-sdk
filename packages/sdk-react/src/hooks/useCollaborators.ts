@@ -101,7 +101,7 @@ export function useCollaborators(repoDid: string): UseCollaboratorsResult {
         throw new SDSRequiredError("Collaborator management requires a Shared Data Server (SDS)");
       }
 
-      const grants = await repository.collaborators.list();
+      const { collaborators: grants } = await repository.collaborators.list();
 
       // Transform RepositoryAccessGrant[] to Collaborator[]
       // Use permissions directly from the grant (authoritative source)

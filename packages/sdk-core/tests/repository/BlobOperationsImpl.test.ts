@@ -28,11 +28,14 @@ describe("BlobOperationsImpl", () => {
   describe("upload", () => {
     it("should upload a blob successfully", async () => {
       const mockBlob = new Blob(["test content"], { type: "text/plain" });
+      const mockCID = {
+        toString: () => "bafyrei123",
+      };
       mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
         success: true,
         data: {
           blob: {
-            ref: { $link: "bafyrei123" },
+            ref: mockCID,
             mimeType: "text/plain",
             size: 12,
           },
@@ -61,10 +64,9 @@ describe("BlobOperationsImpl", () => {
 
       await blobOps.upload(mockBlob);
 
-      expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalledWith(
-        expect.any(Uint8Array),
-        { encoding: "image/png" },
-      );
+      expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalledWith(expect.any(Uint8Array), {
+        encoding: "image/png",
+      });
     });
 
     it("should default to application/octet-stream for blobs without type", async () => {
@@ -82,10 +84,9 @@ describe("BlobOperationsImpl", () => {
 
       await blobOps.upload(mockBlob);
 
-      expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalledWith(
-        expect.any(Uint8Array),
-        { encoding: "application/octet-stream" },
-      );
+      expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalledWith(expect.any(Uint8Array), {
+        encoding: "application/octet-stream",
+      });
     });
 
     it("should throw NetworkError when API returns success: false", async () => {

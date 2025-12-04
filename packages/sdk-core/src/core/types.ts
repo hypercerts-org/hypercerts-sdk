@@ -185,9 +185,10 @@ export const OrganizationSchema = z.object({
   /**
    * How the current user relates to this organization.
    * - `"owner"`: User created or owns the organization
-   * - `"collaborator"`: User was invited to collaborate
+   * - `"shared"`: User was invited to collaborate (has permissions)
+   * - `"none"`: User has no access to this organization
    */
-  accessType: z.enum(["owner", "collaborator"]),
+  accessType: z.enum(["owner", "shared", "none"]),
 });
 
 /**

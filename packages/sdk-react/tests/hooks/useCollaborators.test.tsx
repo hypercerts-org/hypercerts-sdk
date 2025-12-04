@@ -13,12 +13,14 @@ import { atprotoKeys } from "../../src/queries/keys.js";
 /**
  * Create a mock collaborator grant for testing.
  */
-function createMockGrant(overrides: {
-  userDid?: string;
-  role?: "viewer" | "editor" | "admin" | "owner";
-  grantedBy?: string;
-  grantedAt?: string;
-} = {}) {
+function createMockGrant(
+  overrides: {
+    userDid?: string;
+    role?: "viewer" | "editor" | "admin" | "owner";
+    grantedBy?: string;
+    grantedAt?: string;
+  } = {},
+) {
   const role = overrides.role ?? "viewer";
   return {
     userDid: overrides.userDid ?? "did:plc:collaborator123",
@@ -41,7 +43,7 @@ describe("useCollaborators", () => {
       });
       queryClient.setQueryData(atprotoKeys.session(), session);
 
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ collaborators: [] });
       const mockRepo = { collaborators: { list: mockList, grant: vi.fn(), revoke: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
@@ -76,7 +78,7 @@ describe("useCollaborators", () => {
         createMockGrant({ userDid: "did:plc:user2", role: "editor" }),
         createMockGrant({ userDid: "did:plc:user3", role: "viewer" }),
       ];
-      const mockList = vi.fn().mockResolvedValue(mockGrants);
+      const mockList = vi.fn().mockResolvedValue({ collaborators: mockGrants });
       const mockRepo = { collaborators: { list: mockList, grant: vi.fn(), revoke: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
@@ -118,7 +120,7 @@ describe("useCollaborators", () => {
       });
       queryClient.setQueryData(atprotoKeys.session(), session);
 
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ collaborators: [] });
       const mockGrant = vi.fn().mockResolvedValue(undefined);
       const mockRepo = { collaborators: { list: mockList, grant: mockGrant, revoke: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
@@ -146,7 +148,7 @@ describe("useCollaborators", () => {
       });
       queryClient.setQueryData(atprotoKeys.session(), session);
 
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ collaborators: [] });
       const mockGrant = vi.fn().mockResolvedValue(undefined);
       const mockRepo = { collaborators: { list: mockList, grant: mockGrant, revoke: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
@@ -189,7 +191,7 @@ describe("useCollaborators", () => {
       queryClient.setQueryData(atprotoKeys.session(), session);
 
       let resolveGrant: () => void;
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ collaborators: [] });
       const mockGrant = vi.fn().mockImplementation(
         () =>
           new Promise<void>((resolve) => {
@@ -244,7 +246,7 @@ describe("useCollaborators", () => {
       });
       queryClient.setQueryData(atprotoKeys.session(), session);
 
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ collaborators: [] });
       const mockRevoke = vi.fn().mockResolvedValue(undefined);
       const mockRepo = { collaborators: { list: mockList, grant: vi.fn(), revoke: mockRevoke } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
@@ -272,7 +274,7 @@ describe("useCollaborators", () => {
       });
       queryClient.setQueryData(atprotoKeys.session(), session);
 
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ collaborators: [] });
       const mockRevoke = vi.fn().mockResolvedValue(undefined);
       const mockRepo = { collaborators: { list: mockList, grant: vi.fn(), revoke: mockRevoke } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
@@ -311,7 +313,7 @@ describe("useCollaborators", () => {
       queryClient.setQueryData(atprotoKeys.session(), session);
 
       let resolveRevoke: () => void;
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ collaborators: [] });
       const mockRevoke = vi.fn().mockImplementation(
         () =>
           new Promise<void>((resolve) => {
@@ -366,7 +368,7 @@ describe("useCollaborators", () => {
       });
       queryClient.setQueryData(atprotoKeys.session(), session);
 
-      const mockList = vi.fn().mockResolvedValue([]);
+      const mockList = vi.fn().mockResolvedValue({ collaborators: [] });
       const mockRepo = { collaborators: { list: mockList, grant: vi.fn(), revoke: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 

@@ -1,26 +1,412 @@
 # @hypercerts-org/sdk-core
 
-Framework-agnostic ATProto SDK for Hypercerts.
+Framework-agnostic ATProto SDK for Hypercerts. Create, manage, and collaborate on hypercerts using the AT Protocol.
 
 ```bash
 pnpm add @hypercerts-org/sdk-core
 ```
 
-## Entrypoints
+## Quick Start
 
+```typescript
+import { createATProtoSDK } from "@hypercerts-org/sdk-core";
+
+// 1. Create SDK with OAuth configuration
+const sdk = createATProtoSDK({
+  oauth: {
+    clientId: "https://your-app.com/client-metadata.json",
+    redirectUri: "https://your-app.com/callback",
+    scope: "atproto",
+    jwksUri: "https://your-app.com/jwks.json",
+    jwkPrivate: process.env.ATPROTO_JWK_PRIVATE!,
+  },
+});
+
+// 2. Authenticate user
+const authUrl = await sdk.authorize("user.bsky.social");
+// Redirect user to authUrl...
+
+// 3. Handle OAuth callback
+const session = await sdk.callback(callbackParams);
+
+// 4. Get repository and start creating hypercerts
+const repo = sdk.getRepository(session);
+const claim = await repo.hypercerts.create({
+  title: "Tree Planting Initiative 2025",
+  description: "Planted 1000 trees in the rainforest",
+  impact: {
+    scope: ["Environmental Conservation"],
+    work: { from: "2025-01-01", to: "2025-12-31" },
+    contributors: ["did:plc:contributor1"],
+  },
+});
 ```
-@hypercerts-org/sdk-core
-├── /              → Full SDK (createATProtoSDK, Repository, types, errors)
-├── /types         → TypeScript types (re-exported from @hypercerts-org/lexicon)
-├── /errors        → Error classes
-├── /lexicons      → LexiconRegistry, HYPERCERT_LEXICONS, HYPERCERT_COLLECTIONS
-├── /storage       → InMemorySessionStore, InMemoryStateStore
-└── /testing       → createMockSession, MockSessionStore
+
+## Core Concepts
+
+### 1. Authentication
+
+The SDK uses OAuth 2.0 for authentication with support for both PDS (Personal Data Server) and SDS (Shared Data Server).
+
+```typescript
+// First-time user authentication
+const authUrl = await sdk.authorize("user.bsky.social");
+// Redirect user to authUrl to complete OAuth flow
+
+// Handle the OAuth callback
+const session = await sdk.callback({
+  code: "...",
+  state: "...",
+  iss: "...",
+});
+
+// Restore existing session for returning users
+const session = await sdk.restoreSession("did:plc:user123");
+
+// Get repository for authenticated user
+const repo = sdk.getRepository(session);
 ```
+
+### 2. Working with Hypercerts
+
+#### Creating a Hypercert
+
+```typescript
+const hypercert = await repo.hypercerts.create({
+  title: "Climate Research Project",
+  description: "Research on carbon capture technologies",
+  image: imageBlob, // optional: File or Blob
+  externalUrl: "https://example.com/project",
+  
+  impact: {
+    scope: ["Climate Change", "Carbon Capture"],
+    work: {
+      from: "2024-01-01",
+      to: "2025-12-31",
+    },
+    contributors: ["did:plc:researcher1", "did:plc:researcher2"],
+  },
+  
+  rights: {
+    license: "CC-BY-4.0",
+    allowsDerivatives: true,
+    transferrable: false,
+  },
+});
+
+console.log("Created hypercert:", hypercert.uri);
+```
+
+#### Retrieving Hypercerts
+
+```typescript
+// Get a specific hypercert by URI
+const hypercert = await repo.hypercerts.get(
+  "at://did:plc:user123/org.hypercerts.claim/abc123"
+);
+
+// List all hypercerts in the repository
+const { records } = await repo.hypercerts.list();
+for (const claim of records) {
+  console.log(claim.value.title);
+}
+
+// List with pagination
+const { records, cursor } = await repo.hypercerts.list({ limit: 10 });
+if (cursor) {
+  const nextPage = await repo.hypercerts.list({ limit: 10, cursor });
+}
+```
+
+#### Updating a Hypercert
+
+```typescript
+// Update an existing hypercert
+await repo.hypercerts.update(
+  "at://did:plc:user123/org.hypercerts.claim/abc123",
+  {
+    title: "Updated Climate Research Project",
+    description: "Expanded scope to include renewable energy",
+    impact: {
+      scope: ["Climate Change", "Carbon Capture", "Renewable Energy"],
+      work: { from: "2024-01-01", to: "2026-12-31" },
+      contributors: ["did:plc:researcher1", "did:plc:researcher2"],
+    },
+  }
+);
+```
+
+#### Deleting a Hypercert
+
+```typescript
+await repo.hypercerts.delete(
+  "at://did:plc:user123/org.hypercerts.claim/abc123"
+);
+```
+
+### 3. Contributions and Measurements
+
+#### Adding Contributions
+
+```typescript
+// Add a contribution to a hypercert
+const contribution = await repo.hypercerts.addContribution({
+  claim: "at://did:plc:user123/org.hypercerts.claim/abc123",
+  contributor: "did:plc:contributor456",
+  description: "Led the research team and conducted field studies",
+  contributionType: "Work",
+  percentage: 40.0,
+});
+```
+
+#### Adding Measurements
+
+```typescript
+// Add a measurement/evaluation
+const measurement = await repo.hypercerts.addMeasurement({
+  claim: "at://did:plc:user123/org.hypercerts.claim/abc123",
+  type: "Impact",
+  value: 1000,
+  unit: "trees planted",
+  verifiedBy: "did:plc:auditor789",
+  verificationMethod: "On-site inspection with GPS verification",
+  measuredAt: new Date().toISOString(),
+});
+```
+
+### 4. Blob Operations (Images & Files)
+
+```typescript
+// Upload an image or file
+const blobResult = await repo.blobs.upload(imageFile);
+console.log("Blob uploaded:", blobResult.ref.$link);
+
+// Download a blob
+const blobData = await repo.blobs.get(
+  "did:plc:user123",
+  "bafyreiabc123..."
+);
+```
+
+### 5. Organizations (SDS only)
+
+Organizations allow multiple users to collaborate on shared repositories.
+
+```typescript
+// Create an organization
+const org = await repo.organizations.create({
+  name: "Climate Research Institute",
+  description: "Leading research on climate solutions",
+  handle: "climate-research", // optional: unique handle
+});
+
+console.log("Organization DID:", org.did);
+
+// List all organizations you belong to
+const { organizations } = await repo.organizations.list();
+for (const org of organizations) {
+  console.log(`${org.name} (${org.role})`);
+}
+
+// List with pagination
+const { organizations, cursor } = await repo.organizations.list({ limit: 10 });
+
+// Get a specific organization
+const org = await repo.organizations.get("did:plc:org123");
+console.log(`${org.name} - ${org.description}`);
+```
+
+### 6. Collaborator Management (SDS only)
+
+Manage who has access to your repository and what they can do.
+
+#### Granting Access
+
+```typescript
+// Grant different levels of access
+await repo.collaborators.grant({
+  userDid: "did:plc:user123",
+  role: "editor", // viewer | editor | admin | owner
+});
+
+// Roles explained:
+// - viewer: Read-only access
+// - editor: Can create and edit records
+// - admin: Can manage collaborators and settings
+// - owner: Full control (same as repository owner)
+```
+
+#### Managing Collaborators
+
+```typescript
+// List all collaborators with pagination
+const { collaborators, cursor } = await repo.collaborators.list();
+for (const collab of collaborators) {
+  console.log(`${collab.userDid} - ${collab.role}`);
+}
+
+// List next page
+if (cursor) {
+  const nextPage = await repo.collaborators.list({ cursor, limit: 20 });
+}
+
+// Check if a user has access
+const hasAccess = await repo.collaborators.hasAccess("did:plc:user123");
+
+// Get a specific user's role
+const role = await repo.collaborators.getRole("did:plc:user123");
+console.log(`User role: ${role}`); // "editor", "admin", etc.
+
+// Get current user's permissions
+const permissions = await repo.collaborators.getPermissions();
+if (permissions.admin) {
+  console.log("You can manage collaborators");
+}
+if (permissions.create) {
+  console.log("You can create records");
+}
+```
+
+#### Revoking Access
+
+```typescript
+// Remove a collaborator
+await repo.collaborators.revoke({
+  userDid: "did:plc:user123",
+});
+```
+
+#### Transferring Ownership
+
+```typescript
+// Transfer repository ownership (irreversible!)
+await repo.collaborators.transferOwnership({
+  newOwnerDid: "did:plc:newowner456",
+});
+```
+
+### 7. Generic Record Operations
+
+For working with any ATProto record type:
+
+```typescript
+// Create a generic record
+const record = await repo.records.create({
+  collection: "org.hypercerts.claim",
+  record: {
+    $type: "org.hypercerts.claim",
+    title: "My Claim",
+    // ... record data
+  },
+});
+
+// Get a record
+const record = await repo.records.get({
+  collection: "org.hypercerts.claim",
+  rkey: "abc123",
+});
+
+// Update a record
+await repo.records.update({
+  collection: "org.hypercerts.claim",
+  rkey: "abc123",
+  record: {
+    $type: "org.hypercerts.claim",
+    title: "Updated Title",
+    // ... updated data
+  },
+});
+
+// Delete a record
+await repo.records.delete({
+  collection: "org.hypercerts.claim",
+  rkey: "abc123",
+});
+
+// List records with pagination
+const { records, cursor } = await repo.records.list({
+  collection: "org.hypercerts.claim",
+  limit: 50,
+});
+```
+
+### 8. Profile Management (PDS only)
+
+```typescript
+// Get user profile
+const profile = await repo.profile.get();
+console.log(`${profile.displayName} (@${profile.handle})`);
+
+// Update profile
+await repo.profile.update({
+  displayName: "Jane Researcher",
+  description: "Climate scientist and hypercert enthusiast",
+  avatar: avatarBlob, // optional
+  banner: bannerBlob, // optional
+});
+```
+
+## API Reference
+
+### Repository Operations
+
+| Operation | Method | PDS | SDS | Returns |
+|-----------|--------|-----|-----|---------|
+| **Records** | | | | |
+| Create record | `repo.records.create()` | ✅ | ✅ | `{ uri, cid }` |
+| Get record | `repo.records.get()` | ✅ | ✅ | Record data |
+| Update record | `repo.records.update()` | ✅ | ✅ | `{ uri, cid }` |
+| Delete record | `repo.records.delete()` | ✅ | ✅ | void |
+| List records | `repo.records.list()` | ✅ | ✅ | `{ records, cursor? }` |
+| **Hypercerts** | | | | |
+| Create hypercert | `repo.hypercerts.create()` | ✅ | ✅ | `{ uri, cid, value }` |
+| Get hypercert | `repo.hypercerts.get()` | ✅ | ✅ | Full hypercert |
+| Update hypercert | `repo.hypercerts.update()` | ✅ | ✅ | `{ uri, cid }` |
+| Delete hypercert | `repo.hypercerts.delete()` | ✅ | ✅ | void |
+| List hypercerts | `repo.hypercerts.list()` | ✅ | ✅ | `{ records, cursor? }` |
+| Add contribution | `repo.hypercerts.addContribution()` | ✅ | ✅ | Contribution |
+| Add measurement | `repo.hypercerts.addMeasurement()` | ✅ | ✅ | Measurement |
+| **Blobs** | | | | |
+| Upload blob | `repo.blobs.upload()` | ✅ | ✅ | `{ ref, mimeType, size }` |
+| Get blob | `repo.blobs.get()` | ✅ | ✅ | Blob data |
+| **Profile** | | | | |
+| Get profile | `repo.profile.get()` | ✅ | ❌ | Profile data |
+| Update profile | `repo.profile.update()` | ✅ | ❌ | void |
+| **Organizations** | | | | |
+| Create org | `repo.organizations.create()` | ❌ | ✅ | `{ did, name, ... }` |
+| Get org | `repo.organizations.get()` | ❌ | ✅ | Organization |
+| List orgs | `repo.organizations.list()` | ❌ | ✅ | `{ organizations, cursor? }` |
+| **Collaborators** | | | | |
+| Grant access | `repo.collaborators.grant()` | ❌ | ✅ | void |
+| Revoke access | `repo.collaborators.revoke()` | ❌ | ✅ | void |
+| List collaborators | `repo.collaborators.list()` | ❌ | ✅ | `{ collaborators, cursor? }` |
+| Check access | `repo.collaborators.hasAccess()` | ❌ | ✅ | boolean |
+| Get role | `repo.collaborators.getRole()` | ❌ | ✅ | Role string |
+| Get permissions | `repo.collaborators.getPermissions()` | ❌ | ✅ | Permissions |
+| Transfer ownership | `repo.collaborators.transferOwnership()` | ❌ | ✅ | void |
 
 ## Type System
 
-Types are generated from ATProto lexicon definitions in `@hypercerts-org/lexicon` and re-exported with friendly aliases:
+Types are generated from ATProto lexicon definitions and exported with friendly aliases:
+
+```typescript
+import type {
+  HypercertClaim,
+  HypercertRights,
+  HypercertContribution,
+  HypercertMeasurement,
+  HypercertEvaluation,
+  HypercertCollection,
+  HypercertLocation,
+} from "@hypercerts-org/sdk-core";
+
+// For validation, use namespaced imports
+import { OrgHypercertsClaim } from "@hypercerts-org/sdk-core";
+
+if (OrgHypercertsClaim.isRecord(data)) {
+  // data is typed as HypercertClaim
+}
+```
 
 | Lexicon Type | SDK Alias |
 |--------------|-----------|
@@ -32,112 +418,106 @@ Types are generated from ATProto lexicon definitions in `@hypercerts-org/lexicon
 | `OrgHypercertsCollection.Main` | `HypercertCollection` |
 | `AppCertifiedLocation.Main` | `HypercertLocation` |
 
+## Error Handling
+
 ```typescript
-import type { HypercertClaim, HypercertRights } from "@hypercerts-org/sdk-core";
+import {
+  ValidationError,
+  NetworkError,
+  AuthenticationError,
+  SDSRequiredError,
+} from "@hypercerts-org/sdk-core/errors";
 
-// For validation functions, import the namespaced types
-import { OrgHypercertsClaim } from "@hypercerts-org/sdk-core";
-
-if (OrgHypercertsClaim.isRecord(data)) {
-  // data is typed as HypercertClaim
+try {
+  await repo.hypercerts.create({ ... });
+} catch (error) {
+  if (error instanceof ValidationError) {
+    console.error("Invalid hypercert data:", error.message);
+  } else if (error instanceof NetworkError) {
+    console.error("Network issue:", error.message);
+  } else if (error instanceof AuthenticationError) {
+    console.error("Authentication failed:", error.message);
+  } else if (error instanceof SDSRequiredError) {
+    console.error("This operation requires SDS:", error.message);
+  }
 }
 ```
 
-## Usage
+## Package Entrypoints
+
+```
+@hypercerts-org/sdk-core
+├── /              → Full SDK (createATProtoSDK, Repository, types, errors)
+├── /types         → TypeScript types (re-exported from @hypercerts-org/lexicon)
+├── /errors        → Error classes
+├── /lexicons      → LexiconRegistry, HYPERCERT_LEXICONS, HYPERCERT_COLLECTIONS
+├── /storage       → InMemorySessionStore, InMemoryStateStore
+└── /testing       → createMockSession, MockSessionStore
+```
+
+## Advanced Usage
+
+### Custom Session Storage
 
 ```typescript
 import { createATProtoSDK } from "@hypercerts-org/sdk-core";
+import { InMemorySessionStore } from "@hypercerts-org/sdk-core/storage";
 
-// 1. Create SDK instance
 const sdk = createATProtoSDK({
-  oauth: {
-    clientId: "https://your-app.com/client-metadata.json",
-    redirectUri: "https://your-app.com/callback",
-    scope: "atproto",
-    jwksUri: "https://your-app.com/jwks.json",
-    jwkPrivate: process.env.ATPROTO_JWK_PRIVATE!,
-  },
+  oauth: { ... },
+  sessionStore: new InMemorySessionStore(),
 });
-
-// 2. Start OAuth flow → redirect user to authUrl
-const authUrl = await sdk.authorize("user.bsky.social");
-
-// 3. Handle callback at redirectUri → exchange code for session
-const session = await sdk.callback(params); // params from callback URL
-
-// 4. Use session to interact with repositories
-const repo = sdk.getRepository(session);
-await repo.hypercerts.create({ title: "My Hypercert", ... });
-
-// For returning users, restore session by DID
-const existingSession = await sdk.restoreSession("did:plc:...");
 ```
 
-## Repository API
-
-```
-repo
-├── .records       → create, get, update, delete, list
-├── .blobs         → upload, get
-├── .profile       → get, update (PDS only)
-├── .hypercerts    → create, get, update, delete, list, addContribution, addMeasurement
-├── .collaborators → grant, revoke, list, hasAccess, getRole, getPermissions, transferOwnership (SDS only)
-└── .organizations → create, get, list (SDS only)
-```
-
-### Collaborator Operations (SDS only)
+### Testing with Mocks
 
 ```typescript
-// Grant access to a user
-await repo.collaborators.grant({
-  userDid: "did:plc:user123",
-  role: "editor", // viewer | editor | admin | owner
+import { createMockSession, MockSessionStore } from "@hypercerts-org/sdk-core/testing";
+
+const mockSession = createMockSession({
+  did: "did:plc:test123",
+  handle: "test.user",
 });
 
-// Revoke access
-await repo.collaborators.revoke({ userDid: "did:plc:user123" });
-
-// List all collaborators
-const collaborators = await repo.collaborators.list();
-
-// Check if user has access
-const hasAccess = await repo.collaborators.hasAccess("did:plc:user123");
-
-// Get user's role
-const role = await repo.collaborators.getRole("did:plc:user123");
-
-// Get current user's permissions
-const permissions = await repo.collaborators.getPermissions();
-if (permissions.admin) {
-  // Can manage collaborators
-}
-
-// Transfer ownership (irreversible!)
-await repo.collaborators.transferOwnership({
-  newOwnerDid: "did:plc:new-owner",
-});
+const mockStore = new MockSessionStore();
+await mockStore.set(mockSession);
 ```
 
-### SDS vs PDS Operations
-
-| Operation | PDS | SDS | Namespace |
-|-----------|-----|-----|-----------|
-| Records (CRUD) | ✅ | ✅ | `com.atproto.repo.*` |
-| Blobs | ✅ | ✅ | `com.atproto.repo.uploadBlob`, `com.atproto.sync.getBlob` |
-| Profile | ✅ | ❌ | `app.bsky.actor.profile` |
-| Organizations | ❌ | ✅ | `com.sds.organization.*` |
-| Collaborators | ❌ | ✅ | `com.sds.repo.*` |
-
-## Errors
+### Working with Lexicons
 
 ```typescript
-import { ValidationError, NetworkError, AuthenticationError } from "@hypercerts-org/sdk-core/errors";
+import {
+  LexiconRegistry,
+  HYPERCERT_LEXICONS,
+  HYPERCERT_COLLECTIONS,
+} from "@hypercerts-org/sdk-core/lexicons";
+
+const registry = new LexiconRegistry();
+registry.registerLexicons(HYPERCERT_LEXICONS);
+
+// Validate a record
+const isValid = registry.validate(
+  "org.hypercerts.claim",
+  claimData
+);
 ```
 
 ## Development
 
 ```bash
-pnpm build          # Build
-pnpm test           # Test
-pnpm test:coverage  # Coverage
+pnpm install        # Install dependencies
+pnpm build          # Build the package
+pnpm test           # Run tests
+pnpm test:coverage  # Run tests with coverage
+pnpm test:watch     # Run tests in watch mode
 ```
+
+## License
+
+MIT
+
+## Resources
+
+- [ATProto Documentation](https://atproto.com/docs)
+- [Hypercerts Documentation](https://hypercerts.org)
+- [GitHub Repository](https://github.com/hypercerts-org/hypercerts-sdk)

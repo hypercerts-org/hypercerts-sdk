@@ -10,11 +10,7 @@ import type { OrganizationInfo } from "@hypercerts-org/sdk-core";
 import { atprotoKeys } from "../queries/keys.js";
 import { useATProtoAuth } from "./useATProtoAuth.js";
 import { useRepository } from "./useRepository.js";
-import type {
-  CreateOrganizationParams,
-  UseOrganizationsResult,
-  UseOrganizationResult,
-} from "../types.js";
+import type { CreateOrganizationParams, UseOrganizationsResult, UseOrganizationResult } from "../types.js";
 
 /**
  * Hook for listing and creating SDS organizations.
@@ -77,7 +73,7 @@ export function useOrganizations(): UseOrganizationsResult {
     queryFn: async (): Promise<OrganizationInfo[]> => {
       if (!repository) return [];
 
-      const orgs = await repository.organizations.list();
+      const { organizations: orgs } = await repository.organizations.list();
       return orgs;
     },
     enabled: authStatus === "authenticated" && repoStatus === "ready" && !!repository,
@@ -112,7 +108,7 @@ export function useOrganizations(): UseOrganizationsResult {
     async (params: CreateOrganizationParams) => {
       return createMutation.mutateAsync(params);
     },
-    [createMutation]
+    [createMutation],
   );
 
   const refetch = useCallback(async () => {
