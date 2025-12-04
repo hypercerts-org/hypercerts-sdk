@@ -53,10 +53,11 @@ const DEFAULT_LIMIT = 50;
  *   const handleSubmit = async (data) => {
  *     const result = await create({
  *       title: data.title,
+ *       shortDescription: data.shortDesc,
  *       description: data.description,
  *       workScope: data.workScope,
- *       workTimeframeFrom: data.startDate,
- *       workTimeframeTo: data.endDate,
+ *       workTimeFrameFrom: data.startDate,
+ *       workTimeFrameTo: data.endDate,
  *       rights: {
  *         name: "CC-BY-4.0",
  *         type: "license",

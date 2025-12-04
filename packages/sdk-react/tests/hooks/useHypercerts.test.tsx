@@ -218,10 +218,11 @@ describe("useHypercerts", () => {
 
       const createParams = {
         title: "New Hypercert",
-        description: "A new hypercert",
+        shortDescription: "A new hypercert",
+        description: "A new hypercert for testing",
         workScope: "Testing",
-        workTimeframeFrom: "2024-01-01",
-        workTimeframeTo: "2024-12-31",
+        workTimeFrameFrom: "2024-01-01",
+        workTimeFrameTo: "2024-12-31",
         rights: { name: "CC-BY-4.0", type: "license" as const, description: "Attribution" },
       };
 
@@ -271,10 +272,11 @@ describe("useHypercerts", () => {
       act(() => {
         result.current.create({
           title: "New HC",
+          shortDescription: "Test HC",
           description: "Test description",
           workScope: "Test",
-          workTimeframeFrom: "2024-01-01",
-          workTimeframeTo: "2024-12-31",
+          workTimeFrameFrom: "2024-01-01",
+          workTimeFrameTo: "2024-12-31",
           rights: { name: "CC-BY-4.0", type: "license" as const, description: "Attribution" },
         });
       });

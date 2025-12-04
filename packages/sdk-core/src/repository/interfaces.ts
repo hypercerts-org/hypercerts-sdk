@@ -117,14 +117,14 @@ export interface CreateHypercertParams {
    *
    * ISO 8601 date format (YYYY-MM-DD).
    */
-  workTimeframeFrom: string;
+  workTimeFrameFrom: string;
 
   /**
    * End date of the work period.
    *
    * ISO 8601 date format (YYYY-MM-DD).
    */
-  workTimeframeTo: string;
+  workTimeFrameTo: string;
 
   /**
    * Rights associated with the hypercert.
@@ -153,11 +153,11 @@ export interface CreateHypercertParams {
   };
 
   /**
-   * Optional short description for display in lists/cards.
+   * Short description for display in lists/cards.
    *
-   * Should be under 200 characters.
+   * Required field. Should be under 300 characters.
    */
-  shortDescription?: string;
+  shortDescription: string;
 
   /**
    * Optional cover image for the hypercert.

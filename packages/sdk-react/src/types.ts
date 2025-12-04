@@ -5,17 +5,17 @@
  */
 
 import type {
-    ATProtoSDK,
-    ATProtoSDKConfig,
-    Collaborator,
-    CollaboratorPermissions,
-    CreateHypercertParams,
-    CreateHypercertResult,
-    HypercertClaim,
-    OrganizationInfo,
-    Repository,
-    RepositoryRole,
-    Session,
+  ATProtoSDK,
+  ATProtoSDKConfig,
+  Collaborator,
+  CollaboratorPermissions,
+  CreateHypercertParams,
+  CreateHypercertResult,
+  HypercertClaim,
+  OrganizationInfo,
+  Repository,
+  RepositoryRole,
+  Session,
 } from "@hypercerts-org/sdk-core";
 import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -311,8 +311,8 @@ export interface UpdateHypercertParams {
   description?: string;
   workScope?: string;
   impactScope?: string;
-  workTimeframeFrom?: string;
-  workTimeframeTo?: string;
+  workTimeFrameFrom?: string;
+  workTimeFrameTo?: string;
   impactTimeframeFrom?: string;
   impactTimeframeTo?: string;
   contributors?: string[];
@@ -412,16 +412,15 @@ export interface SyncMessage {
 // ─────────────────────────────────────────────
 
 export type {
-    ATProtoSDK,
-    ATProtoSDKConfig,
-    Collaborator,
-    CollaboratorPermissions,
-    CreateHypercertParams,
-    CreateHypercertResult,
-    HypercertClaim,
-    OrganizationInfo,
-    Repository,
-    RepositoryRole,
-    Session
+  ATProtoSDK,
+  ATProtoSDKConfig,
+  Collaborator,
+  CollaboratorPermissions,
+  CreateHypercertParams,
+  CreateHypercertResult,
+  HypercertClaim,
+  OrganizationInfo,
+  Repository,
+  RepositoryRole,
+  Session,
 };
-

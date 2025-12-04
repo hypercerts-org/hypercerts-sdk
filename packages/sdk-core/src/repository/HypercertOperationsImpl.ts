@@ -266,17 +266,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const hypercertRecord: Record<string, unknown> = {
         $type: HYPERCERT_COLLECTIONS.CLAIM,
         title: params.title,
+        shortDescription: params.shortDescription,
         description: params.description,
         workScope: params.workScope,
-        workTimeframeFrom: params.workTimeframeFrom,
-        workTimeframeTo: params.workTimeframeTo,
+        workTimeFrameFrom: params.workTimeFrameFrom,
+        workTimeFrameTo: params.workTimeFrameTo,
         rights: { uri: result.rightsUri, cid: result.rightsCid },
         createdAt,
       };
-
-      if (params.shortDescription) {
-        hypercertRecord.shortDescription = params.shortDescription;
-      }
 
       if (imageBlobRef) {
         hypercertRecord.image = imageBlobRef;
