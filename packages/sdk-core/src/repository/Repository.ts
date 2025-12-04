@@ -7,11 +7,12 @@
  * @packageDocumentation
  */
 
-import { Agent } from "@atproto/api";
 import { SDSRequiredError } from "../core/errors.js";
 import type { LoggerInterface } from "../core/interfaces.js";
 import type { Session } from "../core/types.js";
 import { HYPERCERT_LEXICONS } from "@hypercerts-org/lexicon";
+import { ConfigurableAgent } from "../agent/ConfigurableAgent.js";
+import type { Agent } from "@atproto/api";
 import type { LexiconRegistry } from "./LexiconRegistry.js";
 
 // Types
@@ -179,12 +180,10 @@ export class Repository {
     this._isSDS = isSDS;
     this.logger = logger;
 
-    // Create Agent with OAuth session
-    this.agent = new Agent(session);
-
-    // Configure Agent to use the specified server URL (PDS or SDS)
-    // This ensures queries are routed to the correct server
-    this.agent.api.xrpc.uri = new URL(serverUrl);
+    // Create a ConfigurableAgent that routes requests to the specified server URL
+    // This allows routing to PDS, SDS, or any custom server while maintaining
+    // the OAuth session's authentication
+    this.agent = new ConfigurableAgent(session, serverUrl);
 
     this.lexiconRegistry.addToAgent(this.agent);
 

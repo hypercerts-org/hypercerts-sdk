@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Agent } from "@atproto/api";
 import { ProfileOperationsImpl } from "../../src/repository/ProfileOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
 
 describe("ProfileOperationsImpl", () => {
-  let mockAgent: any;
+  let mockAgent: Partial<Agent>;
   let profileOps: ProfileOperationsImpl;
   const repoDid = "did:plc:testdid123";
   const serverUrl = "https://pds.example.com";
@@ -22,7 +23,7 @@ describe("ProfileOperationsImpl", () => {
       },
     };
 
-    profileOps = new ProfileOperationsImpl(mockAgent, repoDid, serverUrl);
+    profileOps = new ProfileOperationsImpl(mockAgent as Agent, repoDid, serverUrl);
   });
 
   describe("get", () => {
@@ -238,17 +239,13 @@ describe("ProfileOperationsImpl", () => {
         success: false,
       });
 
-      await expect(
-        profileOps.update({ displayName: "New Name" }),
-      ).rejects.toThrow(NetworkError);
+      await expect(profileOps.update({ displayName: "New Name" })).rejects.toThrow(NetworkError);
     });
 
     it("should throw NetworkError when API throws", async () => {
       mockAgent.com.atproto.repo.putRecord.mockRejectedValue(new Error("Update failed"));
 
-      await expect(
-        profileOps.update({ displayName: "New Name" }),
-      ).rejects.toThrow(NetworkError);
+      await expect(profileOps.update({ displayName: "New Name" })).rejects.toThrow(NetworkError);
     });
   });
 });

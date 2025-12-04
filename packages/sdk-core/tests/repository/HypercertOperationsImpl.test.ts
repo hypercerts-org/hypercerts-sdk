@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Agent } from "@atproto/api";
 import { HypercertOperationsImpl } from "../../src/repository/HypercertOperationsImpl.js";
 import { LexiconRegistry } from "../../src/repository/LexiconRegistry.js";
 import { NetworkError, ValidationError } from "../../src/core/errors.js";
 import { HYPERCERT_LEXICONS } from "@hypercerts-org/lexicon";
 
 describe("HypercertOperationsImpl", () => {
-  let mockAgent: any;
+  let mockAgent: Partial<Agent>;
   let lexiconRegistry: LexiconRegistry;
   let hypercertOps: HypercertOperationsImpl;
   const repoDid = "did:plc:testdid123";
@@ -31,7 +32,7 @@ describe("HypercertOperationsImpl", () => {
     lexiconRegistry.registerMany(HYPERCERT_LEXICONS);
     // Mock validate to always return valid - we test LexiconRegistry separately
     vi.spyOn(lexiconRegistry, "validate").mockReturnValue({ valid: true });
-    hypercertOps = new HypercertOperationsImpl(mockAgent, repoDid, serverUrl, lexiconRegistry);
+    hypercertOps = new HypercertOperationsImpl(mockAgent as Agent, repoDid, serverUrl, lexiconRegistry);
   });
 
   describe("create", () => {
@@ -201,7 +202,7 @@ describe("HypercertOperationsImpl", () => {
       });
 
       expect(onProgress).toHaveBeenCalled();
-      const calls = onProgress.mock.calls.map((c: any[]) => c[0].name);
+      const calls = onProgress.mock.calls.map((c: unknown[]) => (c[0] as { name: string }).name);
       expect(calls).toContain("createRights");
       expect(calls).toContain("createHypercert");
     });

@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Session } from "../../src/core/types.js";
 import { OrganizationOperationsImpl } from "../../src/repository/OrganizationOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
 
 describe("OrganizationOperationsImpl", () => {
-  let mockSession: any;
+  let mockSession: Partial<Session>;
   let orgOps: OrganizationOperationsImpl;
   const repoDid = "did:plc:testdid123";
   const serverUrl = "https://sds.example.com";
@@ -15,7 +16,7 @@ describe("OrganizationOperationsImpl", () => {
       fetchHandler: vi.fn(),
     };
 
-    orgOps = new OrganizationOperationsImpl(mockSession, repoDid, serverUrl);
+    orgOps = new OrganizationOperationsImpl(mockSession as Session, repoDid, serverUrl);
   });
 
   describe("create", () => {
