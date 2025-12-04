@@ -181,6 +181,11 @@ export class Repository {
 
     // Create Agent with OAuth session
     this.agent = new Agent(session);
+
+    // Configure Agent to use the specified server URL (PDS or SDS)
+    // This ensures queries are routed to the correct server
+    this.agent.api.xrpc.uri = new URL(serverUrl);
+
     this.lexiconRegistry.addToAgent(this.agent);
 
     // Register hypercert lexicons

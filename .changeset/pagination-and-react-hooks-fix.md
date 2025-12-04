@@ -17,6 +17,8 @@ Add pagination support and fix React hooks for SDS operations
 **Bug Fixes (sdk-core):**
 - Fix permissions parsing in `CollaboratorOperationsImpl.list()` to match actual SDS API format (object with boolean flags)
 - Prevent `TypeError: permissionArray.includes is not a function` by correctly handling permissions as objects
+- Fix Agent service URL configuration to route queries to the correct server (PDS or SDS)
+- Resolve "Could not find repo" errors when querying SDS repositories by ensuring Agent uses SDS service endpoint
 - Update test mocks to use the actual SDS API response format
 
 **Bug Fixes (sdk-react):**
