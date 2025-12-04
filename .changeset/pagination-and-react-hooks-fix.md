@@ -14,6 +14,11 @@ Add pagination support and fix React hooks for SDS operations
 - Support optional `limit` and `cursor` parameters for paginated queries
 - Update internal methods (`hasAccess`, `getRole`, `get`) to handle new pagination structure
 
+**Bug Fixes (sdk-core):**
+- Fix permissions parsing in `CollaboratorOperationsImpl.list()` to match actual SDS API format (object with boolean flags)
+- Prevent `TypeError: permissionArray.includes is not a function` by correctly handling permissions as objects
+- Update test mocks to use the actual SDS API response format
+
 **Bug Fixes (sdk-react):**
 - Fix `useCollaborators` hook to correctly destructure paginated response
 - Fix `useOrganizations` hook to correctly destructure paginated response
