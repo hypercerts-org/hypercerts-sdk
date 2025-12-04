@@ -33,11 +33,15 @@ const session = await sdk.callback(callbackParams);
 const repo = sdk.getRepository(session);
 const claim = await repo.hypercerts.create({
   title: "Tree Planting Initiative 2025",
-  description: "Planted 1000 trees in the rainforest",
-  impact: {
-    scope: ["Environmental Conservation"],
-    work: { from: "2025-01-01", to: "2025-12-31" },
-    contributors: ["did:plc:contributor1"],
+  shortDescription: "1000 trees planted in rainforest",
+  description: "Planted 1000 trees in the Amazon rainforest region",
+  workScope: "Environmental Conservation",
+  workTimeFrameFrom: "2025-01-01T00:00:00Z",
+  workTimeFrameTo: "2025-12-31T23:59:59Z",
+  rights: {
+    name: "Attribution",
+    type: "license",
+    description: "CC-BY-4.0",
   },
 });
 ```
@@ -607,21 +611,134 @@ await mockStore.set(mockSession);
 
 ### Working with Lexicons
 
+The SDK exports lexicon types and validation utilities from the `@hypercerts-org/lexicon` package for direct record manipulation and validation.
+
+#### Lexicon Types
+
+All lexicon types are available with proper TypeScript support:
+
+```typescript
+import type {
+  HypercertClaim,
+  HypercertRights,
+  HypercertContribution,
+  HypercertCollection,
+  HypercertMeasurement,
+  HypercertEvaluation,
+  HypercertLocation,
+  StrongRef,
+} from "@hypercerts-org/sdk-core";
+
+// Create a properly typed hypercert claim
+const claim: HypercertClaim = {
+  $type: "org.hypercerts.claim",
+  title: "Community Garden Project",
+  shortDescription: "Urban garden serving 50 families", // REQUIRED
+  description: "Detailed description...",
+  workScope: "Food Security",
+  workTimeFrameFrom: "2024-01-01T00:00:00Z",  // Note: Capital 'F'
+  workTimeFrameTo: "2024-12-31T00:00:00Z",    // Note: Capital 'F'
+  rights: { uri: "at://...", cid: "..." },
+  createdAt: new Date().toISOString(),
+};
+```
+
+#### Validation
+
+Validate records before creating them:
+
+```typescript
+import {
+  validate,
+  OrgHypercertsClaim,
+  HYPERCERT_COLLECTIONS,
+} from "@hypercerts-org/sdk-core";
+
+// Validate using the lexicon package
+const validation = validate(
+  HYPERCERT_COLLECTIONS.CLAIM,  // "org.hypercerts.claim"
+  claim
+);
+
+if (!validation.valid) {
+  console.error("Validation failed:", validation.error);
+}
+
+// Or use type-specific validators
+const isValid = OrgHypercertsClaim.isMain(claim);
+const validationResult = OrgHypercertsClaim.validateMain(claim);
+```
+
+#### Using LexiconRegistry
+
+For repository-level validation:
+
 ```typescript
 import {
   LexiconRegistry,
   HYPERCERT_LEXICONS,
   HYPERCERT_COLLECTIONS,
-} from "@hypercerts-org/sdk-core/lexicons";
+} from "@hypercerts-org/sdk-core";
 
 const registry = new LexiconRegistry();
 registry.registerLexicons(HYPERCERT_LEXICONS);
 
 // Validate a record
-const isValid = registry.validate(
-  "org.hypercerts.claim",
+const result = registry.validate(
+  HYPERCERT_COLLECTIONS.CLAIM,
   claimData
 );
+
+if (!result.valid) {
+  console.error("Invalid record:", result.error);
+}
+```
+
+#### Creating Records with Proper Types
+
+```typescript
+import type {
+  HypercertContribution,
+  StrongRef,
+} from "@hypercerts-org/sdk-core";
+import { HYPERCERT_COLLECTIONS } from "@hypercerts-org/sdk-core";
+
+// Create a contribution record
+const contribution: HypercertContribution = {
+  $type: HYPERCERT_COLLECTIONS.CONTRIBUTION,
+  hypercert: {
+    uri: "at://did:plc:abc/org.hypercerts.claim/xyz",
+    cid: "bafyrei...",
+  } as StrongRef,
+  contributors: ["did:plc:contributor1", "did:plc:contributor2"],
+  role: "implementer",
+  description: "On-ground implementation team",
+  workTimeframeFrom: "2024-01-01T00:00:00Z",  // Note: lowercase 'f' for contributions
+  workTimeframeTo: "2024-06-30T00:00:00Z",    // Note: lowercase 'f' for contributions
+  createdAt: new Date().toISOString(),
+};
+
+// Use with repository operations
+await repo.records.create({
+  collection: HYPERCERT_COLLECTIONS.CONTRIBUTION,
+  record: contribution,
+});
+```
+
+#### Available Lexicon Collections
+
+```typescript
+import { HYPERCERT_COLLECTIONS } from "@hypercerts-org/sdk-core";
+
+// Collection NSIDs
+HYPERCERT_COLLECTIONS.CLAIM           // "org.hypercerts.claim"
+HYPERCERT_COLLECTIONS.RIGHTS          // "org.hypercerts.claim.rights"
+HYPERCERT_COLLECTIONS.CONTRIBUTION    // "org.hypercerts.claim.contribution"
+HYPERCERT_COLLECTIONS.MEASUREMENT     // "org.hypercerts.claim.measurement"
+HYPERCERT_COLLECTIONS.EVALUATION      // "org.hypercerts.claim.evaluation"
+HYPERCERT_COLLECTIONS.EVIDENCE        // "org.hypercerts.claim.evidence"
+HYPERCERT_COLLECTIONS.COLLECTION      // "org.hypercerts.collection"
+HYPERCERT_COLLECTIONS.LOCATION        // "app.certified.location"
 ```
 
 ## Development
