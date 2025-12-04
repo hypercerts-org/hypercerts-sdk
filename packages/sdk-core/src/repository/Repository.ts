@@ -180,14 +180,9 @@ export class Repository {
     this.logger = logger;
 
     // Create Agent with OAuth session
+    // Note: The Agent will use the session's fetch handler which contains
+    // the service URL configuration from the OAuth session
     this.agent = new Agent(session);
-
-    // Configure Agent to use the specified server URL (PDS or SDS)
-    // This ensures queries are routed to the correct server
-    // We need to set both the service URL and the XRPC URI to ensure all
-    // requests are routed to the correct server, not the session's default PDS
-    this.agent.service = new URL(serverUrl);
-    this.agent.api.xrpc.uri = new URL(serverUrl);
 
     this.lexiconRegistry.addToAgent(this.agent);
 

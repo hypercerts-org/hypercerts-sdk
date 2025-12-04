@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Session } from "../../src/core/types.js";
 import { CollaboratorOperationsImpl } from "../../src/repository/CollaboratorOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
 
 describe("CollaboratorOperationsImpl", () => {
-  let mockSession: any;
+  let mockSession: Partial<Session>;
   let collaboratorOps: CollaboratorOperationsImpl;
   const repoDid = "did:plc:testdid123";
   const serverUrl = "https://sds.example.com";
@@ -15,7 +16,7 @@ describe("CollaboratorOperationsImpl", () => {
       fetchHandler: vi.fn(),
     };
 
-    collaboratorOps = new CollaboratorOperationsImpl(mockSession, repoDid, serverUrl);
+    collaboratorOps = new CollaboratorOperationsImpl(mockSession as Session, repoDid, serverUrl);
   });
 
   describe("grant", () => {

@@ -3,6 +3,7 @@ import { ATProtoSDK, createATProtoSDK } from "../../src/core/SDK.js";
 import { ValidationError } from "../../src/core/errors.js";
 import { createTestConfigAsync } from "../utils/fixtures.js";
 import { InMemorySessionStore, InMemoryStateStore } from "../utils/mocks.js";
+import { createMockSession } from "../utils/repository-fixtures.js";
 
 describe("ATProtoSDK", () => {
   let config: Awaited<ReturnType<typeof createTestConfigAsync>>;
@@ -109,6 +110,7 @@ describe("ATProtoSDK", () => {
   describe("repository", () => {
     it("should throw ValidationError when session is null", () => {
       const sdk = new ATProtoSDK(config);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(() => sdk.repository(null as any)).toThrow(ValidationError);
     });
 
@@ -116,7 +118,7 @@ describe("ATProtoSDK", () => {
       const configWithoutServers = await createTestConfigAsync();
       delete configWithoutServers.servers;
       const sdk = new ATProtoSDK(configWithoutServers);
-      const mockSession = { did: "did:plc:test", sub: "did:plc:test", fetchHandler: async () => new Response() } as any;
+      const mockSession = createMockSession();
       expect(() => sdk.repository(mockSession)).toThrow(ValidationError);
     });
 
@@ -124,13 +126,13 @@ describe("ATProtoSDK", () => {
       const configWithOnlyPds = await createTestConfigAsync();
       configWithOnlyPds.servers = { pds: "https://pds.example.com" };
       const sdk = new ATProtoSDK(configWithOnlyPds);
-      const mockSession = { did: "did:plc:test", sub: "did:plc:test", fetchHandler: async () => new Response() } as any;
+      const mockSession = createMockSession();
       expect(() => sdk.repository(mockSession, { server: "sds" })).toThrow(ValidationError);
     });
 
     it("should create repository with custom serverUrl", () => {
       const sdk = new ATProtoSDK(config);
-      const mockSession = { did: "did:plc:test", sub: "did:plc:test", fetchHandler: async () => new Response() } as any;
+      const mockSession = createMockSession();
       const repo = sdk.repository(mockSession, { serverUrl: "https://custom.server.com" });
       expect(repo).toBeDefined();
       expect(repo.getServerUrl()).toBe("https://custom.server.com");

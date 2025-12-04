@@ -47,14 +47,16 @@ describe("createATProtoReact", () => {
         sdsUrl: "https://sds.example.com",
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const instance = createATProtoReact({ sdk: mockSDK as any });
 
       expect(instance.sdk).toBe(mockSDK);
     });
 
     it("should throw error if neither config nor sdk provided", () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(() => createATProtoReact({} as any)).toThrow(
-        "createATProtoReact requires either 'config' or 'sdk' option"
+        "createATProtoReact requires either 'config' or 'sdk' option",
       );
     });
 
@@ -142,7 +144,7 @@ describe("createATProtoReact", () => {
           <Provider>
             <div data-testid="child">Hello</div>
           </Provider>
-        </QueryClientProvider>
+        </QueryClientProvider>,
       );
 
       expect(screen.getByTestId("child")).toHaveTextContent("Hello");
@@ -159,7 +161,7 @@ describe("createATProtoReact", () => {
           <Provider dehydratedState={{ mutations: [], queries: [] }}>
             <div>Test</div>
           </Provider>
-        </QueryClientProvider>
+        </QueryClientProvider>,
       );
     });
   });

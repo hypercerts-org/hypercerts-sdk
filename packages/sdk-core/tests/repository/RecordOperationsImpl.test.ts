@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Agent } from "@atproto/api";
 import { RecordOperationsImpl } from "../../src/repository/RecordOperationsImpl.js";
 import { LexiconRegistry } from "../../src/repository/LexiconRegistry.js";
 import { NetworkError, ValidationError } from "../../src/core/errors.js";
 
 describe("RecordOperationsImpl", () => {
-  let mockAgent: any;
+  let mockAgent: Partial<Agent>;
   let lexiconRegistry: LexiconRegistry;
   let recordOps: RecordOperationsImpl;
   const repoDid = "did:plc:testdid123";
@@ -25,7 +26,7 @@ describe("RecordOperationsImpl", () => {
     };
 
     lexiconRegistry = new LexiconRegistry();
-    recordOps = new RecordOperationsImpl(mockAgent, repoDid, lexiconRegistry);
+    recordOps = new RecordOperationsImpl(mockAgent as Agent, repoDid, lexiconRegistry);
   });
 
   describe("create", () => {
@@ -314,17 +315,13 @@ describe("RecordOperationsImpl", () => {
         success: false,
       });
 
-      await expect(
-        recordOps.list({ collection: "app.bsky.feed.post" }),
-      ).rejects.toThrow(NetworkError);
+      await expect(recordOps.list({ collection: "app.bsky.feed.post" })).rejects.toThrow(NetworkError);
     });
 
     it("should throw NetworkError when API throws", async () => {
       mockAgent.com.atproto.repo.listRecords.mockRejectedValue(new Error("Network failure"));
 
-      await expect(
-        recordOps.list({ collection: "app.bsky.feed.post" }),
-      ).rejects.toThrow(NetworkError);
+      await expect(recordOps.list({ collection: "app.bsky.feed.post" })).rejects.toThrow(NetworkError);
     });
   });
 

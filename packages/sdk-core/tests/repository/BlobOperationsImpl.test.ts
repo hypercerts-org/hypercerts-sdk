@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Agent } from "@atproto/api";
 import { BlobOperationsImpl } from "../../src/repository/BlobOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
 
 describe("BlobOperationsImpl", () => {
-  let mockAgent: any;
+  let mockAgent: Partial<Agent>;
   let blobOps: BlobOperationsImpl;
   const repoDid = "did:plc:testdid123";
   const serverUrl = "https://pds.example.com";
@@ -22,7 +23,7 @@ describe("BlobOperationsImpl", () => {
       },
     };
 
-    blobOps = new BlobOperationsImpl(mockAgent, repoDid, serverUrl);
+    blobOps = new BlobOperationsImpl(mockAgent as Agent, repoDid, serverUrl);
   });
 
   describe("upload", () => {
