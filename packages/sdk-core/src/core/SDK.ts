@@ -17,13 +17,47 @@ export interface AuthorizeOptions {
    * OAuth scope string to request specific permissions.
    * Overrides the default scope configured in {@link ATProtoSDKConfig.oauth.scope}.
    *
-   * @example
+   * Can use the permission system for type-safe scope building.
+   *
+   * @example Using presets
+   * ```typescript
+   * import { ScopePresets } from '@hypercerts-org/sdk-core';
+   *
+   * // Request email and profile access
+   * await sdk.authorize("user.bsky.social", {
+   *   scope: ScopePresets.EMAIL_AND_PROFILE
+   * });
+   *
+   * // Request full posting capabilities
+   * await sdk.authorize("user.bsky.social", {
+   *   scope: ScopePresets.POSTING_APP
+   * });
+   * ```
+   *
+   * @example Building custom scopes
+   * ```typescript
+   * import { PermissionBuilder, buildScope } from '@hypercerts-org/sdk-core';
+   *
+   * const scope = buildScope(
+   *   new PermissionBuilder()
+   *     .accountEmail('read')
+   *     .repoWrite('app.bsky.feed.post')
+   *     .blob(['image/*'])
+   *     .build()
+   * );
+   *
+   * await sdk.authorize("user.bsky.social", { scope });
+   * ```
+   *
+   * @example Legacy scopes
    * ```typescript
    * // Request read-only access
    * await sdk.authorize("user.bsky.social", { scope: "atproto" });
    *
-   * // Request full access (default typically includes transition:generic)
-   * await sdk.authorize("user.bsky.social", { scope: "atproto transition:generic" });
+   * // Request full access (legacy)
+   * await sdk.authorize("user.bsky.social", {
+   *   scope: "atproto transition:generic"
+   * });
    * ```
    */
   scope?: string;
