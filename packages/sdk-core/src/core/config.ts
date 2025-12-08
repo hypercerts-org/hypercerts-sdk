@@ -25,9 +25,34 @@ export const OAuthConfigSchema = z.object({
 
   /**
    * OAuth scopes to request, space-separated.
-   * Common scopes: "atproto", "transition:generic"
+   *
+   * Can be a string of space-separated permissions or use the permission system:
+   *
+   * @example Using presets
+   * ```typescript
+   * import { ScopePresets } from '@hypercerts-org/sdk-core';
+   * scope: ScopePresets.EMAIL_AND_PROFILE
+   * ```
+   *
+   * @example Building custom scopes
+   * ```typescript
+   * import { PermissionBuilder, buildScope } from '@hypercerts-org/sdk-core';
+   * scope: buildScope(
+   *   new PermissionBuilder()
+   *     .accountEmail('read')
+   *     .repoWrite('app.bsky.feed.post')
+   *     .build()
+   * )
+   * ```
+   *
+   * @example Legacy scopes
+   * ```typescript
+   * scope: "atproto transition:generic"
+   * ```
+   *
+   * @see https://atproto.com/specs/permission for permission details
    */
-  scope: z.string(),
+  scope: z.string().min(1, "OAuth scope is required"),
 
   /**
    * URL to your public JWKS (JSON Web Key Set) endpoint.
