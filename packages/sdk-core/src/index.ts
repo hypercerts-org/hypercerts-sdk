@@ -108,3 +108,55 @@ export { InMemoryStateStore } from "./storage/InMemoryStateStore.js";
 export type { DID, Organization, Collaborator, CollaboratorPermissions } from "./core/types.js";
 export { OrganizationSchema, CollaboratorSchema, CollaboratorPermissionsSchema } from "./core/types.js";
 export { ATProtoSDKConfigSchema, OAuthConfigSchema, ServerConfigSchema, TimeoutConfigSchema } from "./core/config.js";
+
+// OAuth Permissions System
+export {
+  // Constants
+  ATPROTO_SCOPE,
+  TRANSITION_SCOPES,
+  // Schemas
+  TransitionScopeSchema,
+  AccountAttrSchema,
+  AccountActionSchema,
+  RepoActionSchema,
+  IdentityAttrSchema,
+  MimeTypeSchema,
+  NsidSchema,
+  AccountPermissionSchema,
+  RepoPermissionSchema,
+  BlobPermissionSchema,
+  RpcPermissionSchema,
+  IdentityPermissionSchema,
+  IncludePermissionSchema,
+  PermissionSchema,
+  // Builder
+  PermissionBuilder,
+  // Presets
+  ScopePresets,
+  // Utilities
+  buildScope,
+  parseScope,
+  hasPermission,
+  hasAllPermissions,
+  hasAnyPermission,
+  mergeScopes,
+  removePermissions,
+  validateScope,
+} from "./auth/permissions.js";
+
+// OAuth Permission Types
+export type {
+  TransitionScope,
+  AccountAttr,
+  AccountAction,
+  RepoAction,
+  IdentityAttr,
+  AccountPermissionInput,
+  RepoPermissionInput,
+  BlobPermissionInput,
+  RpcPermissionInput,
+  IdentityPermissionInput,
+  IncludePermissionInput,
+  PermissionInput,
+  Permission,
+} from "./auth/permissions.js";

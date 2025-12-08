@@ -4,6 +4,7 @@ import type { ATProtoSDKConfig } from "../core/config.js";
 import { AuthenticationError, NetworkError } from "../core/errors.js";
 import { InMemorySessionStore } from "../storage/InMemorySessionStore.js";
 import { InMemoryStateStore } from "../storage/InMemoryStateStore.js";
+import { parseScope, validateScope, ATPROTO_SCOPE } from "./permissions.js";
 
 /**
  * Options for the OAuth authorization flow.
@@ -179,7 +180,7 @@ export class OAuthClient {
    */
   private buildClientMetadata() {
     const clientIdUrl = new URL(this.config.oauth.clientId);
-    return {
+    const metadata = {
       client_id: this.config.oauth.clientId,
       client_name: "ATProto SDK Client",
       client_uri: clientIdUrl.origin,
@@ -193,6 +194,89 @@ export class OAuthClient {
       dpop_bound_access_tokens: true,
       jwks_uri: this.config.oauth.jwksUri,
     } as const;
+
+    // Validate scope before returning metadata
+    this.validateClientMetadataScope(metadata.scope);
+
+    return metadata;
+  }
+
+  /**
+   * Validates the OAuth scope in client metadata and logs warnings/suggestions.
+   *
+   * This method:
+   * 1. Checks if the scope is well-formed using permission utilities
+   * 2. Detects mixing of transitional and granular permissions
+   * 3. Logs warnings for missing `atproto` scope
+   * 4. Suggests migration to granular permissions for transitional scopes
+   *
+   * @param scope - The OAuth scope string to validate
+   * @internal
+   */
+  private validateClientMetadataScope(scope: string): void {
+    // Parse the scope into individual permissions
+    const permissions = parseScope(scope);
+
+    // Validate well-formedness
+    const validation = validateScope(scope);
+    if (!validation.isValid) {
+      this.logger?.error("Invalid OAuth scope detected", {
+        invalidPermissions: validation.invalidPermissions,
+        scope,
+      });
+    }
+
+    // Check for atproto scope
+    const hasAtproto = permissions.includes(ATPROTO_SCOPE);
+    if (!hasAtproto) {
+      this.logger?.warn("OAuth scope missing 'atproto' - basic API access may be limited", {
+        scope,
+        suggestion: "Add 'atproto' to your scope for basic API access",
+      });
+    }
+
+    // Detect transitional scopes
+    const transitionalScopes = permissions.filter((p) => p.startsWith("transition:"));
+    const granularScopes = permissions.filter(
+      (p) =>
+        p.startsWith("account:") ||
+        p.startsWith("repo:") ||
+        p.startsWith("blob") ||
+        p.startsWith("rpc:") ||
+        p.startsWith("identity:") ||
+        p.startsWith("include:"),
+    );
+
+    // Log info about transitional scopes
+    if (transitionalScopes.length > 0) {
+      this.logger?.info("Using transitional OAuth scopes (legacy)", {
+        transitionalScopes,
+        note: "Transitional scopes are supported but granular permissions are recommended",
+      });
+
+      // Suggest migration to granular permissions
+      if (transitionalScopes.includes("transition:email")) {
+        this.logger?.info("Consider migrating 'transition:email' to granular permissions", {
+          suggestion: "Use: account:email?action=read",
+          example: "import { ScopePresets } from '@hypercerts-org/sdk-core'; scope: ScopePresets.EMAIL_READ",
+        });
+      }
+      if (transitionalScopes.includes("transition:generic")) {
+        this.logger?.info("Consider migrating 'transition:generic' to granular permissions", {
+          suggestion: "Use specific permissions like: repo:* account:repo?action=read",
+          example: "import { ScopePresets } from '@hypercerts-org/sdk-core'; scope: ScopePresets.FULL_ACCESS",
+        });
+      }
+    }
+
+    // Warn if mixing transitional and granular
+    if (transitionalScopes.length > 0 && granularScopes.length > 0) {
+      this.logger?.warn("Mixing transitional and granular OAuth scopes", {
+        transitionalScopes,
+        granularScopes,
+        note: "While supported, it's recommended to use either transitional or granular permissions consistently",
+      });
+    }
   }
 
   /**
