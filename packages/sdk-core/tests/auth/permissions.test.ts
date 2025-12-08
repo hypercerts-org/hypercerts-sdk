@@ -10,6 +10,7 @@ import {
   MimeTypeSchema,
   NsidSchema,
   AccountPermissionSchema,
+  RepoPermissionSchema,
 } from "../../src/auth/permissions.js";
 
 describe("Permission Constants", () => {
@@ -226,5 +227,98 @@ describe("AccountPermissionSchema", () => {
   it("should reject missing attr field", () => {
     const input = { type: "account" as const };
     expect(() => AccountPermissionSchema.parse(input)).toThrow();
+  });
+});
+
+describe("RepoPermissionSchema", () => {
+  it("should transform repo with NSID collection without actions", () => {
+    const input = { type: "repo" as const, collection: "app.bsky.feed.post" };
+    const result = RepoPermissionSchema.parse(input);
+    expect(result).toBe("repo:app.bsky.feed.post");
+  });
+
+  it("should transform repo with wildcard collection", () => {
+    const input = { type: "repo" as const, collection: "*" };
+    const result = RepoPermissionSchema.parse(input);
+    expect(result).toBe("repo:*");
+  });
+
+  it("should transform repo with single action", () => {
+    const input = {
+      type: "repo" as const,
+      collection: "app.bsky.feed.post",
+      actions: ["create" as const],
+    };
+    const result = RepoPermissionSchema.parse(input);
+    expect(result).toBe("repo:app.bsky.feed.post?action=create");
+  });
+
+  it("should transform repo with multiple actions", () => {
+    const input = {
+      type: "repo" as const,
+      collection: "app.bsky.feed.post",
+      actions: ["create" as const, "update" as const],
+    };
+    const result = RepoPermissionSchema.parse(input);
+    expect(result).toBe("repo:app.bsky.feed.post?action=create&action=update");
+  });
+
+  it("should transform repo with all three actions", () => {
+    const input = {
+      type: "repo" as const,
+      collection: "com.example.record",
+      actions: ["create" as const, "update" as const, "delete" as const],
+    };
+    const result = RepoPermissionSchema.parse(input);
+    expect(result).toBe("repo:com.example.record?action=create&action=update&action=delete");
+  });
+
+  it("should transform repo with wildcard and delete action", () => {
+    const input = {
+      type: "repo" as const,
+      collection: "*",
+      actions: ["delete" as const],
+    };
+    const result = RepoPermissionSchema.parse(input);
+    expect(result).toBe("repo:*?action=delete");
+  });
+
+  it("should handle empty actions array (no query params)", () => {
+    const input = {
+      type: "repo" as const,
+      collection: "app.bsky.feed.post",
+      actions: [],
+    };
+    const result = RepoPermissionSchema.parse(input);
+    expect(result).toBe("repo:app.bsky.feed.post");
+  });
+
+  it("should reject invalid NSID format", () => {
+    const input = { type: "repo" as const, collection: "InvalidNSID" };
+    expect(() => RepoPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject invalid action values", () => {
+    const input = {
+      type: "repo" as const,
+      collection: "app.bsky.feed.post",
+      actions: ["invalid"],
+    };
+    expect(() => RepoPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject missing type field", () => {
+    const input = { collection: "app.bsky.feed.post" };
+    expect(() => RepoPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject wrong type value", () => {
+    const input = { type: "account", collection: "app.bsky.feed.post" };
+    expect(() => RepoPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject missing collection field", () => {
+    const input = { type: "repo" as const };
+    expect(() => RepoPermissionSchema.parse(input)).toThrow();
   });
 });

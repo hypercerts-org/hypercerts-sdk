@@ -183,3 +183,51 @@ export const AccountPermissionSchema = z
  * Input type for account permission (before transform).
  */
 export type AccountPermissionInput = z.input<typeof AccountPermissionSchema>;
+
+/**
+ * Zod schema for repository permission.
+ *
+ * Repository permissions control write access to records by collection type.
+ * The collection must be a valid NSID or wildcard (*).
+ *
+ * @example Without actions (all actions allowed)
+ * ```typescript
+ * const input = { type: 'repo', collection: 'app.bsky.feed.post' };
+ * RepoPermissionSchema.parse(input); // Returns: "repo:app.bsky.feed.post"
+ * ```
+ *
+ * @example With specific actions
+ * ```typescript
+ * const input = {
+ *   type: 'repo',
+ *   collection: 'app.bsky.feed.post',
+ *   actions: ['create', 'update']
+ * };
+ * RepoPermissionSchema.parse(input); // Returns: "repo:app.bsky.feed.post?action=create&action=update"
+ * ```
+ *
+ * @example With wildcard collection
+ * ```typescript
+ * const input = { type: 'repo', collection: '*', actions: ['delete'] };
+ * RepoPermissionSchema.parse(input); // Returns: "repo:*?action=delete"
+ * ```
+ */
+export const RepoPermissionSchema = z
+  .object({
+    type: z.literal("repo"),
+    collection: NsidSchema.or(z.literal("*")),
+    actions: z.array(RepoActionSchema).optional(),
+  })
+  .transform(({ collection, actions }) => {
+    let perm = `repo:${collection}`;
+    if (actions && actions.length > 0) {
+      const params = actions.map((a) => `action=${a}`).join("&");
+      perm += `?${params}`;
+    }
+    return perm;
+  });
+
+/**
+ * Input type for repository permission (before transform).
+ */
+export type RepoPermissionInput = z.input<typeof RepoPermissionSchema>;
