@@ -6,7 +6,7 @@ import { InMemorySessionStore } from "../storage/InMemorySessionStore.js";
 import { InMemoryStateStore } from "../storage/InMemoryStateStore.js";
 import type { ATProtoSDKConfig } from "./config.js";
 import { ATProtoSDKConfigSchema } from "./config.js";
-import { ValidationError } from "./errors.js";
+import { ValidationError, NetworkError } from "./errors.js";
 import type { Session } from "./types.js";
 
 /**
@@ -301,6 +301,105 @@ export class ATProtoSDK {
     }
 
     return this.oauthClient.revoke(did.trim());
+  }
+
+  /**
+   * Gets the account email address from the authenticated session.
+   *
+   * This method retrieves the email address associated with the user's account
+   * by calling the `com.atproto.server.getSession` endpoint. The email will only
+   * be returned if the appropriate OAuth scope was granted during authorization.
+   *
+   * Required OAuth scopes:
+   * - **Granular permissions**: `account:email?action=read` or `account:email`
+   * - **Transitional permissions**: `transition:email`
+   *
+   * @param session - An authenticated OAuth session
+   * @returns A Promise resolving to email info, or `null` if permission not granted
+   * @throws {@link ValidationError} if the session is invalid
+   * @throws {@link NetworkError} if the API request fails
+   *
+   * @example Using granular permissions
+   * ```typescript
+   * import { ScopePresets } from '@hypercerts-org/sdk-core';
+   *
+   * // Authorize with email scope
+   * const authUrl = await sdk.authorize("user.bsky.social", {
+   *   scope: ScopePresets.EMAIL_READ
+   * });
+   *
+   * // After callback...
+   * const emailInfo = await sdk.getAccountEmail(session);
+   * if (emailInfo) {
+   *   console.log(`Email: ${emailInfo.email}`);
+   *   console.log(`Confirmed: ${emailInfo.emailConfirmed}`);
+   * } else {
+   *   console.log("Email permission not granted");
+   * }
+   * ```
+   *
+   * @example Using transitional permissions (legacy)
+   * ```typescript
+   * // Authorize with transition:email scope
+   * const authUrl = await sdk.authorize("user.bsky.social", {
+   *   scope: "atproto transition:email"
+   * });
+   *
+   * // After callback...
+   * const emailInfo = await sdk.getAccountEmail(session);
+   * ```
+   */
+  async getAccountEmail(session: Session): Promise<{ email: string; emailConfirmed: boolean } | null> {
+    if (!session) {
+      throw new ValidationError("Session is required");
+    }
+
+    try {
+      // Determine PDS URL from session or config
+      const pdsUrl = this.config.servers?.pds;
+      if (!pdsUrl) {
+        throw new ValidationError("PDS server URL not configured");
+      }
+
+      // Call com.atproto.server.getSession endpoint using session's fetchHandler
+      // which automatically includes proper authorization with DPoP
+      const response = await session.fetchHandler("/xrpc/com.atproto.server.getSession", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new NetworkError(`Failed to get session info: ${response.status} ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as {
+        email?: string;
+        emailConfirmed?: boolean;
+        did: string;
+        handle: string;
+      };
+
+      // Return null if email not present (permission not granted)
+      if (!data.email) {
+        return null;
+      }
+
+      return {
+        email: data.email,
+        emailConfirmed: data.emailConfirmed ?? false,
+      };
+    } catch (error) {
+      this.logger?.error("Failed to get account email", { error });
+      if (error instanceof ValidationError || error instanceof NetworkError) {
+        throw error;
+      }
+      throw new NetworkError(
+        `Failed to get account email: ${error instanceof Error ? error.message : String(error)}`,
+        error,
+      );
+    }
   }
 
   /**

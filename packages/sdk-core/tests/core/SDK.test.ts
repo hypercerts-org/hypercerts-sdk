@@ -107,6 +107,107 @@ describe("ATProtoSDK", () => {
     });
   });
 
+  describe("getAccountEmail", () => {
+    it("should throw ValidationError for null session", async () => {
+      const sdk = new ATProtoSDK(config);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await expect(sdk.getAccountEmail(null as any)).rejects.toThrow(ValidationError);
+    });
+
+    it("should throw ValidationError when PDS not configured", async () => {
+      const configWithoutPds = await createTestConfigAsync();
+      delete configWithoutPds.servers;
+      const sdk = new ATProtoSDK(configWithoutPds);
+      const mockSession = createMockSession();
+      await expect(sdk.getAccountEmail(mockSession)).rejects.toThrow(ValidationError);
+      await expect(sdk.getAccountEmail(mockSession)).rejects.toThrow("PDS server URL not configured");
+    });
+
+    it("should return email info when permission granted", async () => {
+      const sdk = new ATProtoSDK(config);
+      const mockSession = createMockSession({
+        fetchHandler: async () =>
+          new Response(
+            JSON.stringify({
+              did: "did:plc:testdid123456789012345678901234567890",
+              handle: "test.bsky.social",
+              email: "test@example.com",
+              emailConfirmed: true,
+            }),
+            { status: 200 },
+          ),
+      });
+
+      const result = await sdk.getAccountEmail(mockSession);
+      expect(result).not.toBeNull();
+      expect(result?.email).toBe("test@example.com");
+      expect(result?.emailConfirmed).toBe(true);
+    });
+
+    it("should return null when permission not granted", async () => {
+      const sdk = new ATProtoSDK(config);
+      const mockSession = createMockSession({
+        fetchHandler: async () =>
+          new Response(
+            JSON.stringify({
+              did: "did:plc:testdid123456789012345678901234567890",
+              handle: "test.bsky.social",
+              // No email field - permission not granted
+            }),
+            { status: 200 },
+          ),
+      });
+
+      const result = await sdk.getAccountEmail(mockSession);
+      expect(result).toBeNull();
+    });
+
+    it("should default emailConfirmed to false when not provided", async () => {
+      const sdk = new ATProtoSDK(config);
+      const mockSession = createMockSession({
+        fetchHandler: async () =>
+          new Response(
+            JSON.stringify({
+              did: "did:plc:testdid123456789012345678901234567890",
+              handle: "test.bsky.social",
+              email: "test@example.com",
+              // emailConfirmed not provided
+            }),
+            { status: 200 },
+          ),
+      });
+
+      const result = await sdk.getAccountEmail(mockSession);
+      expect(result).not.toBeNull();
+      expect(result?.email).toBe("test@example.com");
+      expect(result?.emailConfirmed).toBe(false);
+    });
+
+    it("should throw NetworkError on API failure", async () => {
+      const sdk = new ATProtoSDK(config);
+      const mockSession = createMockSession({
+        fetchHandler: async () =>
+          new Response(JSON.stringify({ error: "Internal Server Error" }), {
+            status: 500,
+            statusText: "Internal Server Error",
+          }),
+      });
+
+      await expect(sdk.getAccountEmail(mockSession)).rejects.toThrow("Failed to get session info");
+    });
+
+    it("should throw NetworkError on network failure", async () => {
+      const sdk = new ATProtoSDK(config);
+      const mockSession = createMockSession({
+        fetchHandler: async () => {
+          throw new Error("Network error");
+        },
+      });
+
+      await expect(sdk.getAccountEmail(mockSession)).rejects.toThrow("Failed to get account email");
+    });
+  });
+
   describe("repository", () => {
     it("should throw ValidationError when session is null", () => {
       const sdk = new ATProtoSDK(config);
