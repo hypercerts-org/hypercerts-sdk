@@ -17,6 +17,14 @@ import {
   IncludePermissionSchema,
   PermissionSchema,
   PermissionBuilder,
+  buildScope,
+  parseScope,
+  hasPermission,
+  hasAllPermissions,
+  hasAnyPermission,
+  mergeScopes,
+  removePermissions,
+  validateScope,
 } from "../../src/auth/permissions.js";
 
 describe("Permission Constants", () => {
@@ -810,6 +818,306 @@ describe("PermissionBuilder", () => {
       builder.transition("email").accountEmail("read").repoRead("app.bsky.actor.profile");
 
       expect(builder.build()).toEqual(["transition:email", "account:email?action=read", "repo:app.bsky.actor.profile"]);
+    });
+  });
+});
+
+describe("Scope Utility Functions", () => {
+  describe("buildScope", () => {
+    it("should join permissions with spaces", () => {
+      const permissions = ["account:email?action=read", "repo:app.bsky.feed.post"];
+      const scope = buildScope(permissions);
+      expect(scope).toBe("account:email?action=read repo:app.bsky.feed.post");
+    });
+
+    it("should handle single permission", () => {
+      const permissions = ["account:email"];
+      const scope = buildScope(permissions);
+      expect(scope).toBe("account:email");
+    });
+
+    it("should handle empty array", () => {
+      const permissions: string[] = [];
+      const scope = buildScope(permissions);
+      expect(scope).toBe("");
+    });
+
+    it("should handle complex permissions with query params", () => {
+      const permissions = [
+        "account:email?action=read",
+        "repo:app.bsky.feed.post?action=create&action=update",
+        "blob?accept=image%2F*&accept=video%2F*",
+      ];
+      const scope = buildScope(permissions);
+      expect(scope).toBe(
+        "account:email?action=read repo:app.bsky.feed.post?action=create&action=update blob?accept=image%2F*&accept=video%2F*",
+      );
+    });
+  });
+
+  describe("parseScope", () => {
+    it("should split scope string by spaces", () => {
+      const scope = "account:email?action=read repo:app.bsky.feed.post";
+      const permissions = parseScope(scope);
+      expect(permissions).toEqual(["account:email?action=read", "repo:app.bsky.feed.post"]);
+    });
+
+    it("should handle single permission", () => {
+      const scope = "account:email";
+      const permissions = parseScope(scope);
+      expect(permissions).toEqual(["account:email"]);
+    });
+
+    it("should handle empty string", () => {
+      const scope = "";
+      const permissions = parseScope(scope);
+      expect(permissions).toEqual([]);
+    });
+
+    it("should handle multiple spaces between permissions", () => {
+      const scope = "account:email   repo:app.bsky.feed.post";
+      const permissions = parseScope(scope);
+      expect(permissions).toEqual(["account:email", "repo:app.bsky.feed.post"]);
+    });
+
+    it("should trim whitespace", () => {
+      const scope = "  account:email repo:app.bsky.feed.post  ";
+      const permissions = parseScope(scope);
+      expect(permissions).toEqual(["account:email", "repo:app.bsky.feed.post"]);
+    });
+  });
+
+  describe("hasPermission", () => {
+    const scope = "account:email?action=read repo:app.bsky.feed.post blob:image/*";
+
+    it("should return true when permission exists", () => {
+      expect(hasPermission(scope, "account:email?action=read")).toBe(true);
+      expect(hasPermission(scope, "repo:app.bsky.feed.post")).toBe(true);
+      expect(hasPermission(scope, "blob:image/*")).toBe(true);
+    });
+
+    it("should return false when permission does not exist", () => {
+      expect(hasPermission(scope, "account:repo")).toBe(false);
+      expect(hasPermission(scope, "identity:handle")).toBe(false);
+    });
+
+    it("should perform exact matching", () => {
+      expect(hasPermission(scope, "account:email")).toBe(false);
+      expect(hasPermission(scope, "blob:video/*")).toBe(false);
+    });
+
+    it("should handle empty scope", () => {
+      expect(hasPermission("", "account:email")).toBe(false);
+    });
+  });
+
+  describe("hasAllPermissions", () => {
+    const scope = "account:email?action=read repo:app.bsky.feed.post blob:image/*";
+
+    it("should return true when all permissions exist", () => {
+      expect(hasAllPermissions(scope, ["account:email?action=read", "blob:image/*"])).toBe(true);
+      expect(hasAllPermissions(scope, ["account:email?action=read", "repo:app.bsky.feed.post"])).toBe(true);
+    });
+
+    it("should return false when any permission is missing", () => {
+      expect(hasAllPermissions(scope, ["account:email?action=read", "account:repo"])).toBe(false);
+      expect(hasAllPermissions(scope, ["identity:handle"])).toBe(false);
+    });
+
+    it("should handle empty required permissions array", () => {
+      expect(hasAllPermissions(scope, [])).toBe(true);
+    });
+
+    it("should handle empty scope", () => {
+      expect(hasAllPermissions("", ["account:email"])).toBe(false);
+    });
+  });
+
+  describe("hasAnyPermission", () => {
+    const scope = "account:email?action=read repo:app.bsky.feed.post";
+
+    it("should return true when at least one permission exists", () => {
+      expect(hasAnyPermission(scope, ["account:email?action=read", "account:repo"])).toBe(true);
+      expect(hasAnyPermission(scope, ["identity:handle", "repo:app.bsky.feed.post"])).toBe(true);
+    });
+
+    it("should return false when no permissions exist", () => {
+      expect(hasAnyPermission(scope, ["account:repo", "identity:handle"])).toBe(false);
+      expect(hasAnyPermission(scope, ["blob:image/*"])).toBe(false);
+    });
+
+    it("should handle empty check permissions array", () => {
+      expect(hasAnyPermission(scope, [])).toBe(false);
+    });
+
+    it("should handle empty scope", () => {
+      expect(hasAnyPermission("", ["account:email"])).toBe(false);
+    });
+  });
+
+  describe("mergeScopes", () => {
+    it("should merge multiple scopes and deduplicate", () => {
+      const scope1 = "account:email?action=read repo:app.bsky.feed.post";
+      const scope2 = "repo:app.bsky.feed.post blob:image/*";
+      const merged = mergeScopes([scope1, scope2]);
+
+      const permissions = parseScope(merged);
+      expect(permissions).toHaveLength(3);
+      expect(permissions).toContain("account:email?action=read");
+      expect(permissions).toContain("repo:app.bsky.feed.post");
+      expect(permissions).toContain("blob:image/*");
+    });
+
+    it("should handle empty scopes array", () => {
+      const merged = mergeScopes([]);
+      expect(merged).toBe("");
+    });
+
+    it("should handle single scope", () => {
+      const scope = "account:email repo:app.bsky.feed.post";
+      const merged = mergeScopes([scope]);
+      expect(merged).toBe(scope);
+    });
+
+    it("should deduplicate permissions across multiple scopes", () => {
+      const scope1 = "account:email";
+      const scope2 = "account:email repo:app.bsky.feed.post";
+      const scope3 = "account:email";
+      const merged = mergeScopes([scope1, scope2, scope3]);
+
+      const permissions = parseScope(merged);
+      expect(permissions).toHaveLength(2);
+      expect(permissions).toContain("account:email");
+      expect(permissions).toContain("repo:app.bsky.feed.post");
+    });
+  });
+
+  describe("removePermissions", () => {
+    const scope = "account:email?action=read repo:app.bsky.feed.post blob:image/*";
+
+    it("should remove specified permissions", () => {
+      const filtered = removePermissions(scope, ["blob:image/*"]);
+      expect(filtered).toBe("account:email?action=read repo:app.bsky.feed.post");
+    });
+
+    it("should remove multiple permissions", () => {
+      const filtered = removePermissions(scope, ["account:email?action=read", "blob:image/*"]);
+      expect(filtered).toBe("repo:app.bsky.feed.post");
+    });
+
+    it("should handle removing non-existent permissions", () => {
+      const filtered = removePermissions(scope, ["account:repo"]);
+      expect(filtered).toBe(scope);
+    });
+
+    it("should handle empty removal array", () => {
+      const filtered = removePermissions(scope, []);
+      expect(filtered).toBe(scope);
+    });
+
+    it("should handle removing all permissions", () => {
+      const filtered = removePermissions(scope, [
+        "account:email?action=read",
+        "repo:app.bsky.feed.post",
+        "blob:image/*",
+      ]);
+      expect(filtered).toBe("");
+    });
+  });
+
+  describe("validateScope", () => {
+    it("should validate well-formed scopes", () => {
+      const scope = "account:email?action=read repo:app.bsky.feed.post blob:image/*";
+      const result = validateScope(scope);
+      expect(result.isValid).toBe(true);
+      expect(result.invalidPermissions).toEqual([]);
+    });
+
+    it("should validate transitional scopes", () => {
+      const scope = "transition:email transition:generic";
+      const result = validateScope(scope);
+      expect(result.isValid).toBe(true);
+      expect(result.invalidPermissions).toEqual([]);
+    });
+
+    it("should validate atproto scope", () => {
+      const scope = "atproto";
+      const result = validateScope(scope);
+      expect(result.isValid).toBe(true);
+      expect(result.invalidPermissions).toEqual([]);
+    });
+
+    it("should detect invalid permission prefixes", () => {
+      const scope = "account:email invalid:permission another:bad";
+      const result = validateScope(scope);
+      expect(result.isValid).toBe(false);
+      expect(result.invalidPermissions).toEqual(["invalid:permission", "another:bad"]);
+    });
+
+    it("should detect malformed permissions", () => {
+      const scope = "account:email malformed";
+      const result = validateScope(scope);
+      expect(result.isValid).toBe(false);
+      expect(result.invalidPermissions).toEqual(["malformed"]);
+    });
+
+    it("should handle empty scope", () => {
+      const scope = "";
+      const result = validateScope(scope);
+      expect(result.isValid).toBe(true);
+      expect(result.invalidPermissions).toEqual([]);
+    });
+
+    it("should validate blob permissions with and without colon", () => {
+      const scope1 = "blob:image/*";
+      const scope2 = "blob?accept=image%2F*";
+      expect(validateScope(scope1).isValid).toBe(true);
+      expect(validateScope(scope2).isValid).toBe(true);
+    });
+
+    it("should validate all permission types", () => {
+      const scope =
+        "atproto transition:email account:email repo:* blob:image/* rpc:* identity:handle include:com.example.scope";
+      const result = validateScope(scope);
+      expect(result.isValid).toBe(true);
+      expect(result.invalidPermissions).toEqual([]);
+    });
+  });
+
+  describe("Integration: Builder with Utilities", () => {
+    it("should work with PermissionBuilder output", () => {
+      const builder = new PermissionBuilder();
+      builder.accountEmail("read").repoWrite("app.bsky.feed.post").blob("image/*");
+
+      const permissions = builder.build();
+      const scope = buildScope(permissions);
+
+      expect(hasPermission(scope, "account:email?action=read")).toBe(true);
+      expect(hasPermission(scope, "repo:app.bsky.feed.post?action=create&action=update")).toBe(true);
+      expect(hasPermission(scope, "blob:image/*")).toBe(true);
+    });
+
+    it("should parse and rebuild scope correctly", () => {
+      const originalScope = "account:email?action=read repo:app.bsky.feed.post blob:image/*";
+      const parsed = parseScope(originalScope);
+      const rebuilt = buildScope(parsed);
+
+      expect(rebuilt).toBe(originalScope);
+    });
+
+    it("should merge builder outputs", () => {
+      const builder1 = new PermissionBuilder();
+      builder1.accountEmail("read");
+
+      const builder2 = new PermissionBuilder();
+      builder2.repoWrite("app.bsky.feed.post");
+
+      const scope1 = buildScope(builder1.build());
+      const scope2 = buildScope(builder2.build());
+      const merged = mergeScopes([scope1, scope2]);
+
+      expect(hasPermission(merged, "account:email?action=read")).toBe(true);
+      expect(hasPermission(merged, "repo:app.bsky.feed.post?action=create&action=update")).toBe(true);
     });
   });
 });

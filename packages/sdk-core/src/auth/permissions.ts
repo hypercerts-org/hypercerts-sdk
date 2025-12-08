@@ -748,3 +748,181 @@ export class PermissionBuilder {
     return this.permissions.length;
   }
 }
+
+/**
+ * Build a scope string from an array of permissions.
+ *
+ * This is a convenience function that joins permission strings with spaces,
+ * which is the standard format for OAuth scope parameters.
+ *
+ * @param permissions - Array of permission strings
+ * @returns Space-separated scope string
+ *
+ * @example
+ * ```typescript
+ * const permissions = ['account:email?action=read', 'repo:app.bsky.feed.post'];
+ * const scope = buildScope(permissions);
+ * // Returns: "account:email?action=read repo:app.bsky.feed.post"
+ * ```
+ */
+export function buildScope(permissions: string[]): string {
+  return permissions.join(" ");
+}
+
+/**
+ * Parse a scope string into an array of individual permissions.
+ *
+ * This splits a space-separated scope string into individual permission strings.
+ *
+ * @param scope - Space-separated scope string
+ * @returns Array of permission strings
+ *
+ * @example
+ * ```typescript
+ * const scope = "account:email?action=read repo:app.bsky.feed.post";
+ * const permissions = parseScope(scope);
+ * // Returns: ['account:email?action=read', 'repo:app.bsky.feed.post']
+ * ```
+ */
+export function parseScope(scope: string): string[] {
+  return scope.trim().split(/\s+/).filter(Boolean);
+}
+
+/**
+ * Check if a scope string contains a specific permission.
+ *
+ * This function performs exact string matching. For more advanced
+ * permission checking (e.g., wildcard matching), you'll need to
+ * implement custom logic.
+ *
+ * @param scope - Space-separated scope string
+ * @param permission - The permission to check for
+ * @returns True if the scope contains the permission
+ *
+ * @example
+ * ```typescript
+ * const scope = "account:email?action=read repo:app.bsky.feed.post";
+ * hasPermission(scope, "account:email?action=read"); // true
+ * hasPermission(scope, "account:repo"); // false
+ * ```
+ */
+export function hasPermission(scope: string, permission: string): boolean {
+  const permissions = parseScope(scope);
+  return permissions.includes(permission);
+}
+
+/**
+ * Check if a scope string contains all of the specified permissions.
+ *
+ * @param scope - Space-separated scope string
+ * @param requiredPermissions - Array of permissions to check for
+ * @returns True if the scope contains all required permissions
+ *
+ * @example
+ * ```typescript
+ * const scope = "account:email?action=read repo:app.bsky.feed.post blob:image/*";
+ * hasAllPermissions(scope, ["account:email?action=read", "blob:image/*"]); // true
+ * hasAllPermissions(scope, ["account:email?action=read", "account:repo"]); // false
+ * ```
+ */
+export function hasAllPermissions(scope: string, requiredPermissions: string[]): boolean {
+  const permissions = parseScope(scope);
+  return requiredPermissions.every((required) => permissions.includes(required));
+}
+
+/**
+ * Check if a scope string contains any of the specified permissions.
+ *
+ * @param scope - Space-separated scope string
+ * @param checkPermissions - Array of permissions to check for
+ * @returns True if the scope contains at least one of the permissions
+ *
+ * @example
+ * ```typescript
+ * const scope = "account:email?action=read repo:app.bsky.feed.post";
+ * hasAnyPermission(scope, ["account:email?action=read", "account:repo"]); // true
+ * hasAnyPermission(scope, ["account:repo", "identity:handle"]); // false
+ * ```
+ */
+export function hasAnyPermission(scope: string, checkPermissions: string[]): boolean {
+  const permissions = parseScope(scope);
+  return checkPermissions.some((check) => permissions.includes(check));
+}
+
+/**
+ * Merge multiple scope strings into a single scope string with deduplicated permissions.
+ *
+ * @param scopes - Array of scope strings to merge
+ * @returns Merged scope string with unique permissions
+ *
+ * @example
+ * ```typescript
+ * const scope1 = "account:email?action=read repo:app.bsky.feed.post";
+ * const scope2 = "repo:app.bsky.feed.post blob:image/*";
+ * const merged = mergeScopes([scope1, scope2]);
+ * // Returns: "account:email?action=read repo:app.bsky.feed.post blob:image/*"
+ * ```
+ */
+export function mergeScopes(scopes: string[]): string {
+  const allPermissions = scopes.flatMap(parseScope);
+  const uniquePermissions = [...new Set(allPermissions)];
+  return buildScope(uniquePermissions);
+}
+
+/**
+ * Remove specific permissions from a scope string.
+ *
+ * @param scope - Space-separated scope string
+ * @param permissionsToRemove - Array of permissions to remove
+ * @returns New scope string without the specified permissions
+ *
+ * @example
+ * ```typescript
+ * const scope = "account:email?action=read repo:app.bsky.feed.post blob:image/*";
+ * const filtered = removePermissions(scope, ["blob:image/*"]);
+ * // Returns: "account:email?action=read repo:app.bsky.feed.post"
+ * ```
+ */
+export function removePermissions(scope: string, permissionsToRemove: string[]): string {
+  const permissions = parseScope(scope);
+  const filtered = permissions.filter((p) => !permissionsToRemove.includes(p));
+  return buildScope(filtered);
+}
+
+/**
+ * Validate that all permissions in a scope string are well-formed.
+ *
+ * This checks that each permission matches expected patterns for transitional
+ * or granular permissions. It does NOT validate against the full Zod schemas.
+ *
+ * @param scope - Space-separated scope string
+ * @returns Object with isValid flag and array of invalid permissions
+ *
+ * @example
+ * ```typescript
+ * const scope = "account:email?action=read invalid:permission";
+ * const result = validateScope(scope);
+ * // Returns: { isValid: false, invalidPermissions: ['invalid:permission'] }
+ * ```
+ */
+export function validateScope(scope: string): {
+  isValid: boolean;
+  invalidPermissions: string[];
+} {
+  const permissions = parseScope(scope);
+  const invalidPermissions: string[] = [];
+
+  // Pattern for valid permission prefixes
+  const validPrefixes = /^(atproto|transition:|account:|repo:|blob:?|rpc:|identity:|include:)/;
+
+  for (const permission of permissions) {
+    if (!validPrefixes.test(permission)) {
+      invalidPermissions.push(permission);
+    }
+  }
+
+  return {
+    isValid: invalidPermissions.length === 0,
+    invalidPermissions,
+  };
+}
