@@ -141,9 +141,11 @@ const orgRepo = sdsRepo.repo(organizationDid);
 // Teammate can now access orgRepo and create hypercerts
 ```
 
-### 2. Authentication
+### 2. Authentication & OAuth Permissions
 
-The SDK uses OAuth 2.0 for authentication with support for both PDS (Personal Data Server) and SDS (Shared Data Server).
+The SDK uses OAuth 2.0 for authentication with granular permission control.
+
+#### Basic Authentication
 
 ```typescript
 // First-time user authentication
@@ -163,6 +165,48 @@ const session = await sdk.restoreSession("did:plc:user123");
 // Get repository for authenticated user
 const repo = sdk.getRepository(session);
 ```
+
+#### OAuth Scopes & Permissions
+
+Control exactly what your app can access using type-safe permission builders:
+
+```typescript
+import { PermissionBuilder, ScopePresets, buildScope } from '@hypercerts-org/sdk-core';
+
+// Use ready-made presets
+const scope = ScopePresets.EMAIL_AND_PROFILE;  // Request email + profile access
+const scope = ScopePresets.POSTING_APP;        // Full posting capabilities
+
+// Or build custom permissions
+const scope = buildScope(
+  new PermissionBuilder()
+    .accountEmail('read')                      // Read user's email
+    .repoWrite('app.bsky.feed.post')          // Create/update posts
+    .blob(['image/*', 'video/*'])             // Upload media
+    .build()
+);
+
+// Use in OAuth configuration
+const sdk = createATProtoSDK({
+  oauth: {
+    clientId: 'your-client-id',
+    redirectUri: 'https://your-app.com/callback',
+    scope: scope,  // Your custom scope
+    // ... other config
+  }
+});
+```
+
+**Available Presets:**
+- `EMAIL_READ` - User's email address
+- `PROFILE_READ` / `PROFILE_WRITE` - Profile access
+- `POST_WRITE` - Create posts
+- `SOCIAL_WRITE` - Likes, reposts, follows
+- `MEDIA_UPLOAD` - Image and video uploads
+- `POSTING_APP` - Full posting with media
+- `EMAIL_AND_PROFILE` - Common combination
+
+See [OAuth Permissions Documentation](./docs/implementations/atproto_oauth_scopes.md) for detailed usage.
 
 ### 3. Working with Hypercerts
 
