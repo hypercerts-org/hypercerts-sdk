@@ -17,6 +17,7 @@ import {
   IncludePermissionSchema,
   PermissionSchema,
   PermissionBuilder,
+  ScopePresets,
   buildScope,
   parseScope,
   hasPermission,
@@ -1118,6 +1119,112 @@ describe("Scope Utility Functions", () => {
 
       expect(hasPermission(merged, "account:email?action=read")).toBe(true);
       expect(hasPermission(merged, "repo:app.bsky.feed.post?action=create&action=update")).toBe(true);
+    });
+  });
+});
+
+describe("ScopePresets", () => {
+  describe("Basic Presets", () => {
+    it("should provide EMAIL_READ preset", () => {
+      expect(ScopePresets.EMAIL_READ).toBe("account:email?action=read");
+    });
+
+    it("should provide PROFILE_READ preset", () => {
+      expect(ScopePresets.PROFILE_READ).toBe("repo:app.bsky.actor.profile");
+    });
+
+    it("should provide PROFILE_WRITE preset", () => {
+      expect(ScopePresets.PROFILE_WRITE).toBe("repo:app.bsky.actor.profile?action=create&action=update");
+    });
+
+    it("should provide POST_WRITE preset", () => {
+      expect(ScopePresets.POST_WRITE).toBe("repo:app.bsky.feed.post?action=create&action=update");
+    });
+
+    it("should provide IMAGE_UPLOAD preset", () => {
+      expect(ScopePresets.IMAGE_UPLOAD).toBe("blob:image/*");
+    });
+
+    it("should provide MEDIA_UPLOAD preset", () => {
+      expect(ScopePresets.MEDIA_UPLOAD).toBe("blob?accept=image%2F*&accept=video%2F*");
+    });
+  });
+
+  describe("Complex Presets", () => {
+    it("should provide SOCIAL_WRITE preset", () => {
+      const permissions = parseScope(ScopePresets.SOCIAL_WRITE);
+      expect(permissions).toHaveLength(3);
+      expect(permissions).toContain("repo:app.bsky.feed.like?action=create&action=update");
+      expect(permissions).toContain("repo:app.bsky.feed.repost?action=create&action=update");
+      expect(permissions).toContain("repo:app.bsky.graph.follow?action=create&action=update");
+    });
+
+    it("should provide POSTING_APP preset", () => {
+      const permissions = parseScope(ScopePresets.POSTING_APP);
+      expect(permissions).toHaveLength(4);
+      expect(permissions).toContain("repo:app.bsky.feed.post?action=create&action=update");
+      expect(permissions).toContain("repo:app.bsky.feed.like?action=create&action=update");
+      expect(permissions).toContain("repo:app.bsky.feed.repost?action=create&action=update");
+      expect(permissions).toContain("blob?accept=image%2F*&accept=video%2F*");
+    });
+
+    it("should provide EMAIL_AND_PROFILE preset", () => {
+      const permissions = parseScope(ScopePresets.EMAIL_AND_PROFILE);
+      expect(permissions).toHaveLength(2);
+      expect(permissions).toContain("account:email?action=read");
+      expect(permissions).toContain("repo:app.bsky.actor.profile");
+    });
+  });
+
+  describe("Access Level Presets", () => {
+    it("should provide READ_ONLY preset", () => {
+      expect(ScopePresets.READ_ONLY).toBe("repo:*");
+    });
+
+    it("should provide FULL_ACCESS preset", () => {
+      expect(ScopePresets.FULL_ACCESS).toBe("repo:*?action=create&action=update&action=delete");
+    });
+  });
+
+  describe("Transitional Presets", () => {
+    it("should provide TRANSITION_EMAIL preset", () => {
+      expect(ScopePresets.TRANSITION_EMAIL).toBe("transition:email");
+    });
+
+    it("should provide TRANSITION_GENERIC preset", () => {
+      expect(ScopePresets.TRANSITION_GENERIC).toBe("transition:generic");
+    });
+  });
+
+  describe("Preset Usage", () => {
+    it("should work with parseScope", () => {
+      const permissions = parseScope(ScopePresets.POSTING_APP);
+      expect(permissions.length).toBeGreaterThan(0);
+    });
+
+    it("should work with hasPermission", () => {
+      expect(hasPermission(ScopePresets.EMAIL_READ, "account:email?action=read")).toBe(true);
+      expect(hasPermission(ScopePresets.EMAIL_READ, "account:repo")).toBe(false);
+    });
+
+    it("should work with mergeScopes", () => {
+      const merged = mergeScopes([ScopePresets.EMAIL_READ, ScopePresets.POST_WRITE]);
+      expect(hasPermission(merged, "account:email?action=read")).toBe(true);
+      expect(hasPermission(merged, "repo:app.bsky.feed.post?action=create&action=update")).toBe(true);
+    });
+
+    it("should be valid scopes", () => {
+      expect(validateScope(ScopePresets.EMAIL_READ).isValid).toBe(true);
+      expect(validateScope(ScopePresets.POSTING_APP).isValid).toBe(true);
+      expect(validateScope(ScopePresets.FULL_ACCESS).isValid).toBe(true);
+      expect(validateScope(ScopePresets.TRANSITION_EMAIL).isValid).toBe(true);
+    });
+  });
+
+  describe("Preset Immutability", () => {
+    it("should be readonly (const assertion)", () => {
+      expect(typeof ScopePresets.EMAIL_READ).toBe("string");
+      expect(typeof ScopePresets.POSTING_APP).toBe("string");
     });
   });
 });

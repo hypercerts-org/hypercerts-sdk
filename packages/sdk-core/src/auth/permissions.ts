@@ -770,6 +770,202 @@ export function buildScope(permissions: string[]): string {
 }
 
 /**
+ * Pre-built scope presets for common use cases.
+ *
+ * These presets provide ready-to-use permission sets for typical application scenarios.
+ */
+export const ScopePresets = {
+  /**
+   * Email access scope - allows reading user's email address.
+   *
+   * Includes:
+   * - account:email?action=read
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.EMAIL_READ;
+   * // Use in OAuth flow to request email access
+   * ```
+   */
+  EMAIL_READ: buildScope(new PermissionBuilder().accountEmail("read").build()),
+
+  /**
+   * Profile read scope - allows reading user's profile.
+   *
+   * Includes:
+   * - repo:app.bsky.actor.profile (read-only)
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.PROFILE_READ;
+   * ```
+   */
+  PROFILE_READ: buildScope(new PermissionBuilder().repoRead("app.bsky.actor.profile").build()),
+
+  /**
+   * Profile write scope - allows updating user's profile.
+   *
+   * Includes:
+   * - repo:app.bsky.actor.profile (create + update)
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.PROFILE_WRITE;
+   * ```
+   */
+  PROFILE_WRITE: buildScope(new PermissionBuilder().repoWrite("app.bsky.actor.profile").build()),
+
+  /**
+   * Post creation scope - allows creating and updating posts.
+   *
+   * Includes:
+   * - repo:app.bsky.feed.post (create + update)
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.POST_WRITE;
+   * ```
+   */
+  POST_WRITE: buildScope(new PermissionBuilder().repoWrite("app.bsky.feed.post").build()),
+
+  /**
+   * Social interactions scope - allows liking, reposting, and following.
+   *
+   * Includes:
+   * - repo:app.bsky.feed.like (create + update)
+   * - repo:app.bsky.feed.repost (create + update)
+   * - repo:app.bsky.graph.follow (create + update)
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.SOCIAL_WRITE;
+   * ```
+   */
+  SOCIAL_WRITE: buildScope(
+    new PermissionBuilder()
+      .repoWrite("app.bsky.feed.like")
+      .repoWrite("app.bsky.feed.repost")
+      .repoWrite("app.bsky.graph.follow")
+      .build(),
+  ),
+
+  /**
+   * Media upload scope - allows uploading images and videos.
+   *
+   * Includes:
+   * - blob permissions for image/* and video/*
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.MEDIA_UPLOAD;
+   * ```
+   */
+  MEDIA_UPLOAD: buildScope(new PermissionBuilder().blob(["image/*", "video/*"]).build()),
+
+  /**
+   * Image upload only scope - allows uploading images.
+   *
+   * Includes:
+   * - blob:image/*
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.IMAGE_UPLOAD;
+   * ```
+   */
+  IMAGE_UPLOAD: buildScope(new PermissionBuilder().blob("image/*").build()),
+
+  /**
+   * Posting app scope - full posting capabilities including media.
+   *
+   * Includes:
+   * - repo:app.bsky.feed.post (create + update)
+   * - repo:app.bsky.feed.like (create + update)
+   * - repo:app.bsky.feed.repost (create + update)
+   * - blob permissions for image/* and video/*
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.POSTING_APP;
+   * ```
+   */
+  POSTING_APP: buildScope(
+    new PermissionBuilder()
+      .repoWrite("app.bsky.feed.post")
+      .repoWrite("app.bsky.feed.like")
+      .repoWrite("app.bsky.feed.repost")
+      .blob(["image/*", "video/*"])
+      .build(),
+  ),
+
+  /**
+   * Read-only app scope - allows reading all repository data.
+   *
+   * Includes:
+   * - repo:* (read-only, no actions)
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.READ_ONLY;
+   * ```
+   */
+  READ_ONLY: buildScope(new PermissionBuilder().repoRead("*").build()),
+
+  /**
+   * Full access scope - allows all repository operations.
+   *
+   * Includes:
+   * - repo:* (create + update + delete)
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.FULL_ACCESS;
+   * ```
+   */
+  FULL_ACCESS: buildScope(new PermissionBuilder().repoFull("*").build()),
+
+  /**
+   * Email + Profile scope - common combination for user identification.
+   *
+   * Includes:
+   * - account:email?action=read
+   * - repo:app.bsky.actor.profile (read-only)
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.EMAIL_AND_PROFILE;
+   * ```
+   */
+  EMAIL_AND_PROFILE: buildScope(
+    new PermissionBuilder().accountEmail("read").repoRead("app.bsky.actor.profile").build(),
+  ),
+
+  /**
+   * Transitional email scope (legacy).
+   *
+   * Uses the transitional scope format for backward compatibility.
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.TRANSITION_EMAIL;
+   * ```
+   */
+  TRANSITION_EMAIL: buildScope(new PermissionBuilder().transition("email").build()),
+
+  /**
+   * Transitional generic scope (legacy).
+   *
+   * Uses the transitional scope format for backward compatibility.
+   *
+   * @example
+   * ```typescript
+   * const scope = ScopePresets.TRANSITION_GENERIC;
+   * ```
+   */
+  TRANSITION_GENERIC: buildScope(new PermissionBuilder().transition("generic").build()),
+} as const;
+
+/**
  * Parse a scope string into an array of individual permissions.
  *
  * This splits a space-separated scope string into individual permission strings.
