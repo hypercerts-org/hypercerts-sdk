@@ -11,6 +11,11 @@ import {
   NsidSchema,
   AccountPermissionSchema,
   RepoPermissionSchema,
+  BlobPermissionSchema,
+  RpcPermissionSchema,
+  IdentityPermissionSchema,
+  IncludePermissionSchema,
+  PermissionSchema,
 } from "../../src/auth/permissions.js";
 
 describe("Permission Constants", () => {
@@ -152,13 +157,13 @@ describe("NsidSchema", () => {
   });
 
   it("should reject invalid NSID formats", () => {
-    expect(() => NsidSchema.parse("InvalidNSID")).toThrow();
+    expect(() => NsidSchema.parse("InvalidNSID")).toThrow(); // Need at least one dot
     expect(() => NsidSchema.parse("example")).toThrow(); // Need at least one dot
     expect(() => NsidSchema.parse(".example.com")).toThrow(); // Can't start with dot
     expect(() => NsidSchema.parse("example.com.")).toThrow(); // Can't end with dot
-    expect(() => NsidSchema.parse("Example.com")).toThrow(); // Must be lowercase
     expect(() => NsidSchema.parse("example..com")).toThrow(); // No consecutive dots
-    expect(() => NsidSchema.parse("")).toThrow();
+    expect(() => NsidSchema.parse("")).toThrow(); // Empty string
+    expect(() => NsidSchema.parse("123.example.com")).toThrow(); // Can't start with number
   });
 
   it("should provide helpful error message for invalid NSIDs", () => {
@@ -320,5 +325,217 @@ describe("RepoPermissionSchema", () => {
   it("should reject missing collection field", () => {
     const input = { type: "repo" as const };
     expect(() => RepoPermissionSchema.parse(input)).toThrow();
+  });
+});
+
+describe("BlobPermissionSchema", () => {
+  it("should transform blob with single MIME type", () => {
+    const input = { type: "blob" as const, mimeTypes: ["image/*"] };
+    const result = BlobPermissionSchema.parse(input);
+    expect(result).toBe("blob:image/*");
+  });
+
+  it("should transform blob with multiple MIME types", () => {
+    const input = { type: "blob" as const, mimeTypes: ["image/*", "video/*"] };
+    const result = BlobPermissionSchema.parse(input);
+    expect(result).toBe("blob?accept=image%2F*&accept=video%2F*");
+  });
+
+  it("should transform blob with specific MIME types", () => {
+    const input = { type: "blob" as const, mimeTypes: ["image/png", "image/jpeg", "video/mp4"] };
+    const result = BlobPermissionSchema.parse(input);
+    expect(result).toBe("blob?accept=image%2Fpng&accept=image%2Fjpeg&accept=video%2Fmp4");
+  });
+
+  it("should reject empty MIME types array", () => {
+    const input = { type: "blob" as const, mimeTypes: [] };
+    expect(() => BlobPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject invalid MIME type format", () => {
+    const input = { type: "blob" as const, mimeTypes: ["invalid"] };
+    expect(() => BlobPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject missing mimeTypes field", () => {
+    const input = { type: "blob" as const };
+    expect(() => BlobPermissionSchema.parse(input)).toThrow();
+  });
+});
+
+describe("RpcPermissionSchema", () => {
+  it("should transform RPC with specific lexicon and wildcard audience", () => {
+    const input = {
+      type: "rpc" as const,
+      lexicon: "com.atproto.repo.createRecord",
+      aud: "*",
+    };
+    const result = RpcPermissionSchema.parse(input);
+    expect(result).toBe("rpc:com.atproto.repo.createRecord?aud=*");
+  });
+
+  it("should transform RPC with specific audience (URL encoded)", () => {
+    const input = {
+      type: "rpc" as const,
+      lexicon: "com.atproto.repo.createRecord",
+      aud: "did:web:api.example.com",
+    };
+    const result = RpcPermissionSchema.parse(input);
+    expect(result).toBe("rpc:com.atproto.repo.createRecord?aud=did%3Aweb%3Aapi.example.com");
+  });
+
+  it("should transform RPC with inheritAud flag", () => {
+    const input = {
+      type: "rpc" as const,
+      lexicon: "com.atproto.repo.createRecord",
+      aud: "*",
+      inheritAud: true,
+    };
+    const result = RpcPermissionSchema.parse(input);
+    expect(result).toBe("rpc:com.atproto.repo.createRecord?aud=*&inheritAud=true");
+  });
+
+  it("should transform RPC with wildcard lexicon and specific aud", () => {
+    const input = {
+      type: "rpc" as const,
+      lexicon: "*",
+      aud: "did:web:api.example.com",
+    };
+    const result = RpcPermissionSchema.parse(input);
+    expect(result).toBe("rpc:*?aud=did%3Aweb%3Aapi.example.com");
+  });
+
+  it("should reject both wildcards (refinement)", () => {
+    const input = {
+      type: "rpc" as const,
+      lexicon: "*",
+      aud: "*",
+    };
+    expect(() => RpcPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject invalid lexicon format", () => {
+    const input = {
+      type: "rpc" as const,
+      lexicon: "InvalidLexicon",
+      aud: "*",
+    };
+    expect(() => RpcPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject empty audience", () => {
+    const input = {
+      type: "rpc" as const,
+      lexicon: "com.atproto.repo.createRecord",
+      aud: "",
+    };
+    expect(() => RpcPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject missing aud field", () => {
+    const input = {
+      type: "rpc" as const,
+      lexicon: "com.atproto.repo.createRecord",
+    };
+    expect(() => RpcPermissionSchema.parse(input)).toThrow();
+  });
+});
+
+describe("IdentityPermissionSchema", () => {
+  it("should transform identity:handle", () => {
+    const input = { type: "identity" as const, attr: "handle" as const };
+    const result = IdentityPermissionSchema.parse(input);
+    expect(result).toBe("identity:handle");
+  });
+
+  it("should transform identity:* (wildcard)", () => {
+    const input = { type: "identity" as const, attr: "*" as const };
+    const result = IdentityPermissionSchema.parse(input);
+    expect(result).toBe("identity:*");
+  });
+
+  it("should reject invalid attr values", () => {
+    const input = { type: "identity" as const, attr: "invalid" };
+    expect(() => IdentityPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject missing attr field", () => {
+    const input = { type: "identity" as const };
+    expect(() => IdentityPermissionSchema.parse(input)).toThrow();
+  });
+});
+
+describe("IncludePermissionSchema", () => {
+  it("should transform include without audience", () => {
+    const input = { type: "include" as const, nsid: "com.example.authBasicFeatures" };
+    const result = IncludePermissionSchema.parse(input);
+    expect(result).toBe("include:com.example.authBasicFeatures");
+  });
+
+  it("should transform include with audience (URL encoded)", () => {
+    const input = {
+      type: "include" as const,
+      nsid: "com.example.authBasicFeatures",
+      aud: "did:web:api.example.com",
+    };
+    const result = IncludePermissionSchema.parse(input);
+    expect(result).toBe("include:com.example.authBasicFeatures?aud=did%3Aweb%3Aapi.example.com");
+  });
+
+  it("should reject invalid NSID format", () => {
+    const input = { type: "include" as const, nsid: "InvalidNSID" };
+    expect(() => IncludePermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject missing nsid field", () => {
+    const input = { type: "include" as const };
+    expect(() => IncludePermissionSchema.parse(input)).toThrow();
+  });
+});
+
+describe("PermissionSchema (Union)", () => {
+  it("should accept account permission", () => {
+    const input = { type: "account" as const, attr: "email" as const };
+    const result = PermissionSchema.parse(input);
+    expect(result).toBe("account:email");
+  });
+
+  it("should accept repo permission", () => {
+    const input = { type: "repo" as const, collection: "app.bsky.feed.post" };
+    const result = PermissionSchema.parse(input);
+    expect(result).toBe("repo:app.bsky.feed.post");
+  });
+
+  it("should accept blob permission", () => {
+    const input = { type: "blob" as const, mimeTypes: ["image/*"] };
+    const result = PermissionSchema.parse(input);
+    expect(result).toBe("blob:image/*");
+  });
+
+  it("should accept RPC permission", () => {
+    const input = {
+      type: "rpc" as const,
+      lexicon: "com.atproto.repo.createRecord",
+      aud: "*",
+    };
+    const result = PermissionSchema.parse(input);
+    expect(result).toBe("rpc:com.atproto.repo.createRecord?aud=*");
+  });
+
+  it("should accept identity permission", () => {
+    const input = { type: "identity" as const, attr: "handle" as const };
+    const result = PermissionSchema.parse(input);
+    expect(result).toBe("identity:handle");
+  });
+
+  it("should accept include permission", () => {
+    const input = { type: "include" as const, nsid: "com.example.authBasicFeatures" };
+    const result = PermissionSchema.parse(input);
+    expect(result).toBe("include:com.example.authBasicFeatures");
+  });
+
+  it("should reject invalid permission type", () => {
+    const input = { type: "invalid" };
+    expect(() => PermissionSchema.parse(input)).toThrow();
   });
 });

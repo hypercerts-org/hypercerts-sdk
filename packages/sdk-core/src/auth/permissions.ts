@@ -143,7 +143,7 @@ export const MimeTypeSchema = z
 export const NsidSchema = z
   .string()
   .regex(
-    /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/,
+    /^[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*)+$/,
     'Invalid NSID format. Expected reverse-DNS format (e.g., "app.bsky.feed.post")',
   );
 
@@ -231,3 +231,187 @@ export const RepoPermissionSchema = z
  * Input type for repository permission (before transform).
  */
 export type RepoPermissionInput = z.input<typeof RepoPermissionSchema>;
+
+/**
+ * Zod schema for blob permission.
+ *
+ * Blob permissions control media file uploads constrained by MIME type patterns.
+ *
+ * @example Single MIME type
+ * ```typescript
+ * const input = { type: 'blob', mimeTypes: ['image/*'] };
+ * BlobPermissionSchema.parse(input); // Returns: "blob:image/*"
+ * ```
+ *
+ * @example Multiple MIME types
+ * ```typescript
+ * const input = { type: 'blob', mimeTypes: ['image/*', 'video/*'] };
+ * BlobPermissionSchema.parse(input); // Returns: "blob?accept=image/*&accept=video/*"
+ * ```
+ */
+export const BlobPermissionSchema = z
+  .object({
+    type: z.literal("blob"),
+    mimeTypes: z.array(MimeTypeSchema).min(1, "At least one MIME type required"),
+  })
+  .transform(({ mimeTypes }) => {
+    if (mimeTypes.length === 1) {
+      return `blob:${mimeTypes[0]}`;
+    }
+    const accepts = mimeTypes.map((t) => `accept=${encodeURIComponent(t)}`).join("&");
+    return `blob?${accepts}`;
+  });
+
+/**
+ * Input type for blob permission (before transform).
+ */
+export type BlobPermissionInput = z.input<typeof BlobPermissionSchema>;
+
+/**
+ * Zod schema for RPC permission.
+ *
+ * RPC permissions control authenticated API calls to remote services.
+ * At least one of lexicon or aud must be restricted (both cannot be wildcards).
+ *
+ * @example Specific lexicon with wildcard audience
+ * ```typescript
+ * const input = {
+ *   type: 'rpc',
+ *   lexicon: 'com.atproto.repo.createRecord',
+ *   aud: '*'
+ * };
+ * RpcPermissionSchema.parse(input);
+ * // Returns: "rpc:com.atproto.repo.createRecord?aud=*"
+ * ```
+ *
+ * @example With specific audience
+ * ```typescript
+ * const input = {
+ *   type: 'rpc',
+ *   lexicon: 'com.atproto.repo.createRecord',
+ *   aud: 'did:web:api.example.com',
+ *   inheritAud: true
+ * };
+ * RpcPermissionSchema.parse(input);
+ * // Returns: "rpc:com.atproto.repo.createRecord?aud=did%3Aweb%3Aapi.example.com&inheritAud=true"
+ * ```
+ */
+export const RpcPermissionSchema = z
+  .object({
+    type: z.literal("rpc"),
+    lexicon: NsidSchema.or(z.literal("*")),
+    aud: z.string().min(1, "Audience is required"),
+    inheritAud: z.boolean().optional(),
+  })
+  .refine(
+    ({ lexicon, aud }) => lexicon !== "*" || aud !== "*",
+    "At least one of lexicon or aud must be restricted (wildcards cannot both be used)",
+  )
+  .transform(({ lexicon, aud, inheritAud }) => {
+    let perm = `rpc:${lexicon}?aud=${encodeURIComponent(aud)}`;
+    if (inheritAud) {
+      perm += "&inheritAud=true";
+    }
+    return perm;
+  });
+
+/**
+ * Input type for RPC permission (before transform).
+ */
+export type RpcPermissionInput = z.input<typeof RpcPermissionSchema>;
+
+/**
+ * Zod schema for identity permission.
+ *
+ * Identity permissions control access to DID documents and handles.
+ *
+ * @example Handle management
+ * ```typescript
+ * const input = { type: 'identity', attr: 'handle' };
+ * IdentityPermissionSchema.parse(input); // Returns: "identity:handle"
+ * ```
+ *
+ * @example All identity attributes
+ * ```typescript
+ * const input = { type: 'identity', attr: '*' };
+ * IdentityPermissionSchema.parse(input); // Returns: "identity:*"
+ * ```
+ */
+export const IdentityPermissionSchema = z
+  .object({
+    type: z.literal("identity"),
+    attr: IdentityAttrSchema,
+  })
+  .transform(({ attr }) => `identity:${attr}`);
+
+/**
+ * Input type for identity permission (before transform).
+ */
+export type IdentityPermissionInput = z.input<typeof IdentityPermissionSchema>;
+
+/**
+ * Zod schema for permission set inclusion.
+ *
+ * Include permissions reference permission sets bundled under a single NSID.
+ *
+ * @example Without audience
+ * ```typescript
+ * const input = { type: 'include', nsid: 'com.example.authBasicFeatures' };
+ * IncludePermissionSchema.parse(input);
+ * // Returns: "include:com.example.authBasicFeatures"
+ * ```
+ *
+ * @example With audience
+ * ```typescript
+ * const input = {
+ *   type: 'include',
+ *   nsid: 'com.example.authBasicFeatures',
+ *   aud: 'did:web:api.example.com'
+ * };
+ * IncludePermissionSchema.parse(input);
+ * // Returns: "include:com.example.authBasicFeatures?aud=did%3Aweb%3Aapi.example.com"
+ * ```
+ */
+export const IncludePermissionSchema = z
+  .object({
+    type: z.literal("include"),
+    nsid: NsidSchema,
+    aud: z.string().optional(),
+  })
+  .transform(({ nsid, aud }) => {
+    let perm = `include:${nsid}`;
+    if (aud) {
+      perm += `?aud=${encodeURIComponent(aud)}`;
+    }
+    return perm;
+  });
+
+/**
+ * Input type for include permission (before transform).
+ */
+export type IncludePermissionInput = z.input<typeof IncludePermissionSchema>;
+
+/**
+ * Union schema for all permission types.
+ *
+ * This schema accepts any of the supported permission types and validates
+ * them according to their specific rules.
+ */
+export const PermissionSchema = z.union([
+  AccountPermissionSchema,
+  RepoPermissionSchema,
+  BlobPermissionSchema,
+  RpcPermissionSchema,
+  IdentityPermissionSchema,
+  IncludePermissionSchema,
+]);
+
+/**
+ * Input type for any permission (before transform).
+ */
+export type PermissionInput = z.input<typeof PermissionSchema>;
+
+/**
+ * Output type for any permission (after transform).
+ */
+export type Permission = z.output<typeof PermissionSchema>;
