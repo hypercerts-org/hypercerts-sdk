@@ -415,3 +415,336 @@ export type PermissionInput = z.input<typeof PermissionSchema>;
  * Output type for any permission (after transform).
  */
 export type Permission = z.output<typeof PermissionSchema>;
+
+/**
+ * Fluent builder for constructing OAuth permission arrays.
+ *
+ * This class provides a convenient, type-safe way to build arrays of permissions
+ * using method chaining.
+ *
+ * @example Basic usage
+ * ```typescript
+ * const builder = new PermissionBuilder()
+ *   .accountEmail('read')
+ *   .repoWrite('app.bsky.feed.post')
+ *   .blob(['image/*', 'video/*']);
+ *
+ * const permissions = builder.build();
+ * // Returns: ['account:email?action=read', 'repo:app.bsky.feed.post?action=create&action=update', 'blob:image/*,video/*']
+ * ```
+ *
+ * @example With transitional scopes
+ * ```typescript
+ * const builder = new PermissionBuilder()
+ *   .transition('email')
+ *   .transition('generic');
+ *
+ * const scopes = builder.build();
+ * // Returns: ['transition:email', 'transition:generic']
+ * ```
+ */
+export class PermissionBuilder {
+  private permissions: string[] = [];
+
+  /**
+   * Add a transitional scope.
+   *
+   * @param scope - The transitional scope name ('email', 'generic', or 'chat.bsky')
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.transition('email').transition('generic');
+   * ```
+   */
+  transition(scope: "email" | "generic" | "chat.bsky"): this {
+    const fullScope = `transition:${scope}`;
+    const validated = TransitionScopeSchema.parse(fullScope);
+    this.permissions.push(validated);
+    return this;
+  }
+
+  /**
+   * Add an account permission.
+   *
+   * @param attr - The account attribute ('email' or 'repo')
+   * @param action - Optional action ('read' or 'manage')
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.accountEmail('read').accountRepo('manage');
+   * ```
+   */
+  account(attr: z.infer<typeof AccountAttrSchema>, action?: z.infer<typeof AccountActionSchema>): this {
+    const permission = AccountPermissionSchema.parse({
+      type: "account",
+      attr,
+      action,
+    });
+    this.permissions.push(permission);
+    return this;
+  }
+
+  /**
+   * Convenience method for account:email permission.
+   *
+   * @param action - Optional action ('read' or 'manage')
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.accountEmail('read');
+   * ```
+   */
+  accountEmail(action?: z.infer<typeof AccountActionSchema>): this {
+    return this.account("email", action);
+  }
+
+  /**
+   * Convenience method for account:repo permission.
+   *
+   * @param action - Optional action ('read' or 'manage')
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.accountRepo('manage');
+   * ```
+   */
+  accountRepo(action?: z.infer<typeof AccountActionSchema>): this {
+    return this.account("repo", action);
+  }
+
+  /**
+   * Add a repository permission.
+   *
+   * @param collection - The NSID of the collection or '*' for all
+   * @param actions - Optional array of actions ('create', 'update', 'delete')
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.repo('app.bsky.feed.post', ['create', 'update']);
+   * ```
+   */
+  repo(collection: string, actions?: z.infer<typeof RepoActionSchema>[]): this {
+    const permission = RepoPermissionSchema.parse({
+      type: "repo",
+      collection,
+      actions,
+    });
+    this.permissions.push(permission);
+    return this;
+  }
+
+  /**
+   * Convenience method for repository write permissions (create + update).
+   *
+   * @param collection - The NSID of the collection or '*' for all
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.repoWrite('app.bsky.feed.post');
+   * ```
+   */
+  repoWrite(collection: string): this {
+    return this.repo(collection, ["create", "update"]);
+  }
+
+  /**
+   * Convenience method for repository read permission (no actions).
+   *
+   * @param collection - The NSID of the collection or '*' for all
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.repoRead('app.bsky.feed.post');
+   * ```
+   */
+  repoRead(collection: string): this {
+    return this.repo(collection, []);
+  }
+
+  /**
+   * Convenience method for full repository permissions (create + update + delete).
+   *
+   * @param collection - The NSID of the collection or '*' for all
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.repoFull('app.bsky.feed.post');
+   * ```
+   */
+  repoFull(collection: string): this {
+    return this.repo(collection, ["create", "update", "delete"]);
+  }
+
+  /**
+   * Add a blob permission.
+   *
+   * @param mimeTypes - Array of MIME types or a single MIME type
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.blob(['image/*', 'video/*']);
+   * builder.blob('image/*');
+   * ```
+   */
+  blob(mimeTypes: string | string[]): this {
+    const types = Array.isArray(mimeTypes) ? mimeTypes : [mimeTypes];
+    const permission = BlobPermissionSchema.parse({
+      type: "blob",
+      mimeTypes: types,
+    });
+    this.permissions.push(permission);
+    return this;
+  }
+
+  /**
+   * Add an RPC permission.
+   *
+   * @param lexicon - The NSID of the lexicon or '*' for all
+   * @param aud - The audience (DID or URL)
+   * @param inheritAud - Whether to inherit audience
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.rpc('com.atproto.repo.createRecord', 'did:web:api.example.com');
+   * ```
+   */
+  rpc(lexicon: string, aud: string, inheritAud?: boolean): this {
+    const permission = RpcPermissionSchema.parse({
+      type: "rpc",
+      lexicon,
+      aud,
+      inheritAud,
+    });
+    this.permissions.push(permission);
+    return this;
+  }
+
+  /**
+   * Add an identity permission.
+   *
+   * @param attr - The identity attribute ('handle' or '*')
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.identity('handle');
+   * ```
+   */
+  identity(attr: z.infer<typeof IdentityAttrSchema>): this {
+    const permission = IdentityPermissionSchema.parse({
+      type: "identity",
+      attr,
+    });
+    this.permissions.push(permission);
+    return this;
+  }
+
+  /**
+   * Add an include permission.
+   *
+   * @param nsid - The NSID of the scope set to include
+   * @param aud - Optional audience restriction
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.include('com.example.authBasicFeatures');
+   * ```
+   */
+  include(nsid: string, aud?: string): this {
+    const permission = IncludePermissionSchema.parse({
+      type: "include",
+      nsid,
+      aud,
+    });
+    this.permissions.push(permission);
+    return this;
+  }
+
+  /**
+   * Add a custom permission string directly (bypasses validation).
+   *
+   * Use this for testing or special cases where you need to add
+   * a permission that doesn't fit the standard types.
+   *
+   * @param permission - The permission string
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.custom('atproto');
+   * ```
+   */
+  custom(permission: string): this {
+    this.permissions.push(permission);
+    return this;
+  }
+
+  /**
+   * Add the base atproto scope.
+   *
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.atproto();
+   * ```
+   */
+  atproto(): this {
+    this.permissions.push(ATPROTO_SCOPE);
+    return this;
+  }
+
+  /**
+   * Build and return the array of permission strings.
+   *
+   * @returns Array of permission strings
+   *
+   * @example
+   * ```typescript
+   * const permissions = builder.build();
+   * ```
+   */
+  build(): string[] {
+    return [...this.permissions];
+  }
+
+  /**
+   * Clear all permissions from the builder.
+   *
+   * @returns This builder for chaining
+   *
+   * @example
+   * ```typescript
+   * builder.clear().accountEmail('read');
+   * ```
+   */
+  clear(): this {
+    this.permissions = [];
+    return this;
+  }
+
+  /**
+   * Get the current number of permissions.
+   *
+   * @returns The number of permissions
+   *
+   * @example
+   * ```typescript
+   * const count = builder.count();
+   * ```
+   */
+  count(): number {
+    return this.permissions.length;
+  }
+}

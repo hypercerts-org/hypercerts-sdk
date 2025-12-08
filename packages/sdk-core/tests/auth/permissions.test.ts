@@ -16,6 +16,7 @@ import {
   IdentityPermissionSchema,
   IncludePermissionSchema,
   PermissionSchema,
+  PermissionBuilder,
 } from "../../src/auth/permissions.js";
 
 describe("Permission Constants", () => {
@@ -537,5 +538,278 @@ describe("PermissionSchema (Union)", () => {
   it("should reject invalid permission type", () => {
     const input = { type: "invalid" };
     expect(() => PermissionSchema.parse(input)).toThrow();
+  });
+});
+
+describe("PermissionBuilder", () => {
+  describe("Transitional Scopes", () => {
+    it("should add transitional scopes", () => {
+      const builder = new PermissionBuilder();
+      builder.transition("email").transition("generic");
+      const result = builder.build();
+      expect(result).toEqual(["transition:email", "transition:generic"]);
+    });
+
+    it("should validate transitional scope values", () => {
+      const builder = new PermissionBuilder();
+      expect(() => builder.transition("invalid" as "email")).toThrow();
+    });
+  });
+
+  describe("Account Permissions", () => {
+    it("should add account:email without action", () => {
+      const builder = new PermissionBuilder();
+      builder.accountEmail();
+      expect(builder.build()).toEqual(["account:email"]);
+    });
+
+    it("should add account:email with read action", () => {
+      const builder = new PermissionBuilder();
+      builder.accountEmail("read");
+      expect(builder.build()).toEqual(["account:email?action=read"]);
+    });
+
+    it("should add account:email with manage action", () => {
+      const builder = new PermissionBuilder();
+      builder.accountEmail("manage");
+      expect(builder.build()).toEqual(["account:email?action=manage"]);
+    });
+
+    it("should add account:repo without action", () => {
+      const builder = new PermissionBuilder();
+      builder.accountRepo();
+      expect(builder.build()).toEqual(["account:repo"]);
+    });
+
+    it("should add account:repo with manage action", () => {
+      const builder = new PermissionBuilder();
+      builder.accountRepo("manage");
+      expect(builder.build()).toEqual(["account:repo?action=manage"]);
+    });
+
+    it("should use generic account() method", () => {
+      const builder = new PermissionBuilder();
+      builder.account("email", "read").account("repo", "manage");
+      expect(builder.build()).toEqual(["account:email?action=read", "account:repo?action=manage"]);
+    });
+  });
+
+  describe("Repository Permissions", () => {
+    it("should add repo read permission (no actions)", () => {
+      const builder = new PermissionBuilder();
+      builder.repoRead("app.bsky.feed.post");
+      expect(builder.build()).toEqual(["repo:app.bsky.feed.post"]);
+    });
+
+    it("should add repo write permission (create + update)", () => {
+      const builder = new PermissionBuilder();
+      builder.repoWrite("app.bsky.feed.post");
+      expect(builder.build()).toEqual(["repo:app.bsky.feed.post?action=create&action=update"]);
+    });
+
+    it("should add repo full permission (create + update + delete)", () => {
+      const builder = new PermissionBuilder();
+      builder.repoFull("app.bsky.feed.post");
+      expect(builder.build()).toEqual(["repo:app.bsky.feed.post?action=create&action=update&action=delete"]);
+    });
+
+    it("should add repo with custom actions", () => {
+      const builder = new PermissionBuilder();
+      builder.repo("app.bsky.feed.post", ["create", "delete"]);
+      expect(builder.build()).toEqual(["repo:app.bsky.feed.post?action=create&action=delete"]);
+    });
+
+    it("should add repo with wildcard collection", () => {
+      const builder = new PermissionBuilder();
+      builder.repoWrite("*");
+      expect(builder.build()).toEqual(["repo:*?action=create&action=update"]);
+    });
+  });
+
+  describe("Blob Permissions", () => {
+    it("should add blob with single MIME type", () => {
+      const builder = new PermissionBuilder();
+      builder.blob("image/*");
+      expect(builder.build()).toEqual(["blob:image/*"]);
+    });
+
+    it("should add blob with multiple MIME types", () => {
+      const builder = new PermissionBuilder();
+      builder.blob(["image/*", "video/*"]);
+      expect(builder.build()).toEqual(["blob?accept=image%2F*&accept=video%2F*"]);
+    });
+
+    it("should add blob with specific MIME types", () => {
+      const builder = new PermissionBuilder();
+      builder.blob(["image/png", "image/jpeg", "video/mp4"]);
+      expect(builder.build()).toEqual(["blob?accept=image%2Fpng&accept=image%2Fjpeg&accept=video%2Fmp4"]);
+    });
+  });
+
+  describe("RPC Permissions", () => {
+    it("should add RPC with specific lexicon and wildcard aud", () => {
+      const builder = new PermissionBuilder();
+      builder.rpc("com.atproto.repo.createRecord", "*");
+      expect(builder.build()).toEqual(["rpc:com.atproto.repo.createRecord?aud=*"]);
+    });
+
+    it("should add RPC with specific lexicon and specific aud", () => {
+      const builder = new PermissionBuilder();
+      builder.rpc("com.atproto.repo.createRecord", "did:web:api.example.com");
+      expect(builder.build()).toEqual(["rpc:com.atproto.repo.createRecord?aud=did%3Aweb%3Aapi.example.com"]);
+    });
+
+    it("should add RPC with inheritAud flag", () => {
+      const builder = new PermissionBuilder();
+      builder.rpc("com.atproto.repo.createRecord", "did:web:api.example.com", true);
+      expect(builder.build()).toEqual([
+        "rpc:com.atproto.repo.createRecord?aud=did%3Aweb%3Aapi.example.com&inheritAud=true",
+      ]);
+    });
+
+    it("should add RPC with wildcard lexicon", () => {
+      const builder = new PermissionBuilder();
+      builder.rpc("*", "did:web:api.example.com");
+      expect(builder.build()).toEqual(["rpc:*?aud=did%3Aweb%3Aapi.example.com"]);
+    });
+
+    it("should reject both wildcards", () => {
+      const builder = new PermissionBuilder();
+      expect(() => builder.rpc("*", "*")).toThrow();
+    });
+  });
+
+  describe("Identity Permissions", () => {
+    it("should add identity:handle permission", () => {
+      const builder = new PermissionBuilder();
+      builder.identity("handle");
+      expect(builder.build()).toEqual(["identity:handle"]);
+    });
+
+    it("should add identity:* permission", () => {
+      const builder = new PermissionBuilder();
+      builder.identity("*");
+      expect(builder.build()).toEqual(["identity:*"]);
+    });
+  });
+
+  describe("Include Permissions", () => {
+    it("should add include without audience", () => {
+      const builder = new PermissionBuilder();
+      builder.include("com.example.authBasicFeatures");
+      expect(builder.build()).toEqual(["include:com.example.authBasicFeatures"]);
+    });
+
+    it("should add include with audience", () => {
+      const builder = new PermissionBuilder();
+      builder.include("com.example.authBasicFeatures", "did:web:api.example.com");
+      expect(builder.build()).toEqual(["include:com.example.authBasicFeatures?aud=did%3Aweb%3Aapi.example.com"]);
+    });
+  });
+
+  describe("Custom and Special Permissions", () => {
+    it("should add custom permission string", () => {
+      const builder = new PermissionBuilder();
+      builder.custom("custom:permission");
+      expect(builder.build()).toEqual(["custom:permission"]);
+    });
+
+    it("should add atproto scope", () => {
+      const builder = new PermissionBuilder();
+      builder.atproto();
+      expect(builder.build()).toEqual(["atproto"]);
+    });
+  });
+
+  describe("Builder Methods", () => {
+    it("should support method chaining", () => {
+      const builder = new PermissionBuilder();
+      const result = builder
+        .accountEmail("read")
+        .repoWrite("app.bsky.feed.post")
+        .blob("image/*")
+        .identity("handle")
+        .build();
+
+      expect(result).toEqual([
+        "account:email?action=read",
+        "repo:app.bsky.feed.post?action=create&action=update",
+        "blob:image/*",
+        "identity:handle",
+      ]);
+    });
+
+    it("should count permissions", () => {
+      const builder = new PermissionBuilder();
+      builder.accountEmail("read").repoWrite("app.bsky.feed.post");
+      expect(builder.count()).toBe(2);
+    });
+
+    it("should clear permissions", () => {
+      const builder = new PermissionBuilder();
+      builder.accountEmail("read").repoWrite("app.bsky.feed.post");
+      expect(builder.count()).toBe(2);
+      builder.clear();
+      expect(builder.count()).toBe(0);
+      expect(builder.build()).toEqual([]);
+    });
+
+    it("should return a copy of permissions array (immutable)", () => {
+      const builder = new PermissionBuilder();
+      builder.accountEmail("read");
+      const result1 = builder.build();
+      const result2 = builder.build();
+
+      expect(result1).toEqual(result2);
+      expect(result1).not.toBe(result2); // Different array instances
+    });
+
+    it("should allow reuse after clear", () => {
+      const builder = new PermissionBuilder();
+      builder.accountEmail("read");
+      expect(builder.build()).toEqual(["account:email?action=read"]);
+
+      builder.clear().repoWrite("app.bsky.feed.post");
+      expect(builder.build()).toEqual(["repo:app.bsky.feed.post?action=create&action=update"]);
+    });
+  });
+
+  describe("Complex Scenarios", () => {
+    it("should build email access scope set", () => {
+      const builder = new PermissionBuilder();
+      builder.accountEmail("read").repoRead("app.bsky.actor.profile");
+
+      expect(builder.build()).toEqual(["account:email?action=read", "repo:app.bsky.actor.profile"]);
+    });
+
+    it("should build posting app scope set", () => {
+      const builder = new PermissionBuilder();
+      builder
+        .repoWrite("app.bsky.feed.post")
+        .repoWrite("app.bsky.feed.like")
+        .repoWrite("app.bsky.feed.repost")
+        .blob(["image/*", "video/*"]);
+
+      expect(builder.build()).toEqual([
+        "repo:app.bsky.feed.post?action=create&action=update",
+        "repo:app.bsky.feed.like?action=create&action=update",
+        "repo:app.bsky.feed.repost?action=create&action=update",
+        "blob?accept=image%2F*&accept=video%2F*",
+      ]);
+    });
+
+    it("should build moderation app scope set", () => {
+      const builder = new PermissionBuilder();
+      builder.repoFull("*").identity("handle");
+
+      expect(builder.build()).toEqual(["repo:*?action=create&action=update&action=delete", "identity:handle"]);
+    });
+
+    it("should combine transitional and granular scopes", () => {
+      const builder = new PermissionBuilder();
+      builder.transition("email").accountEmail("read").repoRead("app.bsky.actor.profile");
+
+      expect(builder.build()).toEqual(["transition:email", "account:email?action=read", "repo:app.bsky.actor.profile"]);
+    });
   });
 });
