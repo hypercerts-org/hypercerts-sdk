@@ -161,4 +161,134 @@ describe("OAuthClient", () => {
       expect(logger.logs.length).toBeGreaterThan(0);
     });
   });
+
+  describe("scope validation", () => {
+    it("should log error for invalid scope", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const configWithInvalidScope = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...config.oauth,
+          scope: "atproto invalid:scope another-bad-scope",
+        },
+      });
+
+      new OAuthClient(configWithInvalidScope);
+
+      // Should have logged an error for invalid permissions
+      const errorLogs = logger.logs.filter((log) => log.level === "error");
+      expect(errorLogs.length).toBeGreaterThan(0);
+      expect(errorLogs[0].message).toContain("Invalid OAuth scope detected");
+    });
+
+    it("should log warning for missing atproto scope", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const configWithoutAtproto = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...config.oauth,
+          scope: "transition:email",
+        },
+      });
+
+      // Note: The underlying @atproto/oauth-client library will throw during async initialization
+      // because it requires "atproto" scope. However, our validation runs synchronously first and logs the warning.
+      const client = new OAuthClient(configWithoutAtproto);
+
+      // The client initialization promise will reject - we need to handle it to prevent unhandled rejection
+      // We use authorize() to trigger initialization, then catch the rejection
+      try {
+        await client.authorize("test.bsky.social");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        // Expected - underlying client initialization will fail due to missing atproto scope
+      }
+
+      // Should have logged a warning for missing atproto during buildClientMetadata()
+      const warnLogs = logger.logs.filter((log) => log.level === "warn");
+      expect(warnLogs.length).toBeGreaterThan(0);
+      expect(warnLogs[0].message).toContain("missing 'atproto'");
+    });
+
+    it("should detect mixed transitional and granular permissions", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const configWithMixedScopes = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...config.oauth,
+          scope: "atproto transition:email account:email?action=read",
+        },
+      });
+
+      new OAuthClient(configWithMixedScopes);
+
+      // Should have logged a warning about mixing permission models
+      const warnLogs = logger.logs.filter((log) => log.level === "warn");
+      const mixedWarning = warnLogs.find((log) => log.message.includes("Mixing transitional and granular"));
+      expect(mixedWarning).toBeDefined();
+    });
+
+    it("should suggest migration for transition:email", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const configWithTransitionEmail = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...config.oauth,
+          scope: "atproto transition:email",
+        },
+      });
+
+      new OAuthClient(configWithTransitionEmail);
+
+      // Should have logged info about transitional scopes
+      const infoLogs = logger.logs.filter((log) => log.level === "info");
+      const migrationSuggestion = infoLogs.find((log) => log.message.includes("migrating 'transition:email'"));
+      expect(migrationSuggestion).toBeDefined();
+      expect(migrationSuggestion?.args[0]).toHaveProperty("suggestion");
+    });
+
+    it("should suggest migration for transition:generic", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const configWithTransitionGeneric = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...config.oauth,
+          scope: "atproto transition:generic",
+        },
+      });
+
+      new OAuthClient(configWithTransitionGeneric);
+
+      // Should have logged info about transitional scopes
+      const infoLogs = logger.logs.filter((log) => log.level === "info");
+      const migrationSuggestion = infoLogs.find((log) => log.message.includes("migrating 'transition:generic'"));
+      expect(migrationSuggestion).toBeDefined();
+      expect(migrationSuggestion?.args[0]).toHaveProperty("suggestion");
+    });
+
+    it("should not log warnings for valid granular permissions with atproto", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const configWithValidScope = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...config.oauth,
+          scope: "atproto account:email?action=read repo:app.bsky.feed.post?action=create",
+        },
+      });
+
+      new OAuthClient(configWithValidScope);
+
+      // Should not have logged any errors or warnings (only info about granular permissions is OK)
+      const errorLogs = logger.logs.filter((log) => log.level === "error");
+      const warnLogs = logger.logs.filter((log) => log.level === "warn");
+      expect(errorLogs.length).toBe(0);
+      expect(warnLogs.length).toBe(0);
+    });
+  });
 });
