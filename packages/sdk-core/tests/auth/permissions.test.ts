@@ -9,6 +9,7 @@ import {
   IdentityAttrSchema,
   MimeTypeSchema,
   NsidSchema,
+  AccountPermissionSchema,
 } from "../../src/auth/permissions.js";
 
 describe("Permission Constants", () => {
@@ -168,5 +169,62 @@ describe("NsidSchema", () => {
       expect(zodError.issues[0].message).toContain("Invalid NSID format");
       expect(zodError.issues[0].message).toContain("reverse-DNS");
     }
+  });
+});
+
+describe("AccountPermissionSchema", () => {
+  it("should transform account:email without action", () => {
+    const input = { type: "account" as const, attr: "email" as const };
+    const result = AccountPermissionSchema.parse(input);
+    expect(result).toBe("account:email");
+  });
+
+  it("should transform account:email with read action", () => {
+    const input = { type: "account" as const, attr: "email" as const, action: "read" as const };
+    const result = AccountPermissionSchema.parse(input);
+    expect(result).toBe("account:email?action=read");
+  });
+
+  it("should transform account:email with manage action", () => {
+    const input = { type: "account" as const, attr: "email" as const, action: "manage" as const };
+    const result = AccountPermissionSchema.parse(input);
+    expect(result).toBe("account:email?action=manage");
+  });
+
+  it("should transform account:repo without action", () => {
+    const input = { type: "account" as const, attr: "repo" as const };
+    const result = AccountPermissionSchema.parse(input);
+    expect(result).toBe("account:repo");
+  });
+
+  it("should transform account:repo with manage action", () => {
+    const input = { type: "account" as const, attr: "repo" as const, action: "manage" as const };
+    const result = AccountPermissionSchema.parse(input);
+    expect(result).toBe("account:repo?action=manage");
+  });
+
+  it("should reject invalid attr values", () => {
+    const input = { type: "account" as const, attr: "invalid" };
+    expect(() => AccountPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject invalid action values", () => {
+    const input = { type: "account" as const, attr: "email" as const, action: "delete" };
+    expect(() => AccountPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject missing type field", () => {
+    const input = { attr: "email" as const };
+    expect(() => AccountPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject wrong type value", () => {
+    const input = { type: "repo", attr: "email" as const };
+    expect(() => AccountPermissionSchema.parse(input)).toThrow();
+  });
+
+  it("should reject missing attr field", () => {
+    const input = { type: "account" as const };
+    expect(() => AccountPermissionSchema.parse(input)).toThrow();
   });
 });

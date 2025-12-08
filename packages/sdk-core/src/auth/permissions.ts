@@ -18,7 +18,7 @@ import { z } from "zod";
  *
  * @constant
  */
-export const ATPROTO_SCOPE = 'atproto' as const;
+export const ATPROTO_SCOPE = "atproto" as const;
 
 /**
  * Transitional OAuth scopes for legacy compatibility.
@@ -31,11 +31,11 @@ export const ATPROTO_SCOPE = 'atproto' as const;
  */
 export const TRANSITION_SCOPES = {
   /** Broad PDS permissions including record creation, blob uploads, and preferences */
-  GENERIC: 'transition:generic',
+  GENERIC: "transition:generic",
   /** Direct messages access (requires transition:generic) */
-  CHAT: 'transition:chat.bsky',
+  CHAT: "transition:chat.bsky",
   /** Email address and confirmation status */
-  EMAIL: 'transition:email',
+  EMAIL: "transition:email",
 } as const;
 
 /**
@@ -49,11 +49,9 @@ export const TRANSITION_SCOPES = {
  * TransitionScopeSchema.parse('invalid'); // Throws ZodError
  * ```
  */
-export const TransitionScopeSchema = z.enum([
-  'transition:generic',
-  'transition:chat.bsky',
-  'transition:email',
-]).describe('Legacy transitional OAuth scopes');
+export const TransitionScopeSchema = z
+  .enum(["transition:generic", "transition:chat.bsky", "transition:email"])
+  .describe("Legacy transitional OAuth scopes");
 
 /**
  * Type for transitional scopes inferred from schema.
@@ -65,7 +63,7 @@ export type TransitionScope = z.infer<typeof TransitionScopeSchema>;
  *
  * Account attributes specify what aspect of the account is being accessed.
  */
-export const AccountAttrSchema = z.enum(['email', 'repo']);
+export const AccountAttrSchema = z.enum(["email", "repo"]);
 
 /**
  * Type for account attributes inferred from schema.
@@ -77,7 +75,7 @@ export type AccountAttr = z.infer<typeof AccountAttrSchema>;
  *
  * Account actions specify the level of access (read-only or management).
  */
-export const AccountActionSchema = z.enum(['read', 'manage']);
+export const AccountActionSchema = z.enum(["read", "manage"]);
 
 /**
  * Type for account actions inferred from schema.
@@ -89,7 +87,7 @@ export type AccountAction = z.infer<typeof AccountActionSchema>;
  *
  * Repository actions specify what operations can be performed on records.
  */
-export const RepoActionSchema = z.enum(['create', 'update', 'delete']);
+export const RepoActionSchema = z.enum(["create", "update", "delete"]);
 
 /**
  * Type for repository actions inferred from schema.
@@ -101,7 +99,7 @@ export type RepoAction = z.infer<typeof RepoActionSchema>;
  *
  * Identity attributes specify what identity information can be managed.
  */
-export const IdentityAttrSchema = z.enum(['handle', '*']);
+export const IdentityAttrSchema = z.enum(["handle", "*"]);
 
 /**
  * Type for identity attributes inferred from schema.
@@ -120,10 +118,12 @@ export type IdentityAttr = z.infer<typeof IdentityAttrSchema>;
  * MimeTypeSchema.parse('invalid'); // Throws ZodError
  * ```
  */
-export const MimeTypeSchema = z.string().regex(
-  /^[a-z]+\/[a-z0-9*+-]+$/i,
-  'Invalid MIME type pattern. Expected format: type/subtype (e.g., "image/*" or "video/mp4")'
-);
+export const MimeTypeSchema = z
+  .string()
+  .regex(
+    /^[a-z]+\/[a-z0-9*+-]+$/i,
+    'Invalid MIME type pattern. Expected format: type/subtype (e.g., "image/*" or "video/mp4")',
+  );
 
 /**
  * Zod schema for NSID (Namespaced Identifier).
@@ -140,7 +140,46 @@ export const MimeTypeSchema = z.string().regex(
  * NsidSchema.parse('InvalidNSID'); // Throws ZodError
  * ```
  */
-export const NsidSchema = z.string().regex(
-  /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/,
-  'Invalid NSID format. Expected reverse-DNS format (e.g., "app.bsky.feed.post")'
-);
+export const NsidSchema = z
+  .string()
+  .regex(
+    /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/,
+    'Invalid NSID format. Expected reverse-DNS format (e.g., "app.bsky.feed.post")',
+  );
+
+/**
+ * Zod schema for account permission.
+ *
+ * Account permissions control access to account-level information like email
+ * and repository management.
+ *
+ * @example Without action (read-only)
+ * ```typescript
+ * const input = { type: 'account', attr: 'email' };
+ * AccountPermissionSchema.parse(input); // Returns: "account:email"
+ * ```
+ *
+ * @example With action
+ * ```typescript
+ * const input = { type: 'account', attr: 'email', action: 'manage' };
+ * AccountPermissionSchema.parse(input); // Returns: "account:email?action=manage"
+ * ```
+ */
+export const AccountPermissionSchema = z
+  .object({
+    type: z.literal("account"),
+    attr: AccountAttrSchema,
+    action: AccountActionSchema.optional(),
+  })
+  .transform(({ attr, action }) => {
+    let perm = `account:${attr}`;
+    if (action) {
+      perm += `?action=${action}`;
+    }
+    return perm;
+  });
+
+/**
+ * Input type for account permission (before transform).
+ */
+export type AccountPermissionInput = z.input<typeof AccountPermissionSchema>;
