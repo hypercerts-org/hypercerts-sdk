@@ -45,7 +45,7 @@ function createMinimalMockSDK(overrides: Partial<ATProtoSDK> = {}): ATProtoSDK {
     pdsUrl: "https://pds.example.com",
     sdsUrl: "https://sds.example.com",
     ...overrides,
-  } as ATProtoSDK;
+  } as unknown as ATProtoSDK;
 }
 
 /**

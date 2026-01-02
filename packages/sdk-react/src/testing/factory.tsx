@@ -113,7 +113,7 @@ export function createMockATProtoReact(options: MockATProtoReactOptions = {}): A
     pdsUrl: "https://pds.example.com",
     sdsUrl: "https://sds.example.com",
     ...options.sdk,
-  } as ATProtoSDK;
+  } as unknown as ATProtoSDK;
 
   // Default hook implementations
   const defaultAuth: UseAuthResult = {

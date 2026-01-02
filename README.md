@@ -10,6 +10,13 @@ A monorepo containing SDK packages for the Hypercerts protocol on ATProto.
 | [`@hypercerts-org/sdk-core`](./packages/sdk-core)   | Framework-agnostic core SDK for ATProto authentication, repository operations, and lexicon management | ✅ Complete |
 | [`@hypercerts-org/sdk-react`](./packages/sdk-react) | React hooks and components for ATProto integration                                                    | ✅ Complete |
 
+**Note:** The lexicon definitions are published separately at
+[`@hypercerts-org/lexicon`](https://github.com/hypercerts-org/hypercerts-lexicon) and imported as a dependency.
+
+**Note:** This SDK consumes the published
+[`@hypercerts-org/lexicon`](https://github.com/hypercerts-org/hypercerts-lexicon) package for lexicon definitions and
+types.
+
 ## Architecture
 
 This SDK is designed around the ATProto (AT Protocol) ecosystem, providing tools for:
@@ -48,7 +55,7 @@ management, organizations) available when connected to an SDS.
 │  - Lexicon registry and validation                      │
 │  - Re-exports types from @hypercerts-org/lexicon        │
 ├─────────────────────────────────────────────────────────┤
-│  @hypercerts-org/lexicon                                │
+│  @hypercerts-org/lexicon (published package)            │
 │  - ATProto lexicon JSON definitions                     │
 │  - Generated TypeScript types (via @atproto/lex-cli)    │
 │  - Runtime validation (isRecord, validateRecord)        │
@@ -244,12 +251,6 @@ Available tasks defined in `turbo.json`:
 ```
 hypercerts-sdk/
 ├── packages/
-│   ├── lexicon/            # Lexicon definitions package
-│   │   ├── lexicons/       # ATProto lexicon JSON files
-│   │   └── src/
-│   │       ├── types/      # Generated TypeScript types
-│   │       ├── lexicons.ts # Lexicon registry
-│   │       └── index.ts    # Package exports
 │   ├── sdk-core/           # Core SDK package
 │   │   ├── src/
 │   │   │   ├── auth/       # OAuth client

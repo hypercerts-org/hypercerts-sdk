@@ -1,5 +1,4 @@
 import { OAuthClient } from "../auth/OAuthClient.js";
-import { LexiconRegistry } from "../repository/LexiconRegistry.js";
 import { Repository } from "../repository/Repository.js";
 import type { RepositoryOptions } from "../repository/types.js";
 import { InMemorySessionStore } from "../storage/InMemorySessionStore.js";
@@ -117,7 +116,6 @@ export class ATProtoSDK {
   private oauthClient: OAuthClient;
   private config: ATProtoSDKConfig;
   private logger?: ATProtoSDKConfig["logger"];
-  private lexiconRegistry: LexiconRegistry;
 
   /**
    * Creates a new ATProto SDK instance.
@@ -166,9 +164,6 @@ export class ATProtoSDK {
 
     // Initialize OAuth client
     this.oauthClient = new OAuthClient(configWithDefaults);
-
-    // Initialize lexicon registry
-    this.lexiconRegistry = new LexiconRegistry();
 
     this.logger?.info("ATProto SDK initialized");
   }
@@ -474,31 +469,7 @@ export class ATProtoSDK {
     // Get repository DID (default to session DID)
     const repoDid = session.did || session.sub;
 
-    return new Repository(session, serverUrl, repoDid, this.lexiconRegistry, isSDS, this.logger);
-  }
-
-  /**
-   * Gets the lexicon registry for schema validation.
-   *
-   * The lexicon registry manages AT Protocol lexicon schemas used for
-   * validating record data. You can register custom lexicons to extend
-   * the SDK's capabilities.
-   *
-   * @returns The {@link LexiconRegistry} instance
-   *
-   * @example
-   * ```typescript
-   * const registry = sdk.getLexiconRegistry();
-   *
-   * // Register custom lexicons
-   * registry.register(myCustomLexicons);
-   *
-   * // Check if a lexicon is registered
-   * const hasLexicon = registry.has("org.example.myRecord");
-   * ```
-   */
-  getLexiconRegistry(): LexiconRegistry {
-    return this.lexiconRegistry;
+    return new Repository(session, serverUrl, repoDid, isSDS, this.logger);
   }
 
   /**

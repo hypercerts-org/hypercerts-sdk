@@ -40,9 +40,6 @@ export type { Organization, Collaborator, CollaboratorPermissions } from "./core
 export { ATProtoSDKConfigSchema, OAuthConfigSchema, ServerConfigSchema, TimeoutConfigSchema } from "./core/config.js";
 export { OrganizationSchema, CollaboratorSchema, CollaboratorPermissionsSchema } from "./core/types.js";
 
-// Repository class
-export type { ValidationResult } from "./repository/LexiconRegistry.js";
-
 // Repository types
 export type {
   RepositoryOptions,
@@ -81,6 +78,10 @@ export type {
   HypercertCollectionClaimItem,
   HypercertEvidence,
   HypercertImage,
-  BlobRef,
+  HypercertImageRecord,
   HypercertWithMetadata,
+  JsonBlobRef,
 } from "./services/hypercerts/types.js";
+
+// BlobRef is a class, not just a type
+export { BlobRef } from "./services/hypercerts/types.js";

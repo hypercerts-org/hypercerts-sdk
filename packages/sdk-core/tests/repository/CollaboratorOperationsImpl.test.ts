@@ -2,21 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Session } from "../../src/core/types.js";
 import { CollaboratorOperationsImpl } from "../../src/repository/CollaboratorOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
+import { createMockSession, TEST_REPO_DID, TEST_SDS_URL } from "../utils/mocks.js";
 
 describe("CollaboratorOperationsImpl", () => {
-  let mockSession: Partial<Session>;
+  let mockSession: ReturnType<typeof createMockSession>;
   let collaboratorOps: CollaboratorOperationsImpl;
-  const repoDid = "did:plc:testdid123";
-  const serverUrl = "https://sds.example.com";
 
   beforeEach(() => {
-    mockSession = {
-      did: "did:plc:user123",
-      sub: "did:plc:user123",
-      fetchHandler: vi.fn(),
-    };
-
-    collaboratorOps = new CollaboratorOperationsImpl(mockSession as Session, repoDid, serverUrl);
+    mockSession = createMockSession(vi);
+    collaboratorOps = new CollaboratorOperationsImpl(mockSession as unknown as Session, TEST_REPO_DID, TEST_SDS_URL);
   });
 
   describe("grant", () => {
@@ -29,7 +23,7 @@ describe("CollaboratorOperationsImpl", () => {
       await collaboratorOps.grant({ userDid: "did:plc:newuser", role: "viewer" });
 
       expect(mockSession.fetchHandler).toHaveBeenCalledWith(
-        `${serverUrl}/xrpc/com.sds.repo.grantAccess`,
+        `${TEST_SDS_URL}/xrpc/com.sds.repo.grantAccess`,
         expect.objectContaining({
           method: "POST",
           body: expect.stringContaining('"read":true'),
@@ -103,14 +97,14 @@ describe("CollaboratorOperationsImpl", () => {
       await collaboratorOps.revoke({ userDid: "did:plc:revokeduser" });
 
       expect(mockSession.fetchHandler).toHaveBeenCalledWith(
-        `${serverUrl}/xrpc/com.sds.repo.revokeAccess`,
+        `${TEST_SDS_URL}/xrpc/com.sds.repo.revokeAccess`,
         expect.objectContaining({
           method: "POST",
         }),
       );
 
       const body = JSON.parse(mockSession.fetchHandler.mock.calls[0][1].body);
-      expect(body.repo).toBe(repoDid);
+      expect(body.repo).toBe(TEST_REPO_DID);
       expect(body.userDid).toBe("did:plc:revokeduser");
     });
 
@@ -337,7 +331,7 @@ describe("CollaboratorOperationsImpl", () => {
       const result = await collaboratorOps.getPermissions();
 
       expect(mockSession.fetchHandler).toHaveBeenCalledWith(
-        `${serverUrl}/xrpc/com.sds.repo.getPermissions?repo=${encodeURIComponent(repoDid)}`,
+        `${TEST_SDS_URL}/xrpc/com.sds.repo.getPermissions?repo=${encodeURIComponent(TEST_REPO_DID)}`,
         expect.objectContaining({
           method: "GET",
         }),
@@ -392,14 +386,14 @@ describe("CollaboratorOperationsImpl", () => {
       await collaboratorOps.transferOwnership({ newOwnerDid: "did:plc:new-owner" });
 
       expect(mockSession.fetchHandler).toHaveBeenCalledWith(
-        `${serverUrl}/xrpc/com.sds.repo.transferOwnership`,
+        `${TEST_SDS_URL}/xrpc/com.sds.repo.transferOwnership`,
         expect.objectContaining({
           method: "POST",
         }),
       );
 
       const body = JSON.parse(mockSession.fetchHandler.mock.calls[0][1].body);
-      expect(body.repo).toBe(repoDid);
+      expect(body.repo).toBe(TEST_REPO_DID);
       expect(body.newOwner).toBe("did:plc:new-owner");
     });
 
