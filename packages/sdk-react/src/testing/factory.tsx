@@ -9,14 +9,14 @@ import { QueryClient } from "@tanstack/react-query";
 import type { ATProtoReactInstance } from "../factory/createATProtoReact.js";
 import { atprotoKeys } from "../queries/keys.js";
 import type {
-    UseAuthResult,
-    UseCollaboratorsResult,
-    UseHypercertResult,
-    UseHypercertsResult,
-    UseOrganizationResult,
-    UseOrganizationsResult,
-    UseProfileResult,
-    UseRepositoryResult,
+  UseAuthResult,
+  UseCollaboratorsResult,
+  UseHypercertResult,
+  UseHypercertsResult,
+  UseOrganizationResult,
+  UseOrganizationsResult,
+  UseProfileResult,
+  UseRepositoryResult,
 } from "../types.js";
 import { createMockProfile, createMockSession } from "./mocks.js";
 

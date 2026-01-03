@@ -32,10 +32,7 @@ const SYNC_CHANNEL = "atproto-session-sync";
  * broadcastSessionChange("session:revoked");
  * ```
  */
-export function broadcastSessionChange(
-  type: SyncMessage["type"],
-  did?: string
-): void {
+export function broadcastSessionChange(type: SyncMessage["type"], did?: string): void {
   if (typeof window === "undefined" || !("BroadcastChannel" in window)) {
     return;
   }

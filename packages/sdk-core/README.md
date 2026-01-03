@@ -53,12 +53,14 @@ const claim = await repo.hypercerts.create({
 The SDK supports two types of AT Protocol servers:
 
 #### Personal Data Server (PDS)
+
 - **Purpose**: User's own data storage (e.g., Bluesky)
 - **Use case**: Individual hypercerts, personal records
 - **Features**: Profile management, basic CRUD operations
 - **Example**: `bsky.social`, any Bluesky PDS
 
 #### Shared Data Server (SDS)
+
 - **Purpose**: Collaborative data storage with access control
 - **Use case**: Organization hypercerts, team collaboration
 - **Features**: Organizations, multi-user access, role-based permissions
@@ -84,25 +86,27 @@ await orgRepo.hypercerts.list(); // Queries organization's hypercerts on SDS
 The SDK uses a `ConfigurableAgent` to route requests to different servers while maintaining your OAuth authentication:
 
 1. **Initial Repository Creation**
+
    ```typescript
    // User authenticates (OAuth session knows user's PDS)
    const session = await sdk.callback(params);
-   
+
    // Create PDS repository - routes to user's PDS
    const pdsRepo = sdk.repository(session);
-   
+
    // Create SDS repository - routes to SDS server
    const sdsRepo = sdk.repository(session, { server: "sds" });
    ```
 
 2. **Switching Repositories with `.repo()`**
+
    ```typescript
    // Start with user's SDS repository
    const userSdsRepo = sdk.repository(session, { server: "sds" });
-   
+
    // Switch to organization's repository
    const orgRepo = userSdsRepo.repo("did:plc:org-did");
-   
+
    // All operations on orgRepo still route to SDS, not user's PDS
    await orgRepo.hypercerts.list(); // ✅ Queries SDS
    await orgRepo.collaborators.list(); // ✅ Queries SDS
@@ -171,33 +175,34 @@ const repo = sdk.getRepository(session);
 Control exactly what your app can access using type-safe permission builders:
 
 ```typescript
-import { PermissionBuilder, ScopePresets, buildScope } from '@hypercerts-org/sdk-core';
+import { PermissionBuilder, ScopePresets, buildScope } from "@hypercerts-org/sdk-core";
 
 // Use ready-made presets
-const scope = ScopePresets.EMAIL_AND_PROFILE;  // Request email + profile access
-const scope = ScopePresets.POSTING_APP;        // Full posting capabilities
+const scope = ScopePresets.EMAIL_AND_PROFILE; // Request email + profile access
+const scope = ScopePresets.POSTING_APP; // Full posting capabilities
 
 // Or build custom permissions
 const scope = buildScope(
   new PermissionBuilder()
-    .accountEmail('read')                      // Read user's email
-    .repoWrite('app.bsky.feed.post')          // Create/update posts
-    .blob(['image/*', 'video/*'])             // Upload media
-    .build()
+    .accountEmail("read") // Read user's email
+    .repoWrite("app.bsky.feed.post") // Create/update posts
+    .blob(["image/*", "video/*"]) // Upload media
+    .build(),
 );
 
 // Use in OAuth configuration
 const sdk = createATProtoSDK({
   oauth: {
-    clientId: 'your-client-id',
-    redirectUri: 'https://your-app.com/callback',
-    scope: scope,  // Your custom scope
+    clientId: "your-client-id",
+    redirectUri: "https://your-app.com/callback",
+    scope: scope, // Your custom scope
     // ... other config
-  }
+  },
 });
 ```
 
 **Available Presets:**
+
 - `EMAIL_READ` - User's email address
 - `PROFILE_READ` / `PROFILE_WRITE` - Profile access
 - `POST_WRITE` - Create posts
@@ -218,7 +223,7 @@ const hypercert = await repo.hypercerts.create({
   description: "Research on carbon capture technologies",
   image: imageBlob, // optional: File or Blob
   externalUrl: "https://example.com/project",
-  
+
   impact: {
     scope: ["Climate Change", "Carbon Capture"],
     work: {
@@ -227,7 +232,7 @@ const hypercert = await repo.hypercerts.create({
     },
     contributors: ["did:plc:researcher1", "did:plc:researcher2"],
   },
-  
+
   rights: {
     license: "CC-BY-4.0",
     allowsDerivatives: true,
@@ -242,9 +247,7 @@ console.log("Created hypercert:", hypercert.uri);
 
 ```typescript
 // Get a specific hypercert by URI
-const hypercert = await repo.hypercerts.get(
-  "at://did:plc:user123/org.hypercerts.claim/abc123"
-);
+const hypercert = await repo.hypercerts.get("at://did:plc:user123/org.hypercerts.claim/abc123");
 
 // List all hypercerts in the repository
 const { records } = await repo.hypercerts.list();
@@ -263,26 +266,21 @@ if (cursor) {
 
 ```typescript
 // Update an existing hypercert
-await repo.hypercerts.update(
-  "at://did:plc:user123/org.hypercerts.claim/abc123",
-  {
-    title: "Updated Climate Research Project",
-    description: "Expanded scope to include renewable energy",
-    impact: {
-      scope: ["Climate Change", "Carbon Capture", "Renewable Energy"],
-      work: { from: "2024-01-01", to: "2026-12-31" },
-      contributors: ["did:plc:researcher1", "did:plc:researcher2"],
-    },
-  }
-);
+await repo.hypercerts.update("at://did:plc:user123/org.hypercerts.claim/abc123", {
+  title: "Updated Climate Research Project",
+  description: "Expanded scope to include renewable energy",
+  impact: {
+    scope: ["Climate Change", "Carbon Capture", "Renewable Energy"],
+    work: { from: "2024-01-01", to: "2026-12-31" },
+    contributors: ["did:plc:researcher1", "did:plc:researcher2"],
+  },
+});
 ```
 
 #### Deleting a Hypercert
 
 ```typescript
-await repo.hypercerts.delete(
-  "at://did:plc:user123/org.hypercerts.claim/abc123"
-);
+await repo.hypercerts.delete("at://did:plc:user123/org.hypercerts.claim/abc123");
 ```
 
 ### 4. Contributions and Measurements
@@ -323,10 +321,7 @@ const blobResult = await repo.blobs.upload(imageFile);
 console.log("Blob uploaded:", blobResult.ref.$link);
 
 // Download a blob
-const blobData = await repo.blobs.get(
-  "did:plc:user123",
-  "bafyreiabc123..."
-);
+const blobData = await repo.blobs.get("did:plc:user123", "bafyreiabc123...");
 ```
 
 ### 6. Organizations (SDS only)
@@ -491,40 +486,40 @@ await repo.profile.update({
 
 ### Repository Operations
 
-| Operation | Method | PDS | SDS | Returns |
-|-----------|--------|-----|-----|---------|
-| **Records** | | | | |
-| Create record | `repo.records.create()` | ✅ | ✅ | `{ uri, cid }` |
-| Get record | `repo.records.get()` | ✅ | ✅ | Record data |
-| Update record | `repo.records.update()` | ✅ | ✅ | `{ uri, cid }` |
-| Delete record | `repo.records.delete()` | ✅ | ✅ | void |
-| List records | `repo.records.list()` | ✅ | ✅ | `{ records, cursor? }` |
-| **Hypercerts** | | | | |
-| Create hypercert | `repo.hypercerts.create()` | ✅ | ✅ | `{ uri, cid, value }` |
-| Get hypercert | `repo.hypercerts.get()` | ✅ | ✅ | Full hypercert |
-| Update hypercert | `repo.hypercerts.update()` | ✅ | ✅ | `{ uri, cid }` |
-| Delete hypercert | `repo.hypercerts.delete()` | ✅ | ✅ | void |
-| List hypercerts | `repo.hypercerts.list()` | ✅ | ✅ | `{ records, cursor? }` |
-| Add contribution | `repo.hypercerts.addContribution()` | ✅ | ✅ | Contribution |
-| Add measurement | `repo.hypercerts.addMeasurement()` | ✅ | ✅ | Measurement |
-| **Blobs** | | | | |
-| Upload blob | `repo.blobs.upload()` | ✅ | ✅ | `{ ref, mimeType, size }` |
-| Get blob | `repo.blobs.get()` | ✅ | ✅ | Blob data |
-| **Profile** | | | | |
-| Get profile | `repo.profile.get()` | ✅ | ❌ | Profile data |
-| Update profile | `repo.profile.update()` | ✅ | ❌ | void |
-| **Organizations** | | | | |
-| Create org | `repo.organizations.create()` | ❌ | ✅ | `{ did, name, ... }` |
-| Get org | `repo.organizations.get()` | ❌ | ✅ | Organization |
-| List orgs | `repo.organizations.list()` | ❌ | ✅ | `{ organizations, cursor? }` |
-| **Collaborators** | | | | |
-| Grant access | `repo.collaborators.grant()` | ❌ | ✅ | void |
-| Revoke access | `repo.collaborators.revoke()` | ❌ | ✅ | void |
-| List collaborators | `repo.collaborators.list()` | ❌ | ✅ | `{ collaborators, cursor? }` |
-| Check access | `repo.collaborators.hasAccess()` | ❌ | ✅ | boolean |
-| Get role | `repo.collaborators.getRole()` | ❌ | ✅ | Role string |
-| Get permissions | `repo.collaborators.getPermissions()` | ❌ | ✅ | Permissions |
-| Transfer ownership | `repo.collaborators.transferOwnership()` | ❌ | ✅ | void |
+| Operation          | Method                                   | PDS | SDS | Returns                      |
+| ------------------ | ---------------------------------------- | --- | --- | ---------------------------- |
+| **Records**        |                                          |     |     |                              |
+| Create record      | `repo.records.create()`                  | ✅  | ✅  | `{ uri, cid }`               |
+| Get record         | `repo.records.get()`                     | ✅  | ✅  | Record data                  |
+| Update record      | `repo.records.update()`                  | ✅  | ✅  | `{ uri, cid }`               |
+| Delete record      | `repo.records.delete()`                  | ✅  | ✅  | void                         |
+| List records       | `repo.records.list()`                    | ✅  | ✅  | `{ records, cursor? }`       |
+| **Hypercerts**     |                                          |     |     |                              |
+| Create hypercert   | `repo.hypercerts.create()`               | ✅  | ✅  | `{ uri, cid, value }`        |
+| Get hypercert      | `repo.hypercerts.get()`                  | ✅  | ✅  | Full hypercert               |
+| Update hypercert   | `repo.hypercerts.update()`               | ✅  | ✅  | `{ uri, cid }`               |
+| Delete hypercert   | `repo.hypercerts.delete()`               | ✅  | ✅  | void                         |
+| List hypercerts    | `repo.hypercerts.list()`                 | ✅  | ✅  | `{ records, cursor? }`       |
+| Add contribution   | `repo.hypercerts.addContribution()`      | ✅  | ✅  | Contribution                 |
+| Add measurement    | `repo.hypercerts.addMeasurement()`       | ✅  | ✅  | Measurement                  |
+| **Blobs**          |                                          |     |     |                              |
+| Upload blob        | `repo.blobs.upload()`                    | ✅  | ✅  | `{ ref, mimeType, size }`    |
+| Get blob           | `repo.blobs.get()`                       | ✅  | ✅  | Blob data                    |
+| **Profile**        |                                          |     |     |                              |
+| Get profile        | `repo.profile.get()`                     | ✅  | ❌  | Profile data                 |
+| Update profile     | `repo.profile.update()`                  | ✅  | ❌  | void                         |
+| **Organizations**  |                                          |     |     |                              |
+| Create org         | `repo.organizations.create()`            | ❌  | ✅  | `{ did, name, ... }`         |
+| Get org            | `repo.organizations.get()`               | ❌  | ✅  | Organization                 |
+| List orgs          | `repo.organizations.list()`              | ❌  | ✅  | `{ organizations, cursor? }` |
+| **Collaborators**  |                                          |     |     |                              |
+| Grant access       | `repo.collaborators.grant()`             | ❌  | ✅  | void                         |
+| Revoke access      | `repo.collaborators.revoke()`            | ❌  | ✅  | void                         |
+| List collaborators | `repo.collaborators.list()`              | ❌  | ✅  | `{ collaborators, cursor? }` |
+| Check access       | `repo.collaborators.hasAccess()`         | ❌  | ✅  | boolean                      |
+| Get role           | `repo.collaborators.getRole()`           | ❌  | ✅  | Role string                  |
+| Get permissions    | `repo.collaborators.getPermissions()`    | ❌  | ✅  | Permissions                  |
+| Transfer ownership | `repo.collaborators.transferOwnership()` | ❌  | ✅  | void                         |
 
 ## Type System
 
@@ -549,15 +544,15 @@ if (OrgHypercertsClaim.isRecord(data)) {
 }
 ```
 
-| Lexicon Type | SDK Alias |
-|--------------|-----------|
-| `OrgHypercertsClaim.Main` | `HypercertClaim` |
-| `OrgHypercertsClaimRights.Main` | `HypercertRights` |
+| Lexicon Type                          | SDK Alias               |
+| ------------------------------------- | ----------------------- |
+| `OrgHypercertsClaim.Main`             | `HypercertClaim`        |
+| `OrgHypercertsClaimRights.Main`       | `HypercertRights`       |
 | `OrgHypercertsClaimContribution.Main` | `HypercertContribution` |
-| `OrgHypercertsClaimMeasurement.Main` | `HypercertMeasurement` |
-| `OrgHypercertsClaimEvaluation.Main` | `HypercertEvaluation` |
-| `OrgHypercertsCollection.Main` | `HypercertCollection` |
-| `AppCertifiedLocation.Main` | `HypercertLocation` |
+| `OrgHypercertsClaimMeasurement.Main`  | `HypercertMeasurement`  |
+| `OrgHypercertsClaimEvaluation.Main`   | `HypercertEvaluation`   |
+| `OrgHypercertsCollection.Main`        | `HypercertCollection`   |
+| `AppCertifiedLocation.Main`           | `HypercertLocation`     |
 
 ## Error Handling
 
@@ -622,6 +617,7 @@ await sdsAgent.com.atproto.repo.listRecords({...});
 ```
 
 This is useful for:
+
 - Connecting to multiple SDS instances simultaneously
 - Testing against different server environments
 - Building tools that work across multiple organizations
@@ -655,7 +651,8 @@ await mockStore.set(mockSession);
 
 ### Working with Lexicons
 
-The SDK exports lexicon types and validation utilities from the `@hypercerts-org/lexicon` package for direct record manipulation and validation.
+The SDK exports lexicon types and validation utilities from the `@hypercerts-org/lexicon` package for direct record
+manipulation and validation.
 
 #### Lexicon Types
 
@@ -680,8 +677,8 @@ const claim: HypercertClaim = {
   shortDescription: "Urban garden serving 50 families", // REQUIRED
   description: "Detailed description...",
   workScope: "Food Security",
-  workTimeFrameFrom: "2024-01-01T00:00:00Z",  // Note: Capital 'F'
-  workTimeFrameTo: "2024-12-31T00:00:00Z",    // Note: Capital 'F'
+  workTimeFrameFrom: "2024-01-01T00:00:00Z", // Note: Capital 'F'
+  workTimeFrameTo: "2024-12-31T00:00:00Z", // Note: Capital 'F'
   rights: { uri: "at://...", cid: "..." },
   createdAt: new Date().toISOString(),
 };
@@ -692,16 +689,12 @@ const claim: HypercertClaim = {
 Validate records before creating them:
 
 ```typescript
-import {
-  validate,
-  OrgHypercertsClaim,
-  HYPERCERT_COLLECTIONS,
-} from "@hypercerts-org/sdk-core";
+import { validate, OrgHypercertsClaim, HYPERCERT_COLLECTIONS } from "@hypercerts-org/sdk-core";
 
 // Validate using the lexicon package
 const validation = validate(
-  HYPERCERT_COLLECTIONS.CLAIM,  // "org.hypercerts.claim"
-  claim
+  HYPERCERT_COLLECTIONS.CLAIM, // "org.hypercerts.claim"
+  claim,
 );
 
 if (!validation.valid) {
@@ -718,20 +711,13 @@ const validationResult = OrgHypercertsClaim.validateMain(claim);
 For repository-level validation:
 
 ```typescript
-import {
-  LexiconRegistry,
-  HYPERCERT_LEXICONS,
-  HYPERCERT_COLLECTIONS,
-} from "@hypercerts-org/sdk-core";
+import { LexiconRegistry, HYPERCERT_LEXICONS, HYPERCERT_COLLECTIONS } from "@hypercerts-org/sdk-core";
 
 const registry = new LexiconRegistry();
 registry.registerLexicons(HYPERCERT_LEXICONS);
 
 // Validate a record
-const result = registry.validate(
-  HYPERCERT_COLLECTIONS.CLAIM,
-  claimData
-);
+const result = registry.validate(HYPERCERT_COLLECTIONS.CLAIM, claimData);
 
 if (!result.valid) {
   console.error("Invalid record:", result.error);
@@ -741,10 +727,7 @@ if (!result.valid) {
 #### Creating Records with Proper Types
 
 ```typescript
-import type {
-  HypercertContribution,
-  StrongRef,
-} from "@hypercerts-org/sdk-core";
+import type { HypercertContribution, StrongRef } from "@hypercerts-org/sdk-core";
 import { HYPERCERT_COLLECTIONS } from "@hypercerts-org/sdk-core";
 
 // Create a contribution record
@@ -757,8 +740,8 @@ const contribution: HypercertContribution = {
   contributors: ["did:plc:contributor1", "did:plc:contributor2"],
   role: "implementer",
   description: "On-ground implementation team",
-  workTimeframeFrom: "2024-01-01T00:00:00Z",  // Note: lowercase 'f' for contributions
-  workTimeframeTo: "2024-06-30T00:00:00Z",    // Note: lowercase 'f' for contributions
+  workTimeframeFrom: "2024-01-01T00:00:00Z", // Note: lowercase 'f' for contributions
+  workTimeframeTo: "2024-06-30T00:00:00Z", // Note: lowercase 'f' for contributions
   createdAt: new Date().toISOString(),
 };
 
@@ -775,14 +758,14 @@ await repo.records.create({
 import { HYPERCERT_COLLECTIONS } from "@hypercerts-org/sdk-core";
 
 // Collection NSIDs
-HYPERCERT_COLLECTIONS.CLAIM           // "org.hypercerts.claim"
-HYPERCERT_COLLECTIONS.RIGHTS          // "org.hypercerts.claim.rights"
-HYPERCERT_COLLECTIONS.CONTRIBUTION    // "org.hypercerts.claim.contribution"
-HYPERCERT_COLLECTIONS.MEASUREMENT     // "org.hypercerts.claim.measurement"
-HYPERCERT_COLLECTIONS.EVALUATION      // "org.hypercerts.claim.evaluation"
-HYPERCERT_COLLECTIONS.EVIDENCE        // "org.hypercerts.claim.evidence"
-HYPERCERT_COLLECTIONS.COLLECTION      // "org.hypercerts.collection"
-HYPERCERT_COLLECTIONS.LOCATION        // "app.certified.location"
+HYPERCERT_COLLECTIONS.CLAIM; // "org.hypercerts.claim"
+HYPERCERT_COLLECTIONS.RIGHTS; // "org.hypercerts.claim.rights"
+HYPERCERT_COLLECTIONS.CONTRIBUTION; // "org.hypercerts.claim.contribution"
+HYPERCERT_COLLECTIONS.MEASUREMENT; // "org.hypercerts.claim.measurement"
+HYPERCERT_COLLECTIONS.EVALUATION; // "org.hypercerts.claim.evaluation"
+HYPERCERT_COLLECTIONS.EVIDENCE; // "org.hypercerts.claim.evidence"
+HYPERCERT_COLLECTIONS.COLLECTION; // "org.hypercerts.collection"
+HYPERCERT_COLLECTIONS.LOCATION; // "app.certified.location"
 ```
 
 ## Development

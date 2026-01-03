@@ -3,6 +3,7 @@
 ## Overview
 
 Automated package releases using Changesets with:
+
 - Beta releases on `develop` branch pushes
 - Stable releases on `main` branch merges
 - Automatic changelog generation with GitHub PR/commit links
@@ -44,7 +45,8 @@ pnpm changeset init
 }
 ```
 
-Key setting: `updateInternalDependencies: "patch"` ensures when lexicon bumps, sdk-core dependency updates automatically.
+Key setting: `updateInternalDependencies: "patch"` ensures when lexicon bumps, sdk-core dependency updates
+automatically.
 
 ### Step 3: Update Root package.json Scripts
 
@@ -246,23 +248,24 @@ jobs:
 ### Step 6: Delete Old Workflows
 
 Remove these files:
+
 - .github/workflows/create-release-sdk.yml
 - .github/workflows/create-prerelease-sdk.yml
 - .github/workflows/dryrun-release-ci-sdk.yml
 
 ## Files Summary
 
-| File | Action |
-|------|--------|
-| .changeset/config.json | Create |
-| package.json (root) | Add 3 scripts |
-| .husky/pre-commit | Update |
-| .github/workflows/pr-check.yml | Create |
-| .github/workflows/release.yml | Create |
-| .github/workflows/release-beta.yml | Create |
-| .github/workflows/create-release-sdk.yml | Delete |
-| .github/workflows/create-prerelease-sdk.yml | Delete |
-| .github/workflows/dryrun-release-ci-sdk.yml | Delete |
+| File                                        | Action        |
+| ------------------------------------------- | ------------- |
+| .changeset/config.json                      | Create        |
+| package.json (root)                         | Add 3 scripts |
+| .husky/pre-commit                           | Update        |
+| .github/workflows/pr-check.yml              | Create        |
+| .github/workflows/release.yml               | Create        |
+| .github/workflows/release-beta.yml          | Create        |
+| .github/workflows/create-release-sdk.yml    | Delete        |
+| .github/workflows/create-prerelease-sdk.yml | Delete        |
+| .github/workflows/dryrun-release-ci-sdk.yml | Delete        |
 
 ## Developer Workflow
 
@@ -278,11 +281,13 @@ pnpm changeset
 ### Release Flow
 
 **Stable (main):**
+
 1. Merge PR with changeset to main
 2. Action creates "Release PR" accumulating changes
 3. Merge Release PR to publish @latest
 
 **Beta (develop):**
+
 1. Merge PR with changeset to develop
 2. Action auto-publishes to npm @beta
 3. Install via: npm install @hypercerts-org/sdk-core@beta

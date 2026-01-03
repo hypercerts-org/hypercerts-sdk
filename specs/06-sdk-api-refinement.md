@@ -2,7 +2,8 @@
 
 ## Overview
 
-This spec outlines improvements to the `@hypercerts-org/sdk-core` API to make it more elegant and developer-friendly. The key changes are:
+This spec outlines improvements to the `@hypercerts-org/sdk-core` API to make it more elegant and developer-friendly.
+The key changes are:
 
 1. **Multiple package entrypoints** for clean, focused imports
 2. **Fluent session-bound API** to reduce boilerplate
@@ -31,40 +32,25 @@ This spec outlines improvements to the `@hypercerts-org/sdk-core` API to make it
 import { ATProtoSDK, createATProtoSDK } from "@hypercerts-org/sdk-core";
 
 // Types only (for type annotations)
-import type { 
-  Session, 
-  HypercertRecord, 
+import type {
+  Session,
+  HypercertRecord,
   CollaboratorPermissions,
   ATProtoSDKConfig,
 } from "@hypercerts-org/sdk-core/types";
 
 // Errors (for catch blocks)
-import { 
-  AuthenticationError, 
-  ValidationError, 
-  SDSRequiredError,
-} from "@hypercerts-org/sdk-core/errors";
+import { AuthenticationError, ValidationError, SDSRequiredError } from "@hypercerts-org/sdk-core/errors";
 
 // Lexicons (for custom registration or inspection)
-import { 
-  HYPERCERT_LEXICONS, 
-  HYPERCERT_COLLECTIONS,
-  LexiconRegistry,
-} from "@hypercerts-org/sdk-core/lexicons";
+import { HYPERCERT_LEXICONS, HYPERCERT_COLLECTIONS, LexiconRegistry } from "@hypercerts-org/sdk-core/lexicons";
 
 // Storage (for custom implementations or defaults)
-import { 
-  InMemorySessionStore, 
-  InMemoryStateStore,
-} from "@hypercerts-org/sdk-core/storage";
+import { InMemorySessionStore, InMemoryStateStore } from "@hypercerts-org/sdk-core/storage";
 import type { SessionStore, StateStore } from "@hypercerts-org/sdk-core/storage";
 
 // Testing utilities
-import { 
-  createMockSession, 
-  createMockSDK,
-  MockSessionStore,
-} from "@hypercerts-org/sdk-core/testing";
+import { createMockSession, createMockSDK, MockSessionStore } from "@hypercerts-org/sdk-core/testing";
 ```
 
 ### Package.json Exports
@@ -132,19 +118,10 @@ All type definitions:
 // Core types
 export type { DID, Session } from "./core/types.js";
 export type { ATProtoSDKConfig, AuthorizeOptions } from "./core/config.js";
-export type { 
-  SessionStore, 
-  StateStore, 
-  CacheInterface, 
-  LoggerInterface,
-} from "./core/interfaces.js";
+export type { SessionStore, StateStore, CacheInterface, LoggerInterface } from "./core/interfaces.js";
 
 // Entity types
-export type { 
-  Organization, 
-  Collaborator, 
-  CollaboratorPermissions,
-} from "./core/types.js";
+export type { Organization, Collaborator, CollaboratorPermissions } from "./core/types.js";
 
 // Repository types
 export type { Repository } from "./repository/Repository.js";
@@ -168,7 +145,7 @@ export type { RepositoryRole, RepositoryAccessGrant } from "./services/repositor
 export type { OrganizationInfo } from "./services/sds/SdsOrganizationService.js";
 
 // Zod schemas (for runtime validation)
-export { 
+export {
   ATProtoSDKConfigSchema,
   OrganizationSchema,
   CollaboratorSchema,
@@ -195,10 +172,7 @@ export {
 export { LexiconRegistry } from "./repository/LexiconRegistry.js";
 export type { ValidationResult } from "./repository/LexiconRegistry.js";
 
-export { 
-  HYPERCERT_LEXICONS, 
-  HYPERCERT_COLLECTIONS,
-} from "./lexicons/hypercerts/index.js";
+export { HYPERCERT_LEXICONS, HYPERCERT_COLLECTIONS } from "./lexicons/hypercerts/index.js";
 ```
 
 ### Storage Entrypoint (`storage.ts`)
@@ -207,11 +181,7 @@ export {
 export { InMemorySessionStore } from "./storage/InMemorySessionStore.js";
 export { InMemoryStateStore } from "./storage/InMemoryStateStore.js";
 
-export type { 
-  SessionStore, 
-  StateStore, 
-  CacheInterface,
-} from "./core/interfaces.js";
+export type { SessionStore, StateStore, CacheInterface } from "./core/interfaces.js";
 ```
 
 ### Testing Entrypoint (`testing.ts`)
@@ -262,9 +232,9 @@ const customRepo = sdk.repository(session, { serverUrl: "https://..." });
 ```typescript
 interface Repository {
   // Identity
-  readonly did: string;          // Session DID (default repo)
-  readonly serverUrl: string;    // Server URL
-  readonly isSDS: boolean;       // Is shared data server
+  readonly did: string; // Session DID (default repo)
+  readonly serverUrl: string; // Server URL
+  readonly isSDS: boolean; // Is shared data server
 
   // Low-level managers
   readonly records: RecordOperations;
@@ -292,12 +262,12 @@ interface HypercertOperations {
   get(uri: string): Promise<Hypercert>;
   list(params?: ListParams): Promise<PaginatedList<Hypercert>>;
   delete(uri: string): Promise<void>;
-  
+
   // Related records
   attachLocation(uri: string, location: LocationParams): Promise<UpdateResult>;
   addEvidence(uri: string, evidence: HypercertEvidence[]): Promise<UpdateResult>;
   addContribution(uri: string, contribution: ContributionParams): Promise<UpdateResult>;
-  
+
   // Collections
   createCollection(params: CreateCollectionParams): Promise<CreateResult>;
   getCollection(uri: string): Promise<Collection>;
@@ -344,7 +314,7 @@ interface OrganizationOperations {
 ```typescript
 // BEFORE: Inconsistent
 await profile.get(repo);                              // Positional
-await collaborators.list(repo);                       // Positional  
+await collaborators.list(repo);                       // Positional
 await collaborators.grant({ repo, userDid, ... });   // Object
 await records.create({ repo, collection, ... });     // Object with redundant repo
 
@@ -386,7 +356,7 @@ const sdk = new ATProtoSDK({
 // Uses config.servers.pds
 const pdsRepo = sdk.repository(session);
 
-// Uses config.servers.sds  
+// Uses config.servers.sds
 const sdsRepo = sdk.repository(session, { server: "sds" });
 
 // Explicit URL overrides
@@ -424,13 +394,13 @@ const result = await repo.hypercerts.create({
   workTimeframeTo: "2024-12-31",
   rights: {
     name: "Attribution",
-    type: "CC-BY-4.0", 
+    type: "CC-BY-4.0",
     description: "...",
   },
-  
+
   // Optional: attached in same transaction
   image: imageBlob,
-  location: { 
+  location: {
     value: "New York, NY",
     geojson: geojsonBlob,
   },
@@ -479,7 +449,7 @@ repo.hypercerts.on("progress", (step) => { ... });
 packages/sdk-core/src/
 ├── index.ts                    # Main entrypoint (minimal exports)
 ├── types.ts                    # Types entrypoint
-├── errors.ts                   # Errors entrypoint  
+├── errors.ts                   # Errors entrypoint
 ├── lexicons.ts                 # Lexicons entrypoint
 ├── storage.ts                  # Storage entrypoint
 ├── testing.ts                  # Testing entrypoint
@@ -531,8 +501,8 @@ packages/sdk-core/src/
 
 ```typescript
 // BEFORE
-import { 
-  ATProtoSDK, 
+import {
+  ATProtoSDK,
   HypercertService,
   RepositoryClient,
   ValidationError,
@@ -552,7 +522,7 @@ const repo = sdk.getRepository(session, serverUrl);
 const hypercerts = sdk.getHypercertService(repo);
 await hypercerts.create({ repo: session.did, ... });
 
-// AFTER  
+// AFTER
 const repo = sdk.repository(session);
 await repo.hypercerts.create({ ... });
 ```
@@ -560,33 +530,39 @@ await repo.hypercerts.create({ ... });
 ## 10. Implementation Phases
 
 ### Phase 1: Multiple Entrypoints
+
 - Create entrypoint files (`types.ts`, `errors.ts`, etc.)
 - Update `package.json` exports
 - Update Rollup config for multiple outputs
 - Maintain backward compatibility in main export
 
 ### Phase 2: Repository Refactor
+
 - Create new `Repository` class
 - Rename managers to operations
 - Move services into repository
 - Add implicit repo DID handling
 
 ### Phase 3: API Consistency
+
 - Convert all methods to object parameters
 - Add smart defaults for server URLs
 - Implement auto lexicon registration
 
 ### Phase 4: Compound Operations
+
 - Add inline location/contribution/evidence to create
 - Add progress callbacks
 - Remove workflow classes
 
 ### Phase 5: Testing Utilities
+
 - Create mock factories
 - Add test helpers
 - Document testing patterns
 
 ### Phase 6: Documentation
+
 - Update README with new API
 - Add migration guide
 - Update all examples

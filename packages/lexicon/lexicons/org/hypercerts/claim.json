@@ -8,14 +8,7 @@
       "key": "any",
       "record": {
         "type": "object",
-        "required": [
-          "title",
-          "shortDescription",
-          "createdAt",
-          "workScope",
-          "workTimeFrameFrom",
-          "workTimeFrameTo"
-        ],
+        "required": ["title", "shortDescription", "createdAt", "workScope", "workTimeFrameFrom", "workTimeFrameTo"],
         "properties": {
           "title": {
             "type": "string",

@@ -33,7 +33,7 @@ export interface TestProviderProps {
 function createMinimalMockSDK(overrides: Partial<ATProtoSDK> = {}): ATProtoSDK {
   return {
     authorize: async () => "https://auth.example.com",
-    callback: async () => ({} as Session),
+    callback: async () => ({}) as Session,
     restoreSession: async () => null,
     revokeSession: async () => {},
     repository: () => {
@@ -106,7 +106,7 @@ export function TestProvider({
           },
         },
       }),
-    [providedQueryClient]
+    [providedQueryClient],
   );
 
   // Create mock SDK
@@ -120,14 +120,12 @@ export function TestProvider({
       initialSession: mockSession,
       syncTabs: false, // Disable sync in tests
     }),
-    [sdk, queryClient, mockSession]
+    [sdk, queryClient, mockSession],
   );
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ATProtoContext.Provider value={contextValue}>
-        {children}
-      </ATProtoContext.Provider>
+      <ATProtoContext.Provider value={contextValue}>{children}</ATProtoContext.Provider>
     </QueryClientProvider>
   );
 }

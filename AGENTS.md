@@ -4,7 +4,9 @@ This document provides instructions for AI agents working in the Hypercerts SDK 
 
 ## Project Overview
 
-The Hypercerts SDK is a TypeScript SDK for the Hypercerts protocol built on AT Protocol (ATProto). It provides OAuth authentication, repository operations, and domain-specific services for managing hypercerts, collaborators, and organizations.
+The Hypercerts SDK is a TypeScript SDK for the Hypercerts protocol built on AT Protocol (ATProto). It provides OAuth
+authentication, repository operations, and domain-specific services for managing hypercerts, collaborators, and
+organizations.
 
 ## Repository Structure
 
@@ -49,11 +51,13 @@ hypercerts-sdk/
 ### Key Dependencies
 
 #### sdk-core
+
 - `@atproto/*` - AT Protocol SDK packages (API, lexicon, OAuth)
 - `zod` - Runtime schema validation
 - `eventemitter3` - Event handling
 
 #### sdk-react
+
 - `@tanstack/react-query` - Data fetching and caching
 - `react` - React 18/19
 
@@ -214,23 +218,24 @@ Use the error hierarchy in `sdk-core/src/core/errors.ts`:
 
 ### sdk-core
 
-| Entrypoint | Import Path                           | Purpose                |
-|------------|---------------------------------------|------------------------|
-| Main       | `@hypercerts-org/sdk-core`            | Full SDK               |
-| Types      | `@hypercerts-org/sdk-core/types`      | TypeScript types only  |
-| Errors     | `@hypercerts-org/sdk-core/errors`     | Error classes          |
-| Lexicons   | `@hypercerts-org/sdk-core/lexicons`   | Lexicon definitions    |
-| Storage    | `@hypercerts-org/sdk-core/storage`    | Storage implementations|
-| Testing    | `@hypercerts-org/sdk-core/testing`    | Test utilities         |
+| Entrypoint | Import Path                         | Purpose                 |
+| ---------- | ----------------------------------- | ----------------------- |
+| Main       | `@hypercerts-org/sdk-core`          | Full SDK                |
+| Types      | `@hypercerts-org/sdk-core/types`    | TypeScript types only   |
+| Errors     | `@hypercerts-org/sdk-core/errors`   | Error classes           |
+| Lexicons   | `@hypercerts-org/sdk-core/lexicons` | Lexicon definitions     |
+| Storage    | `@hypercerts-org/sdk-core/storage`  | Storage implementations |
+| Testing    | `@hypercerts-org/sdk-core/testing`  | Test utilities          |
 
 ### sdk-react
 
-| Entrypoint | Import Path                            | Purpose                |
-|------------|----------------------------------------|------------------------|
-| Main       | `@hypercerts-org/sdk-react`            | Factory, hooks, types  |
-| Testing    | `@hypercerts-org/sdk-react/testing`    | TestProvider, mocks    |
+| Entrypoint | Import Path                         | Purpose               |
+| ---------- | ----------------------------------- | --------------------- |
+| Main       | `@hypercerts-org/sdk-react`         | Factory, hooks, types |
+| Testing    | `@hypercerts-org/sdk-react/testing` | TestProvider, mocks   |
 
 Each entrypoint outputs:
+
 - `.mjs` - ES Modules
 - `.cjs` - CommonJS
 - `.d.ts` - TypeScript declarations
@@ -289,25 +294,25 @@ docs(readme): update installation instructions
 
 ### sdk-core
 
-| File | Purpose |
-|------|---------|
-| `packages/sdk-core/src/core/SDK.ts` | Main SDK class |
-| `packages/sdk-core/src/auth/OAuthClient.ts` | OAuth implementation |
-| `packages/sdk-core/src/repository/Repository.ts` | Repository API |
-| `packages/sdk-core/src/core/errors.ts` | Error definitions |
-| `packages/sdk-core/src/services/hypercerts/types.ts` | Hypercert types |
-| `packages/sdk-core/src/repository/interfaces.ts` | Repository interfaces |
+| File                                                 | Purpose               |
+| ---------------------------------------------------- | --------------------- |
+| `packages/sdk-core/src/core/SDK.ts`                  | Main SDK class        |
+| `packages/sdk-core/src/auth/OAuthClient.ts`          | OAuth implementation  |
+| `packages/sdk-core/src/repository/Repository.ts`     | Repository API        |
+| `packages/sdk-core/src/core/errors.ts`               | Error definitions     |
+| `packages/sdk-core/src/services/hypercerts/types.ts` | Hypercert types       |
+| `packages/sdk-core/src/repository/interfaces.ts`     | Repository interfaces |
 
 ### sdk-react
 
-| File | Purpose |
-|------|---------|
-| `packages/sdk-react/src/factory/createATProtoReact.tsx` | Factory function |
-| `packages/sdk-react/src/context/ATProtoProvider.tsx` | Provider component |
-| `packages/sdk-react/src/hooks/useATProtoAuth.ts` | Auth hook |
-| `packages/sdk-react/src/hooks/useHypercerts.ts` | Hypercerts hooks |
-| `packages/sdk-react/src/queries/keys.ts` | Query key factory |
-| `packages/sdk-react/src/types.ts` | React-specific types |
+| File                                                    | Purpose              |
+| ------------------------------------------------------- | -------------------- |
+| `packages/sdk-react/src/factory/createATProtoReact.tsx` | Factory function     |
+| `packages/sdk-react/src/context/ATProtoProvider.tsx`    | Provider component   |
+| `packages/sdk-react/src/hooks/useATProtoAuth.ts`        | Auth hook            |
+| `packages/sdk-react/src/hooks/useHypercerts.ts`         | Hypercerts hooks     |
+| `packages/sdk-react/src/queries/keys.ts`                | Query key factory    |
+| `packages/sdk-react/src/types.ts`                       | React-specific types |
 
 ## Common Tasks
 

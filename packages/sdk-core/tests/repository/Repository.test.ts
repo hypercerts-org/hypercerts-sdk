@@ -109,13 +109,7 @@ describe("Repository", () => {
     });
 
     it("should return CollaboratorOperations on SDS repository", () => {
-      const sdsRepo = new Repository(
-        mockSession,
-        "https://sds.example.com",
-        mockSession.did,
-        lexiconRegistry,
-        true,
-      );
+      const sdsRepo = new Repository(mockSession, "https://sds.example.com", mockSession.did, lexiconRegistry, true);
 
       const collaborators = sdsRepo.collaborators;
       expect(collaborators).toBeDefined();
@@ -131,13 +125,7 @@ describe("Repository", () => {
     });
 
     it("should return OrganizationOperations on SDS repository", () => {
-      const sdsRepo = new Repository(
-        mockSession,
-        "https://sds.example.com",
-        mockSession.did,
-        lexiconRegistry,
-        true,
-      );
+      const sdsRepo = new Repository(mockSession, "https://sds.example.com", mockSession.did, lexiconRegistry, true);
 
       const organizations = sdsRepo.organizations;
       expect(organizations).toBeDefined();

@@ -49,10 +49,7 @@ import type { SSRHelpers } from "../types.js";
  * }
  * ```
  */
-export function createSSRHelpers(
-  sdk: ATProtoSDK,
-  queryClient: QueryClient
-): SSRHelpers {
+export function createSSRHelpers(sdk: ATProtoSDK, queryClient: QueryClient): SSRHelpers {
   return {
     /**
      * Prefetch session data on the server.

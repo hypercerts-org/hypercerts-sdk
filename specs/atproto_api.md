@@ -3,6 +3,7 @@
 ## Implementation Checklist
 
 ### Phase 1: Critical Fixes ✅ COMPLETED
+
 - [x] 1.1 Fix blob reference format in `BlobOperationsImpl.upload()` - Convert CID to `{ $link: string }`
 - [x] 1.2 Fix hypercert image handling in `HypercertOperationsImpl` (lines 211, 679, 1002)
 - [x] 1.3 Update blob reference type definitions in `types.ts` (already correct)
@@ -10,6 +11,7 @@
 - [x] 1.5 Run full test suite and verify build succeeds (181/181 tests passing ✅)
 
 ### Phase 2: Feature Completion ✅ COMPLETED
+
 - [x] 2.1 Add pagination to `CollaboratorOperations.list()` interface
 - [x] 2.2 Implement pagination in `CollaboratorOperationsImpl.list()`
 - [x] 2.3 Add pagination to `OrganizationOperations.list()` interface
@@ -18,19 +20,24 @@
 - [x] 2.6 Add pagination tests for organizations
 
 ### Phase 3: Investigation ✅ COMPLETED
+
 - [x] 3.1 Investigate SDS-specific record endpoints (`createRecord`, `putRecord`, `deleteRecord`)
 - [x] 3.2 Investigate SDS-specific `uploadBlob` endpoint
 - [x] 3.3 Check for organization update/delete endpoints in SDS API (confirmed: only `create` and `list` exist)
 - [x] 3.4 Review `applyWrites` endpoint for batch operations
 
 ### Phase 4: React Hooks Fixes ✅ COMPLETED
+
 - [x] 4.1 Fix `useCollaborators` hook to handle pagination structure
 - [x] 4.2 Fix `useOrganizations` hook to handle pagination structure
 - [x] 4.3 Verify build succeeds with no warnings (✅ clean build)
 
 ## Executive Summary
 
-After comprehensive review of the SDK implementation against the SDS API endpoints from https://github.com/hypercerts-org/atproto/tree/dev/packages/sds/src/api, the SDK is **largely correct** with recent fixes properly applied. However, there are **several structural issues and missing implementations** that need attention.
+After comprehensive review of the SDK implementation against the SDS API endpoints from
+https://github.com/hypercerts-org/atproto/tree/dev/packages/sds/src/api, the SDK is **largely correct** with recent
+fixes properly applied. However, there are **several structural issues and missing implementations** that need
+attention.
 
 ## Issues Identified
 
@@ -41,6 +48,7 @@ After comprehensive review of the SDK implementation against the SDS API endpoin
 **Issue:** The `upload()` method returns incorrect blob reference structure.
 
 **Current Implementation:**
+
 ```typescript
 async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; size: number }> {
   const result = await this.agent.com.atproto.repo.uploadBlob(blob);
@@ -52,13 +60,14 @@ async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; si
 }
 ```
 
-**Problem:** 
+**Problem:**
+
 - `result.data.blob.ref` is a `CID` object from IPFS
 - Expected return type has `ref: { $link: string }`
 - TypeScript error: `Property '$link' is missing in type 'CID'`
 
-**Expected API Response:**
-The ATProto `uploadBlob` endpoint returns:
+**Expected API Response:** The ATProto `uploadBlob` endpoint returns:
+
 ```typescript
 {
   blob: {
@@ -71,6 +80,7 @@ The ATProto `uploadBlob` endpoint returns:
 ```
 
 **Solution:** Convert CID to $link format:
+
 ```typescript
 async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; size: number }> {
   const result = await this.agent.com.atproto.repo.uploadBlob(blob);
@@ -82,7 +92,8 @@ async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; si
 }
 ```
 
-**Impact:** 
+**Impact:**
+
 - Affects 3 locations in `HypercertOperationsImpl.ts` (lines 211, 679, 1002)
 - Affects all hypercert creation with images
 - Currently causes TypeScript compilation warnings
@@ -97,7 +108,8 @@ async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; si
 
 **Current Status:** ❌ Not implemented in SDK
 
-**Use Case:** 
+**Use Case:**
+
 - Atomic multi-record operations
 - Bulk updates/deletes
 - Transaction-like semantics
@@ -114,9 +126,11 @@ async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; si
 
 **Current Status:** ❌ Not implemented in SDK
 
-**Analysis:** SDK currently uses ATProto Agent's `com.atproto.repo.createRecord()` which may route to SDS automatically. Need to verify if this SDS-specific endpoint provides additional functionality or is just an alternative routing.
+**Analysis:** SDK currently uses ATProto Agent's `com.atproto.repo.createRecord()` which may route to SDS automatically.
+Need to verify if this SDS-specific endpoint provides additional functionality or is just an alternative routing.
 
-**Recommendation:** Investigate if this endpoint offers SDS-specific features not available through standard ATProto routing.
+**Recommendation:** Investigate if this endpoint offers SDS-specific features not available through standard ATProto
+routing.
 
 ---
 
@@ -128,9 +142,11 @@ async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; si
 
 **Current Status:** ❌ Not implemented in SDK
 
-**Analysis:** Similar to createRecord, SDK uses ATProto Agent's `com.atproto.repo.deleteRecord()`. May be redundant if ATProto routing handles it.
+**Analysis:** Similar to createRecord, SDK uses ATProto Agent's `com.atproto.repo.deleteRecord()`. May be redundant if
+ATProto routing handles it.
 
-**Recommendation:** Investigate if SDS-specific deletion provides additional features (e.g., soft deletes, audit trails).
+**Recommendation:** Investigate if SDS-specific deletion provides additional features (e.g., soft deletes, audit
+trails).
 
 ---
 
@@ -156,11 +172,13 @@ async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; si
 
 **Current Status:** ❌ SDK uses ATProto's `com.atproto.repo.uploadBlob()`
 
-**Analysis:** 
+**Analysis:**
+
 - Current implementation goes through ATProto Agent
 - SDS may have specific blob handling (e.g., different storage backend, permissions)
 
 **Questions:**
+
 1. Does SDS blob storage differ from PDS?
 2. Are there permission checks on SDS blob uploads?
 3. Should SDK route blob uploads differently for SDS vs PDS?
@@ -176,16 +194,19 @@ async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; si
 **Issue:** Inconsistent representation of blob references across the codebase:
 
 1. **ATProto uploadBlob returns:**
+
    ```typescript
    { ref: CID, mimeType: string, size: number }
    ```
 
 2. **SDK BlobOperations.upload() promises:**
+
    ```typescript
    { ref: { $link: string }, mimeType: string, size: number }
    ```
 
 3. **Lexicon blob type expects:**
+
    ```typescript
    { $type: "blob", ref: { $link: string }, mimeType: string, size: number }
    ```
@@ -197,7 +218,8 @@ async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; si
 
 **Problem:** The SDK promises one format but returns another, causing type mismatches.
 
-**Solution:** 
+**Solution:**
+
 - Standardize on `{ $link: string }` format for all blob references
 - Convert CID to string representation using `.toString()`
 - Update type definitions to match lexicon format
@@ -207,13 +229,15 @@ async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; si
 ### 8. MISSING: Organization Update/Delete Operations
 
 **Current Organization Operations:**
+
 - ✅ `create()` - implemented
-- ✅ `list()` - implemented  
+- ✅ `list()` - implemented
 - ✅ `get()` - implemented
 - ❌ `update()` - NOT implemented
 - ❌ `delete()` - NOT implemented
 
 **Questions:**
+
 1. Does SDS support organization updates (name, description, handle)?
 2. Can organizations be deleted or only archived?
 3. Are these operations owner-only?
@@ -225,6 +249,7 @@ async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; si
 ### 9. STRUCTURAL: No Pagination Support in Organization List
 
 **Current Implementation:**
+
 ```typescript
 async list(): Promise<OrganizationInfo[]> {
   // No limit or cursor parameters
@@ -235,12 +260,14 @@ async list(): Promise<OrganizationInfo[]> {
 }
 ```
 
-**Issue:** 
+**Issue:**
+
 - No pagination for organizations list
 - Could fail with large number of organizations
 - SDS API may support limit/cursor parameters
 
 **Recommendation:** Add pagination support:
+
 ```typescript
 async list(params?: { limit?: number; cursor?: string }): Promise<{
   organizations: OrganizationInfo[];
@@ -253,6 +280,7 @@ async list(params?: { limit?: number; cursor?: string }): Promise<{
 ### 10. STRUCTURAL: listCollaborators Has No Pagination Implementation
 
 **Current Implementation:**
+
 ```typescript
 async list(): Promise<RepositoryAccessGrant[]> {
   const response = await this.session.fetchHandler(
@@ -265,6 +293,7 @@ async list(): Promise<RepositoryAccessGrant[]> {
 **Issue:** SDS API supports pagination with `limit` and `cursor` parameters, but SDK doesn't expose them.
 
 **SDS API Signature (from lexicon):**
+
 ```typescript
 {
   repo: string;
@@ -274,6 +303,7 @@ async list(): Promise<RepositoryAccessGrant[]> {
 ```
 
 **Recommendation:** Implement pagination:
+
 ```typescript
 async list(params?: { limit?: number; cursor?: string }): Promise<{
   collaborators: RepositoryAccessGrant[];
@@ -379,21 +409,27 @@ async list(params?: { limit?: number; cursor?: string }): Promise<{
 
 ## Questions for User
 
-1. **Blob Upload Routing:** Should the SDK use `com.sds.repo.uploadBlob` when connected to SDS, or continue using ATProto's `com.atproto.repo.uploadBlob`?
+1. **Blob Upload Routing:** Should the SDK use `com.sds.repo.uploadBlob` when connected to SDS, or continue using
+   ATProto's `com.atproto.repo.uploadBlob`?
 
-2. **Record Operations:** Similarly, should SDK use SDS-specific `createRecord`, `putRecord`, `deleteRecord` endpoints when `server: "sds"` is specified?
+2. **Record Operations:** Similarly, should SDK use SDS-specific `createRecord`, `putRecord`, `deleteRecord` endpoints
+   when `server: "sds"` is specified?
 
-3. **Organization Lifecycle:** Does the SDS API support updating or deleting organizations? If so, should we implement these operations?
+3. **Organization Lifecycle:** Does the SDS API support updating or deleting organizations? If so, should we implement
+   these operations?
 
-4. **Breaking Changes:** The pagination additions are backward-compatible, but the blob reference fix may affect existing code. How should we version/communicate this change?
+4. **Breaking Changes:** The pagination additions are backward-compatible, but the blob reference fix may affect
+   existing code. How should we version/communicate this change?
 
-5. **Priority:** Which issues should be addressed first? The critical blob reference fix, or the missing pagination features?
+5. **Priority:** Which issues should be addressed first? The critical blob reference fix, or the missing pagination
+   features?
 
 ---
 
 ## Summary
 
-The SDK implementation is **structurally sound** and **fully aligned** with the SDS API. All critical issues have been resolved:
+The SDK implementation is **structurally sound** and **fully aligned** with the SDS API. All critical issues have been
+resolved:
 
 - ✅ **Critical bug fixed** - Blob reference format now correctly converts CID to `{ $link: string }`
 - ✅ **Pagination implemented** - Both collaborator and organization operations now support cursor-based pagination
@@ -411,6 +447,7 @@ The SDS API provides enhanced versions of standard ATProto record operations:
 **Key Finding:** These endpoints add **multi-user repository access** support with granular permissions.
 
 #### `com.sds.repo.createRecord`
+
 - **Enhancement:** Supports shared repository access through `findAccountWithSharedAccess()`
 - **Permission Check:** Validates "create" permission explicitly
 - **Audit Logging:** Logs shared repository access events
@@ -418,11 +455,13 @@ The SDS API provides enhanced versions of standard ATProto record operations:
 - **Recommendation:** Consider adding explicit SDS endpoint support for shared repository workflows
 
 #### `com.sds.repo.putRecord`
+
 - **Enhancement:** Same shared access model as createRecord
 - **Permission Check:** Validates "update" permission for non-owners
 - **SDK Status:** ✅ SDK uses `com.atproto.repo.putRecord` which works for owned repos
 
 #### `com.sds.repo.deleteRecord`
+
 - **Enhancement:** Same shared access model as createRecord
 - **Permission Check:** Validates "delete" permission for non-owners
 - **SDK Status:** ✅ SDK uses `com.atproto.repo.deleteRecord` which works for owned repos
@@ -430,6 +469,7 @@ The SDS API provides enhanced versions of standard ATProto record operations:
 ### SDS-Specific Blob Upload
 
 #### `com.sds.repo.uploadBlob`
+
 - **Enhancement:** Accepts `repo` query parameter to upload to shared repositories
 - **Permission Check:** Validates "create" permission when uploading to non-owned repos
 - **Audit Logging:** Logs shared repository blob uploads
@@ -439,6 +479,7 @@ The SDS API provides enhanced versions of standard ATProto record operations:
 ### Batch Operations
 
 #### `com.sds.repo.applyWrites`
+
 - **Purpose:** Batch write operations (create/update/delete up to 200 records)
 - **Enhancement:** Permission checking per operation type for shared repos
 - **Use Cases:** Atomic transactions, bulk imports, multi-record updates
@@ -448,19 +489,23 @@ The SDS API provides enhanced versions of standard ATProto record operations:
 ### Organization Management
 
 #### Confirmed Available Endpoints
+
 - ✅ `com.sds.organization.create` - Implemented in SDK
 - ✅ `com.sds.organization.list` - Implemented in SDK with pagination
 
 #### Endpoints That Don't Exist
+
 - ❌ `com.sds.organization.update` - Not available in SDS API
 - ❌ `com.sds.organization.delete` - Not available in SDS API
 - ❌ `com.sds.organization.get` - Not available in SDS API (SDK implements by filtering list)
 
-**Finding:** The SDS API currently only supports organization creation and listing. Organizations cannot be updated or deleted through the API.
+**Finding:** The SDS API currently only supports organization creation and listing. Organizations cannot be updated or
+deleted through the API.
 
 ## Current SDK Status
 
 ### ✅ Fully Implemented and Working
+
 1. Blob reference format (CID to `{ $link: string }` conversion)
 2. Collaborator operations (list, grant, revoke, getPermissions) with pagination
 3. Organization operations (create, list, get) with pagination
@@ -470,13 +515,17 @@ The SDS API provides enhanced versions of standard ATProto record operations:
 7. React hooks properly handling pagination
 
 ### ⚠️ Works But Could Be Enhanced
-1. **Record operations** - Currently route through ATProto Agent, which works for owned repos but may not support shared repository workflows
+
+1. **Record operations** - Currently route through ATProto Agent, which works for owned repos but may not support shared
+   repository workflows
 2. **Blob uploads** - Works for owned repos but lacks explicit support for uploading to shared repositories
 
 ### 📋 Optional Future Enhancements
+
 1. **SDS-specific routing** - Explicitly use `com.sds.repo.*` endpoints when `server: "sds"` is configured
 2. **Shared repository support** - Add `repo` parameter to operations to enable shared access workflows
 3. **Batch operations** - Implement `applyWrites` for bulk record operations
 4. **Organization updates** - Request SDS API team to add update/delete endpoints if needed
 
-The recent fixes for permissions array parsing and organization field names were correctly applied and tests are passing.
+The recent fixes for permissions array parsing and organization field names were correctly applied and tests are
+passing.

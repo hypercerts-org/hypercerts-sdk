@@ -42,15 +42,15 @@ interface UseAuthResult {
   session: Session | null;
   status: AuthStatus;
   error: Error | null;
-  isValid: boolean;              // Whether session is valid and not expired
-  
+  isValid: boolean; // Whether session is valid and not expired
+
   // Actions
   login(identifier: string, redirectUrl?: string): Promise<void>;
   logout(): Promise<void>;
-  refresh(): Promise<void>;      // Force refresh session from storage/server
-  
+  refresh(): Promise<void>; // Force refresh session from storage/server
+
   // Loading states
-  isLoading: boolean;            // Any auth operation in progress
+  isLoading: boolean; // Any auth operation in progress
 }
 ```
 
@@ -59,7 +59,7 @@ interface UseAuthResult {
 ```typescript
 function AuthButton() {
   const { status, session, login, logout } = useAuth();
-  
+
   switch (status) {
     case "idle":
       return <Button onClick={() => login("bsky.social")}>Sign in</Button>;
@@ -79,9 +79,9 @@ Low-level escape hatch for direct repository access. Most apps should use domain
 
 ```typescript
 interface UseRepositoryOptions {
-  repoDid?: string;           // Defaults to session DID
-  server?: "pds" | "sds";     // Force server type
-  serverUrl?: string;         // Force specific URL (overrides server)
+  repoDid?: string; // Defaults to session DID
+  server?: "pds" | "sds"; // Force server type
+  serverUrl?: string; // Force specific URL (overrides server)
 }
 
 interface UseRepositoryResult {
@@ -102,10 +102,10 @@ interface UseProfileResult {
   profile: Profile | null;
   isLoading: boolean;
   error: Error | null;
-  
+
   update(params: ProfileUpdate): Promise<void>;
   isUpdating: boolean;
-  
+
   refetch(): Promise<void>;
 }
 ```
@@ -115,7 +115,7 @@ interface UseProfileResult {
 ```typescript
 function ProfileEditor() {
   const { profile, update, isUpdating } = useProfile();
-  
+
   return (
     <form onSubmit={() => update({ displayName: newName })}>
       <input defaultValue={profile?.displayName} />
@@ -135,10 +135,10 @@ interface UseOrganizationsResult {
   organizations: Organization[];
   isLoading: boolean;
   error: Error | null;
-  
+
   create(params: CreateOrgParams): Promise<Organization>;
   isCreating: boolean;
-  
+
   refetch(): Promise<void>;
 }
 
@@ -160,12 +160,12 @@ interface UseCollaboratorsResult {
   collaborators: Collaborator[];
   isLoading: boolean;
   error: Error | null;
-  
+
   grant(params: GrantParams): Promise<void>;
   revoke(userDid: string): Promise<void>;
   isGranting: boolean;
   isRevoking: boolean;
-  
+
   refetch(): Promise<void>;
 }
 ```
@@ -180,13 +180,13 @@ interface UseHypercertsResult {
   hypercerts: Hypercert[];
   isLoading: boolean;
   error: Error | null;
-  
+
   create(params: CreateHypercertParams): Promise<CreateResult>;
   isCreating: boolean;
-  
+
   hasNextPage: boolean;
   fetchNextPage(): Promise<void>;
-  
+
   refetch(): Promise<void>;
 }
 
@@ -195,12 +195,12 @@ interface UseHypercertResult {
   hypercert: Hypercert | null;
   isLoading: boolean;
   error: Error | null;
-  
+
   update(params: UpdateHypercertParams): Promise<void>;
   remove(): Promise<void>;
   isUpdating: boolean;
   isDeleting: boolean;
-  
+
   refetch(): Promise<void>;
 }
 ```

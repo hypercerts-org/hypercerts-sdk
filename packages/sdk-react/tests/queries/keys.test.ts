@@ -84,24 +84,12 @@ describe("atprotoKeys", () => {
     it("should return hypercerts list key with params", () => {
       const repoDid = "did:plc:repo123";
       const params = { cursor: "abc", limit: 50 };
-      expect(atprotoKeys.hypercertsList(repoDid, params)).toEqual([
-        "atproto",
-        "hypercerts",
-        repoDid,
-        "list",
-        params,
-      ]);
+      expect(atprotoKeys.hypercertsList(repoDid, params)).toEqual(["atproto", "hypercerts", repoDid, "list", params]);
     });
 
     it("should return hypercerts list key without params", () => {
       const repoDid = "did:plc:repo123";
-      expect(atprotoKeys.hypercertsList(repoDid)).toEqual([
-        "atproto",
-        "hypercerts",
-        repoDid,
-        "list",
-        undefined,
-      ]);
+      expect(atprotoKeys.hypercertsList(repoDid)).toEqual(["atproto", "hypercerts", repoDid, "list", undefined]);
     });
 
     it("should return hypercert by URI key", () => {
