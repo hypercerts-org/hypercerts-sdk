@@ -5,6 +5,11 @@ export default defineConfig({
     watch: false,
     globals: true,
     environment: "node",
+    reporters: [["default", { summary: false }]],
+    silent: true,
+    outputFile: {
+      json: "./test-results.json",
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

@@ -8,6 +8,8 @@ import { afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
+// Note: We don't suppress errors here - tests should properly catch and handle them
+
 // Cleanup after each test
 afterEach(() => {
   cleanup();
