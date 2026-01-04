@@ -57,8 +57,8 @@ importers:
         specifier: ^0.3.12
         version: 0.3.12
       '@hypercerts-org/lexicon':
-        specifier: ^0.10.0-beta.0
-        version: 0.10.0-beta.1(@atproto/xrpc@0.7.6)
+        specifier: ^0.10.0-beta.3
+        version: 0.10.0-beta.3(@atproto/xrpc@0.7.6)
       eventemitter3:
         specifier: ^5.0.1
         version: 5.0.1
@@ -572,8 +572,8 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
 
-  '@hypercerts-org/lexicon@0.10.0-beta.1':
-    resolution: {integrity: sha512-fZv+hLkf9NqZ4IC4qFicRXk5ZawbLzYRzUseVTgiEVtFnhvah5wlowHD+RQXJLIbzuyJ0MaNkmeIPW94DtaCNA==}
+  '@hypercerts-org/lexicon@0.10.0-beta.3':
+    resolution: {integrity: sha512-mQKDeRVwvWrR5mkwAdFHJUZyxNDwaHiFX1emykQ7G1RJPTCTGS2Tqi3C2iR/vzCU4oUkaweQ9zDWogG/ViZXbg==}
     peerDependencies:
       '@atproto/xrpc': '*'
 
@@ -2208,7 +2208,7 @@ snapshots:
       multiformats: 9.9.0
       tslib: 2.8.1
       uint8arrays: 3.0.0
-      unicode-segmenter: 0.14.0
+      unicode-segmenter: 0.14.5
 
   '@atproto/lex-json@0.0.1':
     dependencies:
@@ -2616,7 +2616,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@hypercerts-org/lexicon@0.10.0-beta.1(@atproto/xrpc@0.7.6)':
+  '@hypercerts-org/lexicon@0.10.0-beta.3(@atproto/xrpc@0.7.6)':
     dependencies:
       '@atcute/leaflet': 1.0.15
       '@atproto/lexicon': 0.6.0
