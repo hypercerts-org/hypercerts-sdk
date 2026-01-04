@@ -69,6 +69,9 @@ All commands run from the repository root:
 # Install dependencies
 pnpm install
 
+# Build / check / test everything
+pnpm check
+
 # Build all packages
 pnpm build
 
@@ -107,7 +110,7 @@ pnpm --filter @hypercerts-org/sdk-react lint
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Your Application                      │
+│                    Your Application                     │
 ├─────────────────────────────────────────────────────────┤
 │  @hypercerts-org/sdk-react                              │
 │  - React hooks (useAuth, useProfile, useHypercerts)     │

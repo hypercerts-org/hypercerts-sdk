@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "turbo typecheck",
+    "check": "turbo check",
     "clean": "turbo clean",
     "changeset": "changeset",
     "version-packages": "changeset version",

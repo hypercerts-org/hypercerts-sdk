@@ -12,14 +12,18 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
+  "prepublishOnly": "pnpm run check",
   "scripts": {
-    "test": "vitest",
+    "test": "vitest run",
     "build": "rollup -c",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm run build && pnpm run test",
     "clean": "rm -rf dist",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage"

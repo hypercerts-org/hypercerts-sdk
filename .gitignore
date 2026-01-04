@@ -8,7 +8,6 @@
 !.yarn/versions
 **/node_modules
 **/dist
-docs/
 .pnpm-store/
 
 # files
