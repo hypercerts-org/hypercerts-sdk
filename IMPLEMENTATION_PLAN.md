@@ -405,6 +405,7 @@ avoid breaking changes before the SDK is integrated.
 **Architecture Pattern**: Hybrid Factory + React Query Integration
 
 This pattern is battle-tested by Wagmi v2, tRPC, and similar libraries. Key benefits:
+
 - Factory function creates isolated instances (SSR-safe, testable)
 - React Query integration for caching, loading states, and mutations
 - Exposed query/mutation options for advanced usage
@@ -439,44 +440,44 @@ interface ATProtoReactInstance {
   sdk: ATProtoSDK;
   queryClient: QueryClient;
   Provider: React.FC<{ children: ReactNode }>;
-  
+
   // ─────────────────────────────────────────────
   // Core
   // ─────────────────────────────────────────────
   useSDK: () => ATProtoSDK;
-  
+
   // ─────────────────────────────────────────────
   // Auth (consolidated - no separate useSession)
   // ─────────────────────────────────────────────
   useAuth: () => UseAuthResult;
-  
+
   // ─────────────────────────────────────────────
   // Profile (read + write combined)
   // ─────────────────────────────────────────────
   useProfile: (did?: string) => UseProfileResult;
-  
+
   // ─────────────────────────────────────────────
   // Organizations (list + singular)
   // ─────────────────────────────────────────────
   useOrganizations: () => UseOrganizationsResult;
   useOrganization: (did: string) => UseOrganizationResult;
-  
+
   // ─────────────────────────────────────────────
   // Collaborators
   // ─────────────────────────────────────────────
   useCollaborators: (repoDid: string) => UseCollaboratorsResult;
-  
+
   // ─────────────────────────────────────────────
   // Hypercerts (list + singular)
   // ─────────────────────────────────────────────
   useHypercerts: (repoDid?: string) => UseHypercertsResult;
   useHypercert: (uri: string) => UseHypercertResult;
-  
+
   // ─────────────────────────────────────────────
   // Low-level (escape hatch)
   // ─────────────────────────────────────────────
   useRepository: (opts?: UseRepositoryOptions) => UseRepositoryResult;
-  
+
   // ─────────────────────────────────────────────
   // Advanced usage
   // ─────────────────────────────────────────────
@@ -522,8 +523,8 @@ const atprotoKeys = {
 - [ ] Create `useATProtoSDK()` - Access SDK from context
 - [ ] Create `useATProtoAuth()` - Consolidated auth state with discriminated status
 
-**Design Decision**: Merged `useSession` into `useAuth` to avoid confusion about which hook to use.
-The single `useAuth` hook provides session data, auth status, login/logout actions, and refresh capability.
+**Design Decision**: Merged `useSession` into `useAuth` to avoid confusion about which hook to use. The single `useAuth`
+hook provides session data, auth status, login/logout actions, and refresh capability.
 
 **Auth Types**:
 
@@ -535,15 +536,15 @@ interface UseAuthResult {
   session: Session | null;
   status: AuthStatus;
   error: Error | null;
-  isValid: boolean;              // Whether session is valid and not expired
-  
+  isValid: boolean; // Whether session is valid and not expired
+
   // Actions
   login: (identifier: string, redirectUrl?: string) => Promise<void>;
   logout: () => Promise<void>;
-  refresh: () => Promise<void>;  // Force refresh session from storage/server
-  
+  refresh: () => Promise<void>; // Force refresh session from storage/server
+
   // Loading states
-  isLoading: boolean;            // Any auth operation in progress
+  isLoading: boolean; // Any auth operation in progress
 }
 ```
 
@@ -552,7 +553,7 @@ interface UseAuthResult {
 ```typescript
 function AuthButton() {
   const { status, session, login, logout } = useAuth();
-  
+
   switch (status) {
     case "idle":
       return <Button onClick={() => login("bsky.social")}>Sign in</Button>;
@@ -567,7 +568,7 @@ function AuthButton() {
 
 function SessionRefresh() {
   const { refresh, isValid } = useAuth();
-  
+
   useEffect(() => {
     if (!isValid) refresh();
   }, [isValid, refresh]);
@@ -599,9 +600,9 @@ Input: DID + Options
 
 ```typescript
 interface UseRepositoryOptions {
-  repoDid?: string;           // Defaults to session DID
-  server?: "pds" | "sds";     // Force server type
-  serverUrl?: string;         // Force specific URL
+  repoDid?: string; // Defaults to session DID
+  server?: "pds" | "sds"; // Force server type
+  serverUrl?: string; // Force specific URL
 }
 
 interface UseRepositoryResult {
@@ -625,6 +626,7 @@ interface UseRepositoryResult {
 - [ ] Create `useHypercert(uri)` - Single hypercert with update/delete
 
 **Design Decisions**:
+
 - Read + write combined in same hook (no separate `useProfileUpdate`)
 - Both singular and plural variants for entities that need it
 - Semantic property names (`profile`, `hypercerts`) not generic `data`
@@ -639,11 +641,11 @@ interface UseProfileResult {
   profile: Profile | null;
   isLoading: boolean;
   error: Error | null;
-  
+
   // Write
   update: (params: ProfileUpdate) => Promise<void>;
   isUpdating: boolean;
-  
+
   refetch: () => Promise<void>;
 }
 
@@ -654,11 +656,11 @@ interface UseOrganizationsResult {
   organizations: Organization[];
   isLoading: boolean;
   error: Error | null;
-  
+
   // Write
   create: (params: CreateOrgParams) => Promise<Organization>;
   isCreating: boolean;
-  
+
   refetch: () => Promise<void>;
 }
 
@@ -676,13 +678,13 @@ interface UseCollaboratorsResult {
   collaborators: Collaborator[];
   isLoading: boolean;
   error: Error | null;
-  
+
   // Write
   grant: (params: GrantParams) => Promise<void>;
   revoke: (userDid: string) => Promise<void>;
   isGranting: boolean;
   isRevoking: boolean;
-  
+
   refetch: () => Promise<void>;
 }
 
@@ -693,15 +695,15 @@ interface UseHypercertsResult {
   hypercerts: Hypercert[];
   isLoading: boolean;
   error: Error | null;
-  
+
   // Write
   create: (params: CreateHypercertParams) => Promise<CreateResult>;
   isCreating: boolean;
-  
+
   // Pagination
   hasNextPage: boolean;
   fetchNextPage: () => Promise<void>;
-  
+
   refetch: () => Promise<void>;
 }
 
@@ -712,13 +714,13 @@ interface UseHypercertResult {
   hypercert: Hypercert | null;
   isLoading: boolean;
   error: Error | null;
-  
+
   // Write
   update: (params: UpdateHypercertParams) => Promise<void>;
   remove: () => Promise<void>;
   isUpdating: boolean;
   isDeleting: boolean;
-  
+
   refetch: () => Promise<void>;
 }
 ```
@@ -729,7 +731,7 @@ interface UseHypercertResult {
 // Profile with inline update
 function ProfileEditor() {
   const { profile, update, isUpdating } = useProfile();
-  
+
   return (
     <form onSubmit={(e) => {
       e.preventDefault();
@@ -779,13 +781,13 @@ interface SSRHelpers {
 export default async function RootLayout({ children }) {
   const atproto = createATProtoReact({ config });
   const ssr = createSSRHelpers(atproto.sdk, atproto.queryClient);
-  
+
   const sessionDid = cookies().get("atproto-session")?.value;
   if (sessionDid) {
     await ssr.prefetchSession(sessionDid);
     await ssr.prefetchProfile(sessionDid);
   }
-  
+
   return (
     <atproto.Provider dehydratedState={ssr.getDehydratedState()}>
       {children}
@@ -835,8 +837,8 @@ function useSessionSync(enabled: boolean = true);
 
 ```typescript
 export { TestProvider } from "./testing/TestProvider";
-export { 
-  createMockSession, 
+export {
+  createMockSession,
   createMockProfile,
   createMockOrganization,
   createMockHypercert,
@@ -853,7 +855,7 @@ import { renderHook } from "@testing-library/react";
 
 test("useProfile returns profile data", async () => {
   const mockSession = createMockSession({ handle: "test.bsky.social" });
-  
+
   const { result } = renderHook(() => useProfile(), {
     wrapper: ({ children }) => (
       <TestProvider mockSession={mockSession}>
@@ -861,7 +863,7 @@ test("useProfile returns profile data", async () => {
       </TestProvider>
     ),
   });
-  
+
   await waitFor(() => expect(result.current.profile).toBeDefined());
   expect(result.current.profile?.handle).toBe("test.bsky.social");
 });

@@ -2,21 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Session } from "../../src/core/types.js";
 import { OrganizationOperationsImpl } from "../../src/repository/OrganizationOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
+import { createMockSession, TEST_REPO_DID, TEST_SDS_URL } from "../utils/mocks.js";
 
 describe("OrganizationOperationsImpl", () => {
-  let mockSession: Partial<Session>;
+  let mockSession: ReturnType<typeof createMockSession>;
   let orgOps: OrganizationOperationsImpl;
-  const repoDid = "did:plc:testdid123";
-  const serverUrl = "https://sds.example.com";
 
   beforeEach(() => {
-    mockSession = {
-      did: "did:plc:user123",
-      sub: "did:plc:user123",
-      fetchHandler: vi.fn(),
-    };
-
-    orgOps = new OrganizationOperationsImpl(mockSession as Session, repoDid, serverUrl);
+    mockSession = createMockSession(vi);
+    orgOps = new OrganizationOperationsImpl(mockSession as unknown as Session, TEST_REPO_DID, TEST_SDS_URL);
   });
 
   describe("create", () => {
@@ -45,7 +39,7 @@ describe("OrganizationOperationsImpl", () => {
       expect(result.permissions.owner).toBe(true);
 
       expect(mockSession.fetchHandler).toHaveBeenCalledWith(
-        `${serverUrl}/xrpc/com.sds.organization.create`,
+        `${TEST_SDS_URL}/xrpc/com.sds.organization.create`,
         expect.objectContaining({
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -187,7 +181,7 @@ describe("OrganizationOperationsImpl", () => {
       await orgOps.list();
 
       expect(mockSession.fetchHandler).toHaveBeenCalledWith(
-        expect.stringContaining(`userDid=${encodeURIComponent(mockSession.did)}`),
+        expect.stringContaining(`userDid=${encodeURIComponent(mockSession.did ?? "")}`),
         expect.any(Object),
       );
     });

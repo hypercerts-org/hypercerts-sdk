@@ -15,6 +15,15 @@
     "test": {
       "dependsOn": ["^test"]
     },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    },
+    "format:check": {
+      "dependsOn": ["^format:check"]
+    },
+    "check": {
+      "dependsOn": ["format:check", "lint", "typecheck", "build", "test"]
+    },
     "dev": {
       "persistent": true,
       "cache": false

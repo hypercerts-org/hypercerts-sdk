@@ -363,10 +363,25 @@ describe("useATProtoAuth", () => {
 
   describe("error handling", () => {
     it("should throw when used outside provider", () => {
-      // Render without wrapper
+      // Suppress jsdom error reporting for this expected error
+      const errorHandler = (event: ErrorEvent) => {
+        if (event.error?.message?.includes("useATProtoAuth must be used within")) {
+          event.preventDefault(); // Prevent jsdom from reporting this expected error
+        }
+      };
+      window.addEventListener("error", errorHandler);
+
+      // Suppress console.error for this test since we're intentionally testing an error condition
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      // Render without wrapper - React will throw during render
       expect(() => {
         renderHook(() => useATProtoAuth());
       }).toThrow("useATProtoAuth must be used within an ATProtoProvider");
+
+      // Cleanup
+      consoleErrorSpy.mockRestore();
+      window.removeEventListener("error", errorHandler);
     });
   });
 });

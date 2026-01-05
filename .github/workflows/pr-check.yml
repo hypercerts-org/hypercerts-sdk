@@ -18,8 +18,9 @@ jobs:
           cache: "pnpm"
       - run: pnpm install
       - run: pnpm build
-      - run: pnpm test
       - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm test
 
   changeset-check:
     runs-on: ubuntu-latest

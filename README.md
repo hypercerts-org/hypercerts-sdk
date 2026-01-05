@@ -4,11 +4,18 @@ A monorepo containing SDK packages for the Hypercerts protocol on ATProto.
 
 ## Packages
 
-| Package | Description | Status |
-|---------|-------------|--------|
-| [`@hypercerts-org/lexicon`](./packages/lexicon) | ATProto lexicon definitions and generated TypeScript types for Hypercerts | ✅ Complete |
-| [`@hypercerts-org/sdk-core`](./packages/sdk-core) | Framework-agnostic core SDK for ATProto authentication, repository operations, and lexicon management | ✅ Complete |
-| [`@hypercerts-org/sdk-react`](./packages/sdk-react) | React hooks and components for ATProto integration | ✅ Complete |
+| Package                                             | Description                                                                                           | Status      |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------- |
+| [`@hypercerts-org/lexicon`](./packages/lexicon)     | ATProto lexicon definitions and generated TypeScript types for Hypercerts                             | ✅ Complete |
+| [`@hypercerts-org/sdk-core`](./packages/sdk-core)   | Framework-agnostic core SDK for ATProto authentication, repository operations, and lexicon management | ✅ Complete |
+| [`@hypercerts-org/sdk-react`](./packages/sdk-react) | React hooks and components for ATProto integration                                                    | ✅ Complete |
+
+**Note:** The lexicon definitions are published separately at
+[`@hypercerts-org/lexicon`](https://github.com/hypercerts-org/hypercerts-lexicon) and imported as a dependency.
+
+**Note:** This SDK consumes the published
+[`@hypercerts-org/lexicon`](https://github.com/hypercerts-org/hypercerts-lexicon) package for lexicon definitions and
+types.
 
 ## Architecture
 
@@ -27,7 +34,8 @@ This SDK is designed around the ATProto (AT Protocol) ecosystem, providing tools
 - **PDS (Personal Data Server)**: Standard ATProto server for single-user repositories
 - **SDS (Shared Data Server)**: Extended ATProto server with RBAC for multi-user collaboration
 
-The SDK provides a unified `Repository` that works with both server types, with SDS-specific features (collaborator management, organizations) available when connected to an SDS.
+The SDK provides a unified `Repository` that works with both server types, with SDS-specific features (collaborator
+management, organizations) available when connected to an SDS.
 
 ### Package Architecture
 
@@ -47,7 +55,7 @@ The SDK provides a unified `Repository` that works with both server types, with 
 │  - Lexicon registry and validation                      │
 │  - Re-exports types from @hypercerts-org/lexicon        │
 ├─────────────────────────────────────────────────────────┤
-│  @hypercerts-org/lexicon                                │
+│  @hypercerts-org/lexicon (published package)            │
 │  - ATProto lexicon JSON definitions                     │
 │  - Generated TypeScript types (via @atproto/lex-cli)    │
 │  - Runtime validation (isRecord, validateRecord)        │
@@ -68,6 +76,7 @@ Types flow from the lexicon package through sdk-core to sdk-react:
 ```
 
 This architecture ensures:
+
 - **Single source of truth**: Lexicon definitions generate all types
 - **Consistent validation**: Runtime validation using `@atproto/lexicon`
 - **Clean API surface**: sdk-core provides user-friendly type aliases
@@ -181,7 +190,8 @@ const atproto = createATProtoReact({ config, queryClient });
 
 ## Development
 
-This monorepo uses [Turborepo](https://turbo.build/repo) for build orchestration and [pnpm](https://pnpm.io) for package management.
+This monorepo uses [Turborepo](https://turbo.build/repo) for build orchestration and [pnpm](https://pnpm.io) for package
+management.
 
 ### Prerequisites
 
@@ -227,26 +237,20 @@ pnpm turbo <task> --graph
 
 Available tasks defined in `turbo.json`:
 
-| Task | Description |
-|------|-------------|
-| `build` | Build all packages (outputs cached in `dist/`) |
-| `test` | Run tests across all packages |
-| `lint` | Run ESLint across all packages |
-| `typecheck` | Run TypeScript type checking |
-| `dev` | Start development mode (persistent, no cache) |
-| `clean` | Remove build artifacts |
+| Task        | Description                                    |
+| ----------- | ---------------------------------------------- |
+| `build`     | Build all packages (outputs cached in `dist/`) |
+| `test`      | Run tests across all packages                  |
+| `lint`      | Run ESLint across all packages                 |
+| `typecheck` | Run TypeScript type checking                   |
+| `dev`       | Start development mode (persistent, no cache)  |
+| `clean`     | Remove build artifacts                         |
 
 ### Project Structure
 
 ```
 hypercerts-sdk/
 ├── packages/
-│   ├── lexicon/            # Lexicon definitions package
-│   │   ├── lexicons/       # ATProto lexicon JSON files
-│   │   └── src/
-│   │       ├── types/      # Generated TypeScript types
-│   │       ├── lexicons.ts # Lexicon registry
-│   │       └── index.ts    # Package exports
 │   ├── sdk-core/           # Core SDK package
 │   │   ├── src/
 │   │   │   ├── auth/       # OAuth client
@@ -320,6 +324,7 @@ pnpm changeset
 ```
 
 Follow the prompts to:
+
 1. Select changed packages
 2. Choose version bump type (major/minor/patch)
 3. Write a summary for the changelog

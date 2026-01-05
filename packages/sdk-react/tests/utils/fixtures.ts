@@ -81,13 +81,19 @@ export function createMockHypercert(overrides: Partial<Hypercert> = {}): Hyperce
   const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
   return {
-    uri: "at://did:plc:test123/org.hypercerts.claim/test-rkey",
+    uri: "at://did:plc:test123/org.hypercerts.claim.activity/test-rkey",
     cid: "bafyreitesthypercertcid123456789",
-    $type: "org.hypercerts.claim",
+    $type: "org.hypercerts.claim.activity",
     title: "Test Hypercert",
     shortDescription: "A test hypercert",
     description: "A test hypercert for testing purposes",
-    workScope: "Testing",
+    workScope: {
+      withinAllOf: ["Testing"],
+      withinAnyOf: [],
+      withinNoneOf: [],
+    },
+    startDate: yearAgo.toISOString(),
+    endDate: now.toISOString(),
     workTimeFrameFrom: yearAgo.toISOString().split("T")[0],
     workTimeFrameTo: now.toISOString().split("T")[0],
     createdAt: now.toISOString(),

@@ -2,33 +2,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
 import { ProfileOperationsImpl } from "../../src/repository/ProfileOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
+import { createMockAgent, TEST_REPO_DID, TEST_PDS_URL } from "../utils/mocks.js";
 
 describe("ProfileOperationsImpl", () => {
-  let mockAgent: Partial<Agent>;
+  let mockAgent: ReturnType<typeof createMockAgent>;
   let profileOps: ProfileOperationsImpl;
-  const repoDid = "did:plc:testdid123";
-  const serverUrl = "https://pds.example.com";
 
   beforeEach(() => {
-    mockAgent = {
-      getProfile: vi.fn(),
-      com: {
-        atproto: {
-          repo: {
-            getRecord: vi.fn(),
-            putRecord: vi.fn(),
-            uploadBlob: vi.fn(),
-          },
-        },
-      },
-    };
-
-    profileOps = new ProfileOperationsImpl(mockAgent as Agent, repoDid, serverUrl);
+    mockAgent = createMockAgent(vi);
+    profileOps = new ProfileOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL);
   });
 
   describe("get", () => {
     it("should get profile successfully", async () => {
-      mockAgent.getProfile.mockResolvedValue({
+      mockAgent.getProfile!.mockResolvedValue({
         success: true,
         data: {
           handle: "test.bsky.social",
@@ -46,11 +33,11 @@ describe("ProfileOperationsImpl", () => {
       expect(result.description).toBe("A test user");
       expect(result.avatar).toBe("https://example.com/avatar.jpg");
       expect(result.banner).toBe("https://example.com/banner.jpg");
-      expect(mockAgent.getProfile).toHaveBeenCalledWith({ actor: repoDid });
+      expect(mockAgent.getProfile).toHaveBeenCalledWith({ actor: TEST_REPO_DID });
     });
 
     it("should handle profile without optional fields", async () => {
-      mockAgent.getProfile.mockResolvedValue({
+      mockAgent.getProfile!.mockResolvedValue({
         success: true,
         data: {
           handle: "minimal.bsky.social",
@@ -65,7 +52,7 @@ describe("ProfileOperationsImpl", () => {
     });
 
     it("should throw NetworkError when API returns success: false", async () => {
-      mockAgent.getProfile.mockResolvedValue({
+      mockAgent.getProfile!.mockResolvedValue({
         success: false,
       });
 
@@ -73,7 +60,7 @@ describe("ProfileOperationsImpl", () => {
     });
 
     it("should throw NetworkError when API throws", async () => {
-      mockAgent.getProfile.mockRejectedValue(new Error("Profile not found"));
+      mockAgent.getProfile!.mockRejectedValue(new Error("Profile not found"));
 
       await expect(profileOps.get()).rejects.toThrow(NetworkError);
     });

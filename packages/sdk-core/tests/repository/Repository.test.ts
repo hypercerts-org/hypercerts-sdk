@@ -1,22 +1,18 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { SDSRequiredError } from "../../src/core/errors.js";
-import { LexiconRegistry } from "../../src/repository/LexiconRegistry.js";
 import { Repository } from "../../src/repository/Repository.js";
 import { createMockSession } from "../utils/repository-fixtures.js";
 
 describe("Repository", () => {
   let mockSession: ReturnType<typeof createMockSession>;
-  let lexiconRegistry: LexiconRegistry;
   let repository: Repository;
 
   beforeEach(() => {
     mockSession = createMockSession();
-    lexiconRegistry = new LexiconRegistry();
     repository = new Repository(
       mockSession,
       "https://pds.example.com",
       mockSession.did,
-      lexiconRegistry,
       false, // Not SDS
     );
   });
@@ -33,7 +29,6 @@ describe("Repository", () => {
         mockSession,
         "https://sds.example.com",
         mockSession.did,
-        lexiconRegistry,
         true, // SDS
       );
 
@@ -109,13 +104,7 @@ describe("Repository", () => {
     });
 
     it("should return CollaboratorOperations on SDS repository", () => {
-      const sdsRepo = new Repository(
-        mockSession,
-        "https://sds.example.com",
-        mockSession.did,
-        lexiconRegistry,
-        true,
-      );
+      const sdsRepo = new Repository(mockSession, "https://sds.example.com", mockSession.did, true);
 
       const collaborators = sdsRepo.collaborators;
       expect(collaborators).toBeDefined();
@@ -131,13 +120,7 @@ describe("Repository", () => {
     });
 
     it("should return OrganizationOperations on SDS repository", () => {
-      const sdsRepo = new Repository(
-        mockSession,
-        "https://sds.example.com",
-        mockSession.did,
-        lexiconRegistry,
-        true,
-      );
+      const sdsRepo = new Repository(mockSession, "https://sds.example.com", mockSession.did, true);
 
       const organizations = sdsRepo.organizations;
       expect(organizations).toBeDefined();

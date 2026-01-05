@@ -2,28 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
 import { BlobOperationsImpl } from "../../src/repository/BlobOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
+import { createMockAgent, TEST_REPO_DID, TEST_PDS_URL } from "../utils/mocks.js";
 
 describe("BlobOperationsImpl", () => {
-  let mockAgent: Partial<Agent>;
+  let mockAgent: ReturnType<typeof createMockAgent>;
   let blobOps: BlobOperationsImpl;
-  const repoDid = "did:plc:testdid123";
-  const serverUrl = "https://pds.example.com";
 
   beforeEach(() => {
-    mockAgent = {
-      com: {
-        atproto: {
-          repo: {
-            uploadBlob: vi.fn(),
-          },
-          sync: {
-            getBlob: vi.fn(),
-          },
-        },
-      },
-    };
-
-    blobOps = new BlobOperationsImpl(mockAgent as Agent, repoDid, serverUrl);
+    mockAgent = createMockAgent(vi);
+    blobOps = new BlobOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL);
   });
 
   describe("upload", () => {
@@ -110,7 +97,7 @@ describe("BlobOperationsImpl", () => {
   describe("get", () => {
     it("should get a blob successfully", async () => {
       const mockData = new Uint8Array([1, 2, 3, 4]);
-      mockAgent.com.atproto.sync.getBlob.mockResolvedValue({
+      mockAgent.com.atproto.sync!.getBlob.mockResolvedValue({
         success: true,
         data: mockData,
         headers: { "content-type": "image/png" },
@@ -120,15 +107,15 @@ describe("BlobOperationsImpl", () => {
 
       expect(result.data).toEqual(mockData);
       expect(result.mimeType).toBe("image/png");
-      expect(mockAgent.com.atproto.sync.getBlob).toHaveBeenCalledWith({
-        did: repoDid,
+      expect(mockAgent.com.atproto.sync!.getBlob).toHaveBeenCalledWith({
+        did: TEST_REPO_DID,
         cid: "bafyrei123",
       });
     });
 
     it("should default to application/octet-stream if no content-type header", async () => {
       const mockData = new Uint8Array([1, 2, 3]);
-      mockAgent.com.atproto.sync.getBlob.mockResolvedValue({
+      mockAgent.com.atproto.sync!.getBlob.mockResolvedValue({
         success: true,
         data: mockData,
         headers: {},
@@ -140,7 +127,7 @@ describe("BlobOperationsImpl", () => {
     });
 
     it("should throw NetworkError when API returns success: false", async () => {
-      mockAgent.com.atproto.sync.getBlob.mockResolvedValue({
+      mockAgent.com.atproto.sync!.getBlob.mockResolvedValue({
         success: false,
       });
 
@@ -148,7 +135,7 @@ describe("BlobOperationsImpl", () => {
     });
 
     it("should throw NetworkError when API throws", async () => {
-      mockAgent.com.atproto.sync.getBlob.mockRejectedValue(new Error("Blob not found"));
+      mockAgent.com.atproto.sync!.getBlob.mockRejectedValue(new Error("Blob not found"));
 
       await expect(blobOps.get("bafyrei123")).rejects.toThrow(NetworkError);
     });

@@ -15,8 +15,10 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
+  "prepublishOnly": "pnpm run check",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -31,12 +33,14 @@
   },
   "scripts": {
     "build": "rollup -c",
-    "test": "vitest",
+    "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm run build && pnpm run test",
     "clean": "rm -rf dist"
   },
   "keywords": [
@@ -64,13 +68,10 @@
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^16.0.0",
     "@types/react": "^18.0.0",
-    "@vitest/coverage-v8": "^3.0.0",
-    "@vitest/ui": "^3.0.0",
     "jsdom": "^26.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "rollup": "^4.0.0",
-    "rollup-plugin-dts": "^6.0.0",
-    "vitest": "^3.0.0"
+    "rollup-plugin-dts": "^6.0.0"
   }
 }

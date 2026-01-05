@@ -31,7 +31,7 @@ export function useATProtoSDK(): ATProtoSDK {
   if (!context) {
     throw new Error(
       "useATProtoSDK must be used within an ATProtoProvider. " +
-        "Make sure to wrap your app with the Provider from createATProtoReact()."
+        "Make sure to wrap your app with the Provider from createATProtoReact().",
     );
   }
 

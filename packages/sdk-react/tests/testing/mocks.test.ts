@@ -165,8 +165,8 @@ describe("createMockHypercert", () => {
     const hc = createMockHypercert();
 
     expect(hc.title).toBe("Mock Hypercert");
-    expect(hc.workScope).toBe("Testing");
-    expect(hc.$type).toBe("org.hypercerts.claim");
+    expect(hc.workScope?.withinAllOf).toEqual(["Testing"]);
+    expect(hc.$type).toBe("org.hypercerts.claim.activity");
     expect(hc.uri).toContain("at://");
     expect(hc.cid).toBeTruthy();
   });
@@ -174,18 +174,22 @@ describe("createMockHypercert", () => {
   it("should allow overriding hypercert properties", () => {
     const hc = createMockHypercert({
       title: "Custom Hypercert",
-      workScope: "Climate",
+      workScope: {
+        withinAllOf: ["Climate"],
+        withinAnyOf: [],
+        withinNoneOf: [],
+      },
     });
 
     expect(hc.title).toBe("Custom Hypercert");
-    expect(hc.workScope).toBe("Climate");
+    expect(hc.workScope?.withinAllOf).toEqual(["Climate"]);
   });
 
   it("should set valid date ranges", () => {
     const hc = createMockHypercert();
 
-    const from = new Date(hc.workTimeFrameFrom);
-    const to = new Date(hc.workTimeFrameTo);
+    const from = new Date(hc.workTimeFrameFrom as string);
+    const to = new Date(hc.workTimeFrameTo as string);
 
     expect(from).toBeInstanceOf(Date);
     expect(to).toBeInstanceOf(Date);

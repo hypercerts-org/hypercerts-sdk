@@ -38,38 +38,45 @@ export type {
   CreateHypercertResult,
 } from "./repository/interfaces.js";
 
-// Lexicon Registry
-export { LexiconRegistry } from "./repository/LexiconRegistry.js";
-export type { ValidationResult } from "./repository/LexiconRegistry.js";
-
 // ============================================================================
 // Lexicon Types and Validation (from @hypercerts-org/lexicon)
 // ============================================================================
 
 // Namespaced types with validation functions (isRecord, validateRecord)
 export {
-  OrgHypercertsClaim,
+  OrgHypercertsClaimActivity,
   OrgHypercertsClaimRights,
   OrgHypercertsClaimContribution,
   OrgHypercertsClaimMeasurement,
   OrgHypercertsClaimEvaluation,
   OrgHypercertsClaimEvidence,
-  OrgHypercertsCollection,
+  OrgHypercertsClaimCollection,
+  OrgHypercertsClaimProject,
   AppCertifiedLocation,
+  AppCertifiedBadgeAward,
+  AppCertifiedBadgeDefinition,
+  AppCertifiedBadgeResponse,
+  OrgHypercertsFundingReceipt,
   ComAtprotoRepoStrongRef,
-  // Validation utilities
+  // Re-export values from lexicon
   validate,
-  schemas,
-  schemaDict,
-  lexicons,
-  ids,
+  HYPERCERTS_SCHEMAS,
+  HYPERCERTS_SCHEMA_DICT,
+  HYPERCERTS_NSIDS_BY_TYPE,
+  HYPERCERTS_NSIDS,
   // Lexicon constants
   HYPERCERT_LEXICONS,
   HYPERCERT_COLLECTIONS,
 } from "./services/hypercerts/types.js";
 
 // Type-only exports
-export type { AppCertifiedDefs } from "./services/hypercerts/types.js";
+export type {
+  HYPERCERTS_LEXICON_JSON,
+  HYPERCERTS_LEXICON_DOC,
+  lexicons,
+  AppCertifiedDefs,
+  OrgHypercertsDefs,
+} from "./services/hypercerts/types.js";
 
 // Type aliases for generated lexicon types
 export type {
@@ -81,13 +88,22 @@ export type {
   HypercertEvaluation,
   HypercertCollection,
   HypercertCollectionClaimItem,
+  HypercertProject,
   HypercertLocation,
+  BadgeAward,
+  BadgeDefinition,
+  BadgeResponse,
+  FundingReceipt,
   // SDK-specific types
   HypercertEvidence,
   HypercertImage,
+  HypercertImageRecord,
   BlobRef,
   HypercertWithMetadata,
 } from "./services/hypercerts/types.js";
+
+// Re-export ATProto lexicon types
+export type { JsonBlobRef } from "./services/hypercerts/types.js";
 
 // Errors
 export {

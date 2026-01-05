@@ -9,7 +9,6 @@
 
 import type { Agent } from "@atproto/api";
 import { NetworkError, ValidationError } from "../core/errors.js";
-import type { LexiconRegistry } from "./LexiconRegistry.js";
 import type { RecordOperations } from "./interfaces.js";
 import type { CreateResult, UpdateResult, PaginatedList } from "./types.js";
 
@@ -59,14 +58,12 @@ export class RecordOperationsImpl implements RecordOperations {
    *
    * @param agent - AT Protocol Agent for making API calls
    * @param repoDid - DID of the repository to operate on
-   * @param lexiconRegistry - Registry for record validation
    *
    * @internal
    */
   constructor(
     private agent: Agent,
     private repoDid: string,
-    private lexiconRegistry: LexiconRegistry,
   ) {}
 
   /**
@@ -103,11 +100,6 @@ export class RecordOperationsImpl implements RecordOperations {
    * ```
    */
   async create(params: { collection: string; record: unknown; rkey?: string }): Promise<CreateResult> {
-    const validation = this.lexiconRegistry.validate(params.collection, params.record);
-    if (!validation.valid) {
-      throw new ValidationError(`Invalid record for collection ${params.collection}: ${validation.error}`);
-    }
-
     try {
       const result = await this.agent.com.atproto.repo.createRecord({
         repo: this.repoDid,
@@ -166,11 +158,6 @@ export class RecordOperationsImpl implements RecordOperations {
    * ```
    */
   async update(params: { collection: string; rkey: string; record: unknown }): Promise<UpdateResult> {
-    const validation = this.lexiconRegistry.validate(params.collection, params.record);
-    if (!validation.valid) {
-      throw new ValidationError(`Invalid record for collection ${params.collection}: ${validation.error}`);
-    }
-
     try {
       const result = await this.agent.com.atproto.repo.putRecord({
         repo: this.repoDid,

@@ -1,5 +1,6 @@
 import type { SessionStore, StateStore, CacheInterface, LoggerInterface } from "../../src/core/interfaces.js";
 import type { NodeSavedSession, NodeSavedState } from "@atproto/oauth-client-node";
+import type { Mock } from "vitest";
 
 /**
  * In-memory session store for testing
@@ -106,4 +107,90 @@ export class MockLogger implements LoggerInterface {
   clear(): void {
     this.logs = [];
   }
+}
+
+/**
+ * Mock types for testing repository operations.
+ * These types provide type-safe mocks for Agent and Session objects.
+ */
+
+/**
+ * Comprehensive mocked Agent type with all possible operations.
+ * Test files can include all properties even if some aren't used.
+ */
+export type MockedAgent = {
+  getProfile?: Mock; // Optional - only include if test uses it
+  com: {
+    atproto: {
+      repo: {
+        createRecord: Mock;
+        putRecord: Mock;
+        getRecord: Mock;
+        listRecords: Mock;
+        deleteRecord: Mock;
+        uploadBlob: Mock;
+      };
+      sync?: {
+        getBlob: Mock;
+      };
+    };
+  };
+};
+
+/**
+ * Mocked Session type for testing SDS operations (CollaboratorOperationsImpl, OrganizationOperationsImpl).
+ */
+export type MockedSession = {
+  did?: string;
+  sub: string;
+  fetchHandler: Mock;
+};
+
+/**
+ * Test constants used across repository tests.
+ */
+export const TEST_REPO_DID = "did:plc:testdid123";
+export const TEST_PDS_URL = "https://pds.example.com";
+export const TEST_SDS_URL = "https://sds.example.com";
+
+/**
+ * Creates a mock Agent with all possible operations.
+ * Includes all repo operations, getProfile, and sync.getBlob.
+ * Tests can use only the properties they need.
+ *
+ * @param vi - Vitest's vi object (from vitest import)
+ */
+export function createMockAgent(vi: typeof import("vitest").vi): MockedAgent {
+  return {
+    getProfile: vi.fn(),
+    com: {
+      atproto: {
+        repo: {
+          createRecord: vi.fn(),
+          putRecord: vi.fn(),
+          getRecord: vi.fn(),
+          listRecords: vi.fn(),
+          deleteRecord: vi.fn(),
+          uploadBlob: vi.fn(),
+        },
+        sync: {
+          getBlob: vi.fn(),
+        },
+      },
+    },
+  };
+}
+
+/**
+ * Creates a mock Session for SDS operations.
+ *
+ * @param vi - Vitest's vi object (from vitest import)
+ * @param did - DID to use (defaults to "did:plc:user123")
+ */
+export function createMockSession(vi: typeof import("vitest").vi, did: string = "did:plc:user123"): MockedSession {
+  return {
+    did,
+    sub: did,
+    fetchHandler: vi.fn(),
+  };
 }

@@ -12,10 +12,10 @@ import type { Agent } from "@atproto/api";
 import { EventEmitter } from "eventemitter3";
 import { NetworkError, ValidationError } from "../core/errors.js";
 import type { LoggerInterface } from "../core/interfaces.js";
-import type { LexiconRegistry } from "./LexiconRegistry.js";
+import { validate } from "@hypercerts-org/lexicon";
 import {
   HYPERCERT_COLLECTIONS,
-  type BlobRef,
+  type JsonBlobRef,
   type HypercertEvidence,
   type HypercertClaim,
   type HypercertRights,
@@ -87,7 +87,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param agent - AT Protocol Agent for making API calls
    * @param repoDid - DID of the repository to operate on
    * @param _serverUrl - Server URL (reserved for future use)
-   * @param lexiconRegistry - Registry for record validation
    * @param logger - Optional logger for debugging
    *
    * @internal
@@ -96,7 +95,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     private agent: Agent,
     private repoDid: string,
     private _serverUrl: string,
-    private lexiconRegistry: LexiconRegistry,
     private logger?: LoggerInterface,
   ) {
     super();
@@ -116,6 +114,238 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       } catch (err) {
         this.logger?.error(`Error in progress handler: ${err instanceof Error ? err.message : "Unknown"}`);
       }
+    }
+  }
+
+  /**
+   * Uploads an image blob and returns a blob reference.
+   *
+   * @param image - Image blob to upload
+   * @param onProgress - Optional progress callback
+   * @returns Promise resolving to blob reference or undefined
+   * @throws {@link NetworkError} if upload fails
+   * @internal
+   */
+  private async uploadImageBlob(
+    image: Blob,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<JsonBlobRef | undefined> {
+    this.emitProgress(onProgress, { name: "uploadImage", status: "start" });
+    try {
+      const arrayBuffer = await image.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
+        encoding: image.type || "image/jpeg",
+      });
+      if (uploadResult.success) {
+        const blobRef: JsonBlobRef = {
+          $type: "blob",
+          ref: { $link: uploadResult.data.blob.ref.toString() },
+          mimeType: uploadResult.data.blob.mimeType,
+          size: uploadResult.data.blob.size,
+        };
+        this.emitProgress(onProgress, {
+          name: "uploadImage",
+          status: "success",
+          data: { size: image.size },
+        });
+        return blobRef;
+      }
+      throw new NetworkError("Image upload succeeded but returned no blob reference");
+    } catch (error) {
+      this.emitProgress(onProgress, { name: "uploadImage", status: "error", error: error as Error });
+      throw new NetworkError(`Failed to upload image: ${error instanceof Error ? error.message : "Unknown"}`, error);
+    }
+  }
+
+  /**
+   * Creates a rights record for a hypercert.
+   *
+   * @param rights - Rights data
+   * @param createdAt - ISO timestamp for creation
+   * @param onProgress - Optional progress callback
+   * @returns Promise resolving to rights URI and CID
+   * @throws {@link ValidationError} if validation fails
+   * @throws {@link NetworkError} if creation fails
+   * @internal
+   */
+  private async createRightsRecord(
+    rights: { name: string; type: string; description: string },
+    createdAt: string,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<{ uri: string; cid: string }> {
+    this.emitProgress(onProgress, { name: "createRights", status: "start" });
+    const rightsRecord: HypercertRights = {
+      $type: HYPERCERT_COLLECTIONS.RIGHTS,
+      rightsName: rights.name,
+      rightsType: rights.type,
+      rightsDescription: rights.description,
+      createdAt,
+    };
+
+    const rightsValidation = validate(rightsRecord, HYPERCERT_COLLECTIONS.RIGHTS, "main", false);
+    if (!rightsValidation.success) {
+      throw new ValidationError(`Invalid rights record: ${rightsValidation.error?.message}`);
+    }
+
+    const rightsResult = await this.agent.com.atproto.repo.createRecord({
+      repo: this.repoDid,
+      collection: HYPERCERT_COLLECTIONS.RIGHTS,
+      record: rightsRecord as Record<string, unknown>,
+    });
+
+    if (!rightsResult.success) {
+      throw new NetworkError("Failed to create rights record");
+    }
+
+    const uri = rightsResult.data.uri;
+    const cid = rightsResult.data.cid;
+    this.emit("rightsCreated", { uri, cid });
+    this.emitProgress(onProgress, {
+      name: "createRights",
+      status: "success",
+      data: { uri },
+    });
+
+    return { uri, cid };
+  }
+
+  /**
+   * Creates the main hypercert record.
+   *
+   * @param params - Hypercert creation parameters
+   * @param rightsUri - URI of the associated rights record
+   * @param rightsCid - CID of the associated rights record
+   * @param imageBlobRef - Optional image blob reference
+   * @param createdAt - ISO timestamp for creation
+   * @param onProgress - Optional progress callback
+   * @returns Promise resolving to hypercert URI and CID
+   * @throws {@link ValidationError} if validation fails
+   * @throws {@link NetworkError} if creation fails
+   * @internal
+   */
+  private async createHypercertRecord(
+    params: CreateHypercertParams,
+    rightsUri: string,
+    rightsCid: string,
+    imageBlobRef: JsonBlobRef | undefined,
+    createdAt: string,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<{ uri: string; cid: string }> {
+    this.emitProgress(onProgress, { name: "createHypercert", status: "start" });
+    const hypercertRecord: Record<string, unknown> = {
+      $type: HYPERCERT_COLLECTIONS.CLAIM,
+      title: params.title,
+      shortDescription: params.shortDescription,
+      description: params.description,
+      workScope: params.workScope,
+      workTimeFrameFrom: params.workTimeFrameFrom,
+      workTimeFrameTo: params.workTimeFrameTo,
+      rights: { uri: rightsUri, cid: rightsCid },
+      createdAt,
+    };
+
+    if (imageBlobRef) {
+      hypercertRecord.image = imageBlobRef;
+    }
+
+    if (params.evidence && params.evidence.length > 0) {
+      hypercertRecord.evidence = params.evidence;
+    }
+
+    const hypercertValidation = validate(hypercertRecord, HYPERCERT_COLLECTIONS.CLAIM, "#main", false);
+    if (!hypercertValidation.success) {
+      throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error?.message}`);
+    }
+
+    const hypercertResult = await this.agent.com.atproto.repo.createRecord({
+      repo: this.repoDid,
+      collection: HYPERCERT_COLLECTIONS.CLAIM,
+      record: hypercertRecord,
+    });
+
+    if (!hypercertResult.success) {
+      throw new NetworkError("Failed to create hypercert record");
+    }
+
+    const uri = hypercertResult.data.uri;
+    const cid = hypercertResult.data.cid;
+    this.emit("recordCreated", { uri, cid });
+    this.emitProgress(onProgress, {
+      name: "createHypercert",
+      status: "success",
+      data: { uri },
+    });
+
+    return { uri, cid };
+  }
+
+  /**
+   * Attaches a location to a hypercert with progress tracking.
+   *
+   * @param hypercertUri - URI of the hypercert
+   * @param location - Location data
+   * @param onProgress - Optional progress callback
+   * @returns Promise resolving to location URI
+   * @internal
+   */
+  private async attachLocationWithProgress(
+    hypercertUri: string,
+    location: { value: string; name?: string; description?: string; srs?: string; geojson?: Blob },
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<string> {
+    this.emitProgress(onProgress, { name: "attachLocation", status: "start" });
+    try {
+      const locationResult = await this.attachLocation(hypercertUri, location);
+      this.emitProgress(onProgress, {
+        name: "attachLocation",
+        status: "success",
+        data: { uri: locationResult.uri },
+      });
+      return locationResult.uri;
+    } catch (error) {
+      this.emitProgress(onProgress, { name: "attachLocation", status: "error", error: error as Error });
+      this.logger?.warn(`Failed to attach location: ${error instanceof Error ? error.message : "Unknown"}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Creates contribution records with progress tracking.
+   *
+   * @param hypercertUri - URI of the hypercert
+   * @param contributions - Array of contribution data
+   * @param onProgress - Optional progress callback
+   * @returns Promise resolving to array of contribution URIs
+   * @internal
+   */
+  private async createContributionsWithProgress(
+    hypercertUri: string,
+    contributions: Array<{ contributors: string[]; role: string; description?: string }>,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<string[]> {
+    this.emitProgress(onProgress, { name: "createContributions", status: "start" });
+    try {
+      const contributionUris: string[] = [];
+      for (const contrib of contributions) {
+        const contribResult = await this.addContribution({
+          hypercertUri,
+          contributors: contrib.contributors,
+          role: contrib.role,
+          description: contrib.description,
+        });
+        contributionUris.push(contribResult.uri);
+      }
+      this.emitProgress(onProgress, {
+        name: "createContributions",
+        status: "success",
+        data: { count: contributionUris.length },
+      });
+      return contributionUris;
+    } catch (error) {
+      this.emitProgress(onProgress, { name: "createContributions", status: "error", error: error as Error });
+      this.logger?.warn(`Failed to create contributions: ${error instanceof Error ? error.message : "Unknown"}`);
+      throw error;
     }
   }
 
@@ -196,156 +426,48 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
     try {
       // Step 1: Upload image if provided
-      let imageBlobRef: BlobRef | undefined;
-      if (params.image) {
-        this.emitProgress(params.onProgress, { name: "uploadImage", status: "start" });
-        try {
-          const arrayBuffer = await params.image.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-            encoding: params.image.type || "image/jpeg",
-          });
-          if (uploadResult.success) {
-            imageBlobRef = {
-              $type: "blob",
-              ref: { $link: uploadResult.data.blob.ref.toString() },
-              mimeType: uploadResult.data.blob.mimeType,
-              size: uploadResult.data.blob.size,
-            };
-          }
-          this.emitProgress(params.onProgress, {
-            name: "uploadImage",
-            status: "success",
-            data: { size: params.image.size },
-          });
-        } catch (error) {
-          this.emitProgress(params.onProgress, { name: "uploadImage", status: "error", error: error as Error });
-          throw new NetworkError(
-            `Failed to upload image: ${error instanceof Error ? error.message : "Unknown"}`,
-            error,
-          );
-        }
-      }
+      const imageBlobRef = params.image ? await this.uploadImageBlob(params.image, params.onProgress) : undefined;
 
       // Step 2: Create rights record
-      this.emitProgress(params.onProgress, { name: "createRights", status: "start" });
-      const rightsRecord: HypercertRights = {
-        $type: HYPERCERT_COLLECTIONS.RIGHTS,
-        rightsName: params.rights.name,
-        rightsType: params.rights.type,
-        rightsDescription: params.rights.description,
+      const { uri: rightsUri, cid: rightsCid } = await this.createRightsRecord(
+        params.rights,
         createdAt,
-      };
-
-      const rightsValidation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.RIGHTS, rightsRecord);
-      if (!rightsValidation.valid) {
-        throw new ValidationError(`Invalid rights record: ${rightsValidation.error}`);
-      }
-
-      const rightsResult = await this.agent.com.atproto.repo.createRecord({
-        repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.RIGHTS,
-        record: rightsRecord as Record<string, unknown>,
-      });
-
-      if (!rightsResult.success) {
-        throw new NetworkError("Failed to create rights record");
-      }
-
-      result.rightsUri = rightsResult.data.uri;
-      result.rightsCid = rightsResult.data.cid;
-      this.emit("rightsCreated", { uri: result.rightsUri, cid: result.rightsCid });
-      this.emitProgress(params.onProgress, {
-        name: "createRights",
-        status: "success",
-        data: { uri: result.rightsUri },
-      });
+        params.onProgress,
+      );
+      result.rightsUri = rightsUri;
+      result.rightsCid = rightsCid;
 
       // Step 3: Create hypercert record
-      this.emitProgress(params.onProgress, { name: "createHypercert", status: "start" });
-      const hypercertRecord: Record<string, unknown> = {
-        $type: HYPERCERT_COLLECTIONS.CLAIM,
-        title: params.title,
-        shortDescription: params.shortDescription,
-        description: params.description,
-        workScope: params.workScope,
-        workTimeFrameFrom: params.workTimeFrameFrom,
-        workTimeFrameTo: params.workTimeFrameTo,
-        rights: { uri: result.rightsUri, cid: result.rightsCid },
+      const { uri: hypercertUri, cid: hypercertCid } = await this.createHypercertRecord(
+        params,
+        rightsUri,
+        rightsCid,
+        imageBlobRef,
         createdAt,
-      };
-
-      if (imageBlobRef) {
-        hypercertRecord.image = imageBlobRef;
-      }
-
-      if (params.evidence && params.evidence.length > 0) {
-        hypercertRecord.evidence = params.evidence;
-      }
-
-      const hypercertValidation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.CLAIM, hypercertRecord);
-      if (!hypercertValidation.valid) {
-        throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error}`);
-      }
-
-      const hypercertResult = await this.agent.com.atproto.repo.createRecord({
-        repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.CLAIM,
-        record: hypercertRecord,
-      });
-
-      if (!hypercertResult.success) {
-        throw new NetworkError("Failed to create hypercert record");
-      }
-
-      result.hypercertUri = hypercertResult.data.uri;
-      result.hypercertCid = hypercertResult.data.cid;
-      this.emit("recordCreated", { uri: result.hypercertUri, cid: result.hypercertCid });
-      this.emitProgress(params.onProgress, {
-        name: "createHypercert",
-        status: "success",
-        data: { uri: result.hypercertUri },
-      });
+        params.onProgress,
+      );
+      result.hypercertUri = hypercertUri;
+      result.hypercertCid = hypercertCid;
 
       // Step 4: Attach location if provided
       if (params.location) {
-        this.emitProgress(params.onProgress, { name: "attachLocation", status: "start" });
         try {
-          const locationResult = await this.attachLocation(result.hypercertUri, params.location);
-          result.locationUri = locationResult.uri;
-          this.emitProgress(params.onProgress, {
-            name: "attachLocation",
-            status: "success",
-            data: { uri: result.locationUri },
-          });
-        } catch (error) {
-          this.emitProgress(params.onProgress, { name: "attachLocation", status: "error", error: error as Error });
-          this.logger?.warn(`Failed to attach location: ${error instanceof Error ? error.message : "Unknown"}`);
+          result.locationUri = await this.attachLocationWithProgress(hypercertUri, params.location, params.onProgress);
+        } catch {
+          // Error already logged and progress emitted
         }
       }
 
       // Step 5: Create contributions if provided
       if (params.contributions && params.contributions.length > 0) {
-        this.emitProgress(params.onProgress, { name: "createContributions", status: "start" });
-        result.contributionUris = [];
         try {
-          for (const contrib of params.contributions) {
-            const contribResult = await this.addContribution({
-              hypercertUri: result.hypercertUri,
-              contributors: contrib.contributors,
-              role: contrib.role,
-              description: contrib.description,
-            });
-            result.contributionUris.push(contribResult.uri);
-          }
-          this.emitProgress(params.onProgress, {
-            name: "createContributions",
-            status: "success",
-            data: { count: result.contributionUris.length },
-          });
-        } catch (error) {
-          this.emitProgress(params.onProgress, { name: "createContributions", status: "error", error: error as Error });
-          this.logger?.warn(`Failed to create contributions: ${error instanceof Error ? error.message : "Unknown"}`);
+          result.contributionUris = await this.createContributionsWithProgress(
+            hypercertUri,
+            params.contributions,
+            params.onProgress,
+          );
+        } catch {
+          // Error already logged and progress emitted
         }
       }
 
@@ -457,9 +579,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         recordForUpdate.image = existingRecord.image;
       }
 
-      const validation = this.lexiconRegistry.validate(collection, recordForUpdate);
-      if (!validation.valid) {
-        throw new ValidationError(`Invalid hypercert record: ${validation.error}`);
+      const validation = validate(recordForUpdate, collection, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid hypercert record: ${validation.error?.message}`);
       }
 
       const result = await this.agent.com.atproto.repo.putRecord({
@@ -516,10 +638,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         throw new NetworkError("Failed to get hypercert");
       }
 
-      // Validate with lexicon registry (more lenient - doesn't require $type)
-      const validation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.CLAIM, result.data.value);
-      if (!validation.valid) {
-        throw new ValidationError(`Invalid hypercert record format: ${validation.error}`);
+      // Validate with lexicon (more lenient - doesn't require $type)
+      const validation = validate(result.data.value, HYPERCERT_COLLECTIONS.CLAIM, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid hypercert record format: ${validation.error?.message}`);
       }
 
       return {
@@ -674,7 +796,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const createdAt = new Date().toISOString();
 
       // Determine location type and prepare location data
-      let locationData: { $type: string; uri: string } | BlobRef;
+      let locationData: { $type: string; uri: string } | JsonBlobRef;
       let locationType: string;
 
       if (location.geojson) {
@@ -716,9 +838,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         description: location.description,
       };
 
-      const validation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.LOCATION, locationRecord);
-      if (!validation.valid) {
-        throw new ValidationError(`Invalid location record: ${validation.error}`);
+      const validation = validate(locationRecord, HYPERCERT_COLLECTIONS.LOCATION, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid location record: ${validation.error?.message}`);
       }
 
       const result = await this.agent.com.atproto.repo.createRecord({
@@ -762,7 +884,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   async addEvidence(hypercertUri: string, evidence: HypercertEvidence[]): Promise<UpdateResult> {
     try {
       const existing = await this.get(hypercertUri);
-      const existingEvidence = existing.record.evidence || [];
+      const existingEvidence = (existing.record.evidence as HypercertEvidence[]) || [];
       const updatedEvidence = [...existingEvidence, ...evidence];
 
       const result = await this.update({
@@ -822,9 +944,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         contributionRecord.hypercert = { uri: hypercert.uri, cid: hypercert.cid };
       }
 
-      const validation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.CONTRIBUTION, contributionRecord);
-      if (!validation.valid) {
-        throw new ValidationError(`Invalid contribution record: ${validation.error}`);
+      const validation = validate(contributionRecord, HYPERCERT_COLLECTIONS.CONTRIBUTION, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid contribution record: ${validation.error?.message}`);
       }
 
       const result = await this.agent.com.atproto.repo.createRecord({
@@ -900,9 +1022,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         evidenceURI: params.evidenceUris,
       };
 
-      const validation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.MEASUREMENT, measurementRecord);
-      if (!validation.valid) {
-        throw new ValidationError(`Invalid measurement record: ${validation.error}`);
+      const validation = validate(measurementRecord, HYPERCERT_COLLECTIONS.MEASUREMENT, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid measurement record: ${validation.error?.message}`);
       }
 
       const result = await this.agent.com.atproto.repo.createRecord({
@@ -957,9 +1079,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         createdAt,
       };
 
-      const validation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.EVALUATION, evaluationRecord);
-      if (!validation.valid) {
-        throw new ValidationError(`Invalid evaluation record: ${validation.error}`);
+      const validation = validate(evaluationRecord, HYPERCERT_COLLECTIONS.EVALUATION, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid evaluation record: ${validation.error?.message}`);
       }
 
       const result = await this.agent.com.atproto.repo.createRecord({
@@ -1017,7 +1139,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     try {
       const createdAt = new Date().toISOString();
 
-      let coverPhotoRef: BlobRef | undefined;
+      let coverPhotoRef: JsonBlobRef | undefined;
       if (params.coverPhoto) {
         const arrayBuffer = await params.coverPhoto.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
@@ -1049,9 +1171,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         collectionRecord.coverPhoto = coverPhotoRef;
       }
 
-      const validation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.COLLECTION, collectionRecord);
-      if (!validation.valid) {
-        throw new ValidationError(`Invalid collection record: ${validation.error}`);
+      const validation = validate(collectionRecord, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid collection record: ${validation.error?.message}`);
       }
 
       const result = await this.agent.com.atproto.repo.createRecord({
@@ -1109,9 +1231,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       }
 
       // Validate with lexicon registry (more lenient - doesn't require $type)
-      const validation = this.lexiconRegistry.validate(HYPERCERT_COLLECTIONS.COLLECTION, result.data.value);
-      if (!validation.valid) {
-        throw new ValidationError(`Invalid collection record format: ${validation.error}`);
+      const validation = validate(result.data.value, HYPERCERT_COLLECTIONS.COLLECTION, "#main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid collection record format: ${validation.error?.message}`);
       }
 
       return {

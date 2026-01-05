@@ -57,7 +57,7 @@ export function useATProtoAuth(): UseAuthResult {
   if (!context) {
     throw new Error(
       "useATProtoAuth must be used within an ATProtoProvider. " +
-        "Make sure to wrap your app with the Provider from createATProtoReact()."
+        "Make sure to wrap your app with the Provider from createATProtoReact().",
     );
   }
 
@@ -96,13 +96,7 @@ export function useATProtoAuth(): UseAuthResult {
 
   // Login mutation
   const loginMutation = useMutation({
-    mutationFn: async ({
-      identifier,
-      redirectUrl,
-    }: {
-      identifier: string;
-      redirectUrl?: string;
-    }) => {
+    mutationFn: async ({ identifier, redirectUrl }: { identifier: string; redirectUrl?: string }) => {
       const authUrl = await sdk.authorize(identifier);
 
       // Store redirect URL if provided
@@ -170,13 +164,7 @@ export function useATProtoAuth(): UseAuthResult {
     if (sessionQuery.error || loginMutation.error) return "error";
     if (sessionQuery.data) return "authenticated";
     return "idle";
-  }, [
-    sessionQuery.isLoading,
-    sessionQuery.data,
-    sessionQuery.error,
-    loginMutation.isPending,
-    loginMutation.error,
-  ]);
+  }, [sessionQuery.isLoading, sessionQuery.data, sessionQuery.error, loginMutation.isPending, loginMutation.error]);
 
   // Check if session is valid (not expired)
   const isValid = useMemo(() => {
@@ -188,20 +176,13 @@ export function useATProtoAuth(): UseAuthResult {
 
   // Callbacks
   const login = useCallback(
-    (identifier: string, redirectUrl?: string) =>
-      loginMutation.mutateAsync({ identifier, redirectUrl }),
-    [loginMutation]
+    (identifier: string, redirectUrl?: string) => loginMutation.mutateAsync({ identifier, redirectUrl }),
+    [loginMutation],
   );
 
-  const logout = useCallback(
-    () => logoutMutation.mutateAsync(),
-    [logoutMutation]
-  );
+  const logout = useCallback(() => logoutMutation.mutateAsync(), [logoutMutation]);
 
-  const refresh = useCallback(
-    () => refreshMutation.mutateAsync().then(() => undefined),
-    [refreshMutation]
-  );
+  const refresh = useCallback(() => refreshMutation.mutateAsync().then(() => undefined), [refreshMutation]);
 
   return {
     session: sessionQuery.data ?? null,
@@ -212,9 +193,6 @@ export function useATProtoAuth(): UseAuthResult {
     logout,
     refresh,
     isLoading:
-      sessionQuery.isLoading ||
-      loginMutation.isPending ||
-      logoutMutation.isPending ||
-      refreshMutation.isPending,
+      sessionQuery.isLoading || loginMutation.isPending || logoutMutation.isPending || refreshMutation.isPending,
   };
 }

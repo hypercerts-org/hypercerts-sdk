@@ -1,32 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
 import { RecordOperationsImpl } from "../../src/repository/RecordOperationsImpl.js";
-import { LexiconRegistry } from "../../src/repository/LexiconRegistry.js";
-import { NetworkError, ValidationError } from "../../src/core/errors.js";
+import { NetworkError } from "../../src/core/errors.js";
+import { createMockAgent, TEST_REPO_DID } from "../utils/mocks.js";
 
 describe("RecordOperationsImpl", () => {
-  let mockAgent: Partial<Agent>;
-  let lexiconRegistry: LexiconRegistry;
+  let mockAgent: ReturnType<typeof createMockAgent>;
   let recordOps: RecordOperationsImpl;
-  const repoDid = "did:plc:testdid123";
 
   beforeEach(() => {
-    mockAgent = {
-      com: {
-        atproto: {
-          repo: {
-            createRecord: vi.fn(),
-            putRecord: vi.fn(),
-            getRecord: vi.fn(),
-            listRecords: vi.fn(),
-            deleteRecord: vi.fn(),
-          },
-        },
-      },
-    };
-
-    lexiconRegistry = new LexiconRegistry();
-    recordOps = new RecordOperationsImpl(mockAgent as Agent, repoDid, lexiconRegistry);
+    mockAgent = createMockAgent(vi);
+    recordOps = new RecordOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID);
   });
 
   describe("create", () => {
@@ -44,7 +28,7 @@ describe("RecordOperationsImpl", () => {
       expect(result.uri).toBe("at://did:plc:test/collection/rkey");
       expect(result.cid).toBe("bafyrei123");
       expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith({
-        repo: repoDid,
+        repo: TEST_REPO_DID,
         collection: "app.bsky.feed.post",
         record: { text: "Hello world" },
         rkey: undefined,
@@ -91,33 +75,6 @@ describe("RecordOperationsImpl", () => {
         }),
       ).rejects.toThrow(NetworkError);
     });
-
-    it("should validate record against lexicon and throw ValidationError", async () => {
-      // Register a lexicon that requires specific fields
-      lexiconRegistry.register({
-        lexicon: 1,
-        id: "test.validated.record",
-        defs: {
-          main: {
-            type: "record",
-            record: {
-              type: "object",
-              required: ["requiredField"],
-              properties: {
-                requiredField: { type: "string" },
-              },
-            },
-          },
-        },
-      });
-
-      await expect(
-        recordOps.create({
-          collection: "test.validated.record",
-          record: { wrongField: "value" }, // Missing requiredField
-        }),
-      ).rejects.toThrow(ValidationError);
-    });
   });
 
   describe("update", () => {
@@ -136,7 +93,7 @@ describe("RecordOperationsImpl", () => {
       expect(result.uri).toBe("at://did:plc:test/collection/rkey");
       expect(result.cid).toBe("bafyrei456");
       expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith({
-        repo: repoDid,
+        repo: TEST_REPO_DID,
         collection: "app.bsky.feed.post",
         rkey: "test-rkey",
         record: { text: "Updated text" },
@@ -303,7 +260,7 @@ describe("RecordOperationsImpl", () => {
       });
 
       expect(mockAgent.com.atproto.repo.listRecords).toHaveBeenCalledWith({
-        repo: repoDid,
+        repo: TEST_REPO_DID,
         collection: "app.bsky.feed.post",
         limit: 50,
         cursor: "prev-cursor",
@@ -339,7 +296,7 @@ describe("RecordOperationsImpl", () => {
       ).resolves.toBeUndefined();
 
       expect(mockAgent.com.atproto.repo.deleteRecord).toHaveBeenCalledWith({
-        repo: repoDid,
+        repo: TEST_REPO_DID,
         collection: "app.bsky.feed.post",
         rkey: "test-rkey",
       });

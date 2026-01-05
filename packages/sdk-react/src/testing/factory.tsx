@@ -9,14 +9,14 @@ import { QueryClient } from "@tanstack/react-query";
 import type { ATProtoReactInstance } from "../factory/createATProtoReact.js";
 import { atprotoKeys } from "../queries/keys.js";
 import type {
-    UseAuthResult,
-    UseCollaboratorsResult,
-    UseHypercertResult,
-    UseHypercertsResult,
-    UseOrganizationResult,
-    UseOrganizationsResult,
-    UseProfileResult,
-    UseRepositoryResult,
+  UseAuthResult,
+  UseCollaboratorsResult,
+  UseHypercertResult,
+  UseHypercertsResult,
+  UseOrganizationResult,
+  UseOrganizationsResult,
+  UseProfileResult,
+  UseRepositoryResult,
 } from "../types.js";
 import { createMockProfile, createMockSession } from "./mocks.js";
 
@@ -113,7 +113,7 @@ export function createMockATProtoReact(options: MockATProtoReactOptions = {}): A
     pdsUrl: "https://pds.example.com",
     sdsUrl: "https://sds.example.com",
     ...options.sdk,
-  } as ATProtoSDK;
+  } as unknown as ATProtoSDK;
 
   // Default hook implementations
   const defaultAuth: UseAuthResult = {

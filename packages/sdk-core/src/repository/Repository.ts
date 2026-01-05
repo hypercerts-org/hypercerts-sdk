@@ -10,10 +10,8 @@
 import { SDSRequiredError } from "../core/errors.js";
 import type { LoggerInterface } from "../core/interfaces.js";
 import type { Session } from "../core/types.js";
-import { HYPERCERT_LEXICONS } from "@hypercerts-org/lexicon";
 import { ConfigurableAgent } from "../agent/ConfigurableAgent.js";
 import type { Agent } from "@atproto/api";
-import type { LexiconRegistry } from "./LexiconRegistry.js";
 
 // Types
 export type {
@@ -136,7 +134,6 @@ export class Repository {
   private session: Session;
   private serverUrl: string;
   private repoDid: string;
-  private lexiconRegistry: LexiconRegistry;
   private logger?: LoggerInterface;
   private agent: Agent;
   private _isSDS: boolean;
@@ -155,7 +152,6 @@ export class Repository {
    * @param session - Authenticated OAuth session
    * @param serverUrl - Base URL of the AT Protocol server
    * @param repoDid - DID of the repository to operate on
-   * @param lexiconRegistry - Registry for lexicon validation
    * @param isSDS - Whether this is a Shared Data Server
    * @param logger - Optional logger for debugging
    *
@@ -165,18 +161,10 @@ export class Repository {
    *
    * @internal
    */
-  constructor(
-    session: Session,
-    serverUrl: string,
-    repoDid: string,
-    lexiconRegistry: LexiconRegistry,
-    isSDS: boolean,
-    logger?: LoggerInterface,
-  ) {
+  constructor(session: Session, serverUrl: string, repoDid: string, isSDS: boolean, logger?: LoggerInterface) {
     this.session = session;
     this.serverUrl = serverUrl;
     this.repoDid = repoDid;
-    this.lexiconRegistry = lexiconRegistry;
     this._isSDS = isSDS;
     this.logger = logger;
 
@@ -184,11 +172,6 @@ export class Repository {
     // This allows routing to PDS, SDS, or any custom server while maintaining
     // the OAuth session's authentication
     this.agent = new ConfigurableAgent(session, serverUrl);
-
-    this.lexiconRegistry.addToAgent(this.agent);
-
-    // Register hypercert lexicons
-    this.lexiconRegistry.registerMany(HYPERCERT_LEXICONS);
   }
 
   /**
@@ -263,7 +246,7 @@ export class Repository {
    * ```
    */
   repo(did: string): Repository {
-    return new Repository(this.session, this.serverUrl, did, this.lexiconRegistry, this._isSDS, this.logger);
+    return new Repository(this.session, this.serverUrl, did, this._isSDS, this.logger);
   }
 
   /**
@@ -297,7 +280,7 @@ export class Repository {
    */
   get records(): RecordOperations {
     if (!this._records) {
-      this._records = new RecordOperationsImpl(this.agent, this.repoDid, this.lexiconRegistry);
+      this._records = new RecordOperationsImpl(this.agent, this.repoDid);
     }
     return this._records;
   }
@@ -395,13 +378,7 @@ export class Repository {
    */
   get hypercerts(): HypercertOperations {
     if (!this._hypercerts) {
-      this._hypercerts = new HypercertOperationsImpl(
-        this.agent,
-        this.repoDid,
-        this.serverUrl,
-        this.lexiconRegistry,
-        this.logger,
-      );
+      this._hypercerts = new HypercertOperationsImpl(this.agent, this.repoDid, this.serverUrl, this.logger);
     }
     return this._hypercerts;
   }

@@ -1,6 +1,7 @@
 # Hypercerts SDK Implementation Guide
 
-This guide covers setting up the `@hypercerts-org/sdk` (core) and `@hypercerts-org/sdk-react` packages in a Next.js application.
+This guide covers setting up the `@hypercerts-org/sdk` (core) and `@hypercerts-org/sdk-react` packages in a Next.js
+application.
 
 ## Table of Contents
 
@@ -279,9 +280,9 @@ export function HypercertList() {
       <button onClick={handleCreate} disabled={isCreating}>
         {isCreating ? "Creating..." : "Create Hypercert"}
       </button>
-      
+
       {error && <p className="error">{error.message}</p>}
-      
+
       <ul>
         {hypercerts?.map((cert) => (
           <li key={cert.uri}>
@@ -313,15 +314,15 @@ export function HypercertDetail({ uri }: { uri: string }) {
     <div>
       <h1>{hypercert.value.title}</h1>
       <p>{hypercert.value.description}</p>
-      
-      <button 
+
+      <button
         onClick={() => update({ title: "Updated Title" })}
         disabled={isUpdating}
       >
         Update
       </button>
-      
-      <button 
+
+      <button
         onClick={() => remove()}
         disabled={isDeleting}
       >
@@ -357,7 +358,7 @@ export function Organizations() {
       <button onClick={handleCreate} disabled={isCreating}>
         Create Organization
       </button>
-      
+
       <ul>
         {organizations?.map((org) => (
           <li key={org.did}>
@@ -399,7 +400,7 @@ export function Collaborators() {
   return (
     <div>
       <button onClick={handleGrant}>Add Collaborator</button>
-      
+
       <ul>
         {collaborators?.map((collab) => (
           <li key={collab.did}>
@@ -436,7 +437,7 @@ import { HypercertList } from "@/components/HypercertList";
 export default async function HypercertsPage() {
   // Prefetch data on the server
   await ssrHelpers.prefetchHypercerts(queryClient);
-  
+
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <HypercertList />
@@ -455,7 +456,7 @@ import { HypercertList } from "@/components/HypercertList";
 
 export async function getServerSideProps() {
   await ssrHelpers.prefetchHypercerts(queryClient);
-  
+
   return {
     props: {
       dehydratedState: dehydrate(queryClient),
@@ -500,9 +501,7 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get("error");
 
   if (error) {
-    return NextResponse.redirect(
-      new URL(`/?error=${encodeURIComponent(error)}`, request.url)
-    );
+    return NextResponse.redirect(new URL(`/?error=${encodeURIComponent(error)}`, request.url));
   }
 
   if (!code || !state) {
@@ -511,7 +510,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const session = await sdk.callback({ code, state });
-    
+
     // Store session in a secure cookie or return to client
     const response = NextResponse.redirect(new URL("/", request.url));
     response.cookies.set("session", JSON.stringify(session), {
@@ -520,7 +519,7 @@ export async function GET(request: NextRequest) {
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 7, // 1 week
     });
-    
+
     return response;
   } catch (err) {
     console.error("OAuth callback error:", err);
@@ -540,10 +539,7 @@ const sdk = new ATProtoSDK({
   // ... same config as above
 });
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { code, state, error } = req.query;
 
   if (error) {
@@ -563,7 +559,7 @@ export default async function handler(
     // Set session cookie
     res.setHeader(
       "Set-Cookie",
-      `session=${JSON.stringify(session)}; HttpOnly; Secure; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`
+      `session=${JSON.stringify(session)}; HttpOnly; Secure; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`,
     );
 
     return res.redirect("/");
@@ -666,12 +662,12 @@ export default function Home() {
   return (
     <main>
       <h1>Hypercerts App</h1>
-      
+
       {status === "authenticated" ? (
         <div>
           <p>Welcome, {session?.handle}!</p>
           <button onClick={() => logout()}>Sign Out</button>
-          
+
           <h2>Your Hypercerts</h2>
           {isLoading ? (
             <p>Loading...</p>
@@ -682,7 +678,7 @@ export default function Home() {
               ))}
             </ul>
           )}
-          
+
           <button
             onClick={() =>
               create({
@@ -783,7 +779,9 @@ import {
 } from "@hypercerts-org/sdk";
 
 try {
-  await create({ /* ... */ });
+  await create({
+    /* ... */
+  });
 } catch (error) {
   if (error instanceof SessionExpiredError) {
     // Redirect to login
@@ -813,13 +811,13 @@ import { MyComponent } from "./MyComponent";
 describe("MyComponent", () => {
   it("renders authenticated state", () => {
     const mockSession = createMockSession();
-    
+
     render(
       <TestProvider initialSession={mockSession}>
         <MyComponent />
       </TestProvider>
     );
-    
+
     expect(screen.getByText("Welcome")).toBeInTheDocument();
   });
 });
@@ -836,8 +834,8 @@ import { atprotoKeys, queryClient } from "@/lib/atproto";
 queryClient.invalidateQueries({ queryKey: atprotoKeys.hypercerts.all });
 
 // Invalidate specific hypercert
-queryClient.invalidateQueries({ 
-  queryKey: atprotoKeys.hypercerts.detail("at://did:plc:.../...") 
+queryClient.invalidateQueries({
+  queryKey: atprotoKeys.hypercerts.detail("at://did:plc:.../..."),
 });
 
 // Invalidate profile
@@ -854,7 +852,7 @@ import { useSessionSync } from "@hypercerts-org/sdk-react";
 function App() {
   // Automatically sync session changes across browser tabs
   useSessionSync();
-  
+
   return <MyApp />;
 }
 ```

@@ -1,38 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
 import { HypercertOperationsImpl } from "../../src/repository/HypercertOperationsImpl.js";
-import { LexiconRegistry } from "../../src/repository/LexiconRegistry.js";
 import { NetworkError, ValidationError } from "../../src/core/errors.js";
-import { HYPERCERT_LEXICONS } from "@hypercerts-org/lexicon";
+import { createMockAgent, TEST_REPO_DID, TEST_PDS_URL } from "../utils/mocks.js";
+
+// Mock the validate function from lexicon package
+vi.mock("@hypercerts-org/lexicon", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@hypercerts-org/lexicon")>();
+  return {
+    ...actual,
+    validate: vi.fn(() => ({ success: true })),
+  };
+});
 
 describe("HypercertOperationsImpl", () => {
-  let mockAgent: Partial<Agent>;
-  let lexiconRegistry: LexiconRegistry;
+  let mockAgent: ReturnType<typeof createMockAgent>;
   let hypercertOps: HypercertOperationsImpl;
-  const repoDid = "did:plc:testdid123";
-  const serverUrl = "https://pds.example.com";
 
   beforeEach(() => {
-    mockAgent = {
-      com: {
-        atproto: {
-          repo: {
-            createRecord: vi.fn(),
-            putRecord: vi.fn(),
-            getRecord: vi.fn(),
-            listRecords: vi.fn(),
-            deleteRecord: vi.fn(),
-            uploadBlob: vi.fn(),
-          },
-        },
-      },
-    };
-
-    lexiconRegistry = new LexiconRegistry();
-    lexiconRegistry.registerMany(HYPERCERT_LEXICONS);
-    // Mock validate to always return valid - we test LexiconRegistry separately
-    vi.spyOn(lexiconRegistry, "validate").mockReturnValue({ valid: true });
-    hypercertOps = new HypercertOperationsImpl(mockAgent as Agent, repoDid, serverUrl, lexiconRegistry);
+    mockAgent = createMockAgent(vi);
+    hypercertOps = new HypercertOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL);
   });
 
   describe("create", () => {
@@ -101,7 +88,17 @@ describe("HypercertOperationsImpl", () => {
     });
 
     it("should include evidence when provided", async () => {
-      const evidence = [{ uri: "https://example.com/evidence", title: "Evidence" }];
+      const evidence = [
+        {
+          $type: "org.hypercerts.claim.evidence" as const,
+          content: {
+            uri: "https://example.com/evidence",
+            $type: "org.hypercerts.defs#uri" as const,
+          },
+          title: "Evidence",
+          createdAt: new Date().toISOString(),
+        },
+      ];
 
       await hypercertOps.create({
         ...validParams,
