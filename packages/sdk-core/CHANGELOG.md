@@ -1,6 +1,6 @@
 # @hypercerts-org/sdk-core
 
-## 1.0.0-beta.0
+## 0.10.0-beta.1
 
 ### Major Changes
 
