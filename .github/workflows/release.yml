@@ -169,4 +169,3 @@ jobs:
               echo "  - ${NAME}: ${VERSION}"
             done
           fi
-          fi
