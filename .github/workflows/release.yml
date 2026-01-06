@@ -102,12 +102,18 @@ jobs:
       - name: Commit and push version changes
         if: env.RELEASE_TYPE == 'beta'
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "Versioning to: $VERSION"
+          VERSIONS=""
+          for pkg in packages/*/package.json; do
+            NAME=$(node -p "require('./$pkg').name")
+            VERSION=$(node -p "require('./$pkg').version")
+            VERSIONS="${VERSIONS}- ${NAME}: ${VERSION}\n"
+          done
+          echo "Versioning packages:"
+          echo -e "$VERSIONS"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --staged --quiet || git commit -m "chore: version packages (beta) - $VERSION"
+          git diff --staged --quiet || git commit -m "chore: version packages (beta)" -m "$(echo -e "$VERSIONS")"
           git push
 
       # No .npmrc creation needed - npm Trusted Publishers uses GitHub OIDC tokens
@@ -156,6 +162,10 @@ jobs:
           if [ "${{ env.RELEASE_TYPE }}" == "stable" ]; then
             echo "Published - ${{ steps.changesets.outputs.publishedPackages }}"
           else
-            VERSION=$(node -p "require('./package.json').version")
-            echo "Published beta release: $VERSION"
+            echo "Published beta release:"
+            for pkg in packages/*/package.json; do
+              NAME=$(node -p "require('./$pkg').name")
+              VERSION=$(node -p "require('./$pkg').version")
+              echo "  - ${NAME}: ${VERSION}"
+            done
           fi
