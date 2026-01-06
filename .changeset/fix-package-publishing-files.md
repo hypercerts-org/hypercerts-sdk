@@ -1,7 +1,6 @@
 ---
 "@hypercerts-org/sdk-core": patch
 "@hypercerts-org/sdk-react": patch
-"@hypercerts-org/lexicon": patch
 ---
 
 Configure npm publishing to exclude source code and development files. Packages now only include the compiled `dist/`
