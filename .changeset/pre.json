@@ -5,5 +5,20 @@
     "@hypercerts-org/sdk-core": "0.9.0",
     "@hypercerts-org/sdk-react": "0.9.0"
   },
-  "changesets": []
+  "changesets": [
+    "configurable-agent-routing",
+    "fix-collaborator-permissions-format",
+    "fix-lexicon-fields",
+    "fix-missing-type-field-in-records",
+    "fix-package-publishing-files",
+    "fix-repository-routing-to-sds",
+    "fix-sds-api-contracts",
+    "fix-sds-endpoints-and-nsids",
+    "ignore-local-npmrc",
+    "initial-sdk-core-release",
+    "initial-sdk-react-release",
+    "migrate-to-lexicon-package",
+    "oauth-permissions-and-email",
+    "pagination-and-react-hooks-fix"
+  ]
 }
