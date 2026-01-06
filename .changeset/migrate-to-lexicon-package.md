@@ -1,5 +1,5 @@
 ---
-"@hypercerts-org/sdk-core": major
+"@hypercerts-org/sdk-core": minor
 "@hypercerts-org/sdk-react": minor
 ---
 
