@@ -1,6 +1,6 @@
 # @hypercerts-org/sdk-react
 
-## 0.10.0-beta.0
+## 0.10.0-beta.1
 
 ### Minor Changes
 
@@ -160,4 +160,4 @@
   [`7c33673`](https://github.com/hypercerts-org/hypercerts-sdk/commit/7c33673fd5f53d92ba160ced1d1582178fa7c455),
   [`826b50c`](https://github.com/hypercerts-org/hypercerts-sdk/commit/826b50c140a56fee4feeb6b6c83d1123e44c5118),
   [`caceacb`](https://github.com/hypercerts-org/hypercerts-sdk/commit/caceacbc5572a590c750a95ccfda23fff2dd0c61)]:
-  - @hypercerts-org/sdk-core@1.0.0-beta.0
+  - @hypercerts-org/sdk-core@0.10.0-beta.1
