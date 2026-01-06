@@ -1,5 +1,13 @@
 # @hypercerts-org/sdk-core
 
+## 0.10.0-beta.2
+
+### Patch Changes
+
+- [#71](https://github.com/hypercerts-org/hypercerts-sdk/pull/71)
+  [`10bc42d`](https://github.com/hypercerts-org/hypercerts-sdk/commit/10bc42de46f1a391f47de9d0af486f00b6edde08) Thanks
+  [@aspiers](https://github.com/aspiers)! - Fix errant versions in CHANGELOG.md files
+
 ## 0.10.0-beta.1
 
 ### Major Changes
