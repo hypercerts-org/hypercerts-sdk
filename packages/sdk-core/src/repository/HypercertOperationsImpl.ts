@@ -253,7 +253,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       hypercertRecord.evidence = params.evidence;
     }
 
-    const hypercertValidation = validate(hypercertRecord, HYPERCERT_COLLECTIONS.CLAIM, "#main", false);
+    const hypercertValidation = validate(hypercertRecord, HYPERCERT_COLLECTIONS.CLAIM, "main", false);
     if (!hypercertValidation.success) {
       throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error?.message}`);
     }
