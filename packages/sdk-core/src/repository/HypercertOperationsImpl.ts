@@ -239,8 +239,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       shortDescription: params.shortDescription,
       description: params.description,
       workScope: params.workScope,
-      workTimeFrameFrom: params.workTimeFrameFrom,
-      workTimeFrameTo: params.workTimeFrameTo,
+      startDate: params.startDate,
+      endDate: params.endDate,
       rights: { uri: rightsUri, cid: rightsCid },
       createdAt,
     };

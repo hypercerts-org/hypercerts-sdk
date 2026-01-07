@@ -107,24 +107,29 @@ export interface CreateHypercertParams {
 
   /**
    * Scope of work or impact area.
-   *
+   * Logical scope of the work using label-based conditions. All labels in `withinAllOf` must apply; at least one label in `withinAnyOf` must apply if provided; no label in `withinNoneOf` may apply.
+   * 
    * @example "Climate Action", "Education", "Healthcare"
    */
-  workScope: string;
+  workScope?: {
+    withinAllOf?: string[],
+    withinAnyOf?: string[],
+    withinNoneOf?: string[]
+  };
 
   /**
    * Start date of the work period.
    *
    * ISO 8601 date format (YYYY-MM-DD).
    */
-  workTimeFrameFrom: string;
+  startDate: string;
 
   /**
    * End date of the work period.
    *
    * ISO 8601 date format (YYYY-MM-DD).
    */
-  workTimeFrameTo: string;
+  endDate: string;
 
   /**
    * Rights associated with the hypercert.
