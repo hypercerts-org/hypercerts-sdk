@@ -108,13 +108,13 @@ export interface CreateHypercertParams {
   /**
    * Scope of work or impact area.
    * Logical scope of the work using label-based conditions. All labels in `withinAllOf` must apply; at least one label in `withinAnyOf` must apply if provided; no label in `withinNoneOf` may apply.
-   * 
+   *
    * @example "Climate Action", "Education", "Healthcare"
    */
   workScope?: {
-    withinAllOf?: string[],
-    withinAnyOf?: string[],
-    withinNoneOf?: string[]
+    withinAllOf?: string[];
+    withinAnyOf?: string[];
+    withinNoneOf?: string[];
   };
 
   /**
