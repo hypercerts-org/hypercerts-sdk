@@ -309,7 +309,11 @@ export interface Hypercert extends HypercertClaim {
 export interface UpdateHypercertParams {
   title?: string;
   description?: string;
-  workScope?: string;
+  workScope?: {
+    withinAllOf?: string[];
+    withinAnyOf?: string[];
+    withinNoneOf?: string[];
+  };
   impactScope?: string;
   workTimeFrameFrom?: string;
   workTimeFrameTo?: string;

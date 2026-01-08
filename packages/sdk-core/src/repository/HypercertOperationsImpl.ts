@@ -239,8 +239,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       shortDescription: params.shortDescription,
       description: params.description,
       workScope: params.workScope,
-      workTimeFrameFrom: params.workTimeFrameFrom,
-      workTimeFrameTo: params.workTimeFrameTo,
+      startDate: params.startDate,
+      endDate: params.endDate,
       rights: { uri: rightsUri, cid: rightsCid },
       createdAt,
     };
@@ -253,7 +253,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       hypercertRecord.evidence = params.evidence;
     }
 
-    const hypercertValidation = validate(hypercertRecord, HYPERCERT_COLLECTIONS.CLAIM, "#main", false);
+    const hypercertValidation = validate(hypercertRecord, HYPERCERT_COLLECTIONS.CLAIM, "main", false);
     if (!hypercertValidation.success) {
       throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error?.message}`);
     }
@@ -820,7 +820,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       } else {
         // Use value as a URI reference
         locationData = {
-          $type: "app.certified.defs#uri",
+          $type: "org.hypercerts.defs#uri",
           uri: location.value,
         };
         locationType = "coordinate-decimal";
@@ -1231,7 +1231,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       }
 
       // Validate with lexicon registry (more lenient - doesn't require $type)
-      const validation = validate(result.data.value, HYPERCERT_COLLECTIONS.COLLECTION, "#main", false);
+      const validation = validate(result.data.value, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
       if (!validation.success) {
         throw new ValidationError(`Invalid collection record format: ${validation.error?.message}`);
       }

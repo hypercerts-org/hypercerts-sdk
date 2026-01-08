@@ -29,9 +29,13 @@ describe("HypercertOperationsImpl validation", () => {
       title: "Test Hypercert",
       shortDescription: "A test",
       description: "A test hypercert",
-      workScope: "Testing",
-      workTimeFrameFrom: "2024-01-01T00:00:00Z",
-      workTimeFrameTo: "2024-12-31T23:59:59Z",
+      workScope: {
+        withinAllOf: ["Climate"],
+        withinAnyOf: [],
+        withinNoneOf: [],
+      },
+      startDate: "2024-01-01T00:00:00Z",
+      endDate: "2024-12-31T23:59:59Z",
       rights: {
         name: "CC-BY",
         type: "license",

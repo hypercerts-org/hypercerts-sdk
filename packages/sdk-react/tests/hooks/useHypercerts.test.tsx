@@ -220,9 +220,13 @@ describe("useHypercerts", () => {
         title: "New Hypercert",
         shortDescription: "A new hypercert",
         description: "A new hypercert for testing",
-        workScope: "Testing",
-        workTimeFrameFrom: "2024-01-01",
-        workTimeFrameTo: "2024-12-31",
+        workScope: {
+          withinAllOf: ["Climate"],
+          withinAnyOf: [],
+          withinNoneOf: [],
+        },
+        startDate: "2024-01-01",
+        endDate: "2024-12-31",
         rights: { name: "CC-BY-4.0", type: "license" as const, description: "Attribution" },
       };
 
@@ -274,9 +278,13 @@ describe("useHypercerts", () => {
           title: "New HC",
           shortDescription: "Test HC",
           description: "Test description",
-          workScope: "Test",
-          workTimeFrameFrom: "2024-01-01",
-          workTimeFrameTo: "2024-12-31",
+          workScope: {
+            withinAllOf: ["Climate"],
+            withinAnyOf: [],
+            withinNoneOf: [],
+          },
+          startDate: "2024-01-01",
+          endDate: "2024-12-31",
           rights: { name: "CC-BY-4.0", type: "license" as const, description: "Attribution" },
         });
       });
