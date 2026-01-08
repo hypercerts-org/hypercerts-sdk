@@ -1231,7 +1231,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       }
 
       // Validate with lexicon registry (more lenient - doesn't require $type)
-      const validation = validate(result.data.value, HYPERCERT_COLLECTIONS.COLLECTION, "#main", false);
+      const validation = validate(result.data.value, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
       if (!validation.success) {
         throw new ValidationError(`Invalid collection record format: ${validation.error?.message}`);
       }
