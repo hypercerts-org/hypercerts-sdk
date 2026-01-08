@@ -9,6 +9,7 @@
     "configurable-agent-routing",
     "fix-collaborator-permissions-format",
     "fix-errant-changelog-versions",
+    "fix-hypcertcreation-params",
     "fix-lexicon-fields",
     "fix-missing-type-field-in-records",
     "fix-package-publishing-files",

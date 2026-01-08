@@ -1,5 +1,14 @@
 # @hypercerts-org/sdk-core
 
+## 0.10.0-beta.3
+
+### Minor Changes
+
+- [#72](https://github.com/hypercerts-org/hypercerts-sdk/pull/72)
+  [`31dc76a`](https://github.com/hypercerts-org/hypercerts-sdk/commit/31dc76ae819f4c53e1a411a7fc6c0a6239552a66) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Fixed params for creation to mirror the lexicon types. Remove extra `#` to
+  remove duplicate # created during validation which fails the validation.
+
 ## 0.10.0-beta.2
 
 ### Patch Changes
