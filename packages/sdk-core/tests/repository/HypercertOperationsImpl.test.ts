@@ -28,7 +28,7 @@ describe("HypercertOperationsImpl", () => {
       shortDescription: "A test hypercert",
       description: "A test hypercert for unit testing",
       workScope: {
-        withinAnyOf: ["Testing"]
+        withinAnyOf: ["Testing"],
       },
       startDate: "2024-01-01T00:00:00Z",
       endDate: "2024-12-31T23:59:59Z",
@@ -138,10 +138,10 @@ describe("HypercertOperationsImpl", () => {
             title: "Test",
             description: "Test",
             workScope: {
-        withinAllOf: ["Climate"],
-        withinAnyOf: [],
-        withinNoneOf: [],
-      },
+              withinAllOf: ["Climate"],
+              withinAnyOf: [],
+              withinNoneOf: [],
+            },
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -182,10 +182,10 @@ describe("HypercertOperationsImpl", () => {
             title: "Test",
             description: "Test",
             workScope: {
-        withinAllOf: ["Climate"],
-        withinAnyOf: [],
-        withinNoneOf: [],
-      },
+              withinAllOf: ["Climate"],
+              withinAnyOf: [],
+              withinNoneOf: [],
+            },
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -243,11 +243,11 @@ describe("HypercertOperationsImpl", () => {
       const mockRecord = {
         title: "Test",
         description: "Test description",
-             workScope: {
-        withinAllOf: ["Climate"],
-        withinAnyOf: [],
-        withinNoneOf: [],
-      },
+        workScope: {
+          withinAllOf: ["Climate"],
+          withinAnyOf: [],
+          withinNoneOf: [],
+        },
         startDate: "2024-01-01",
         endDate: "2024-12-31",
         createdAt: "2024-01-01T00:00:00Z",
@@ -296,11 +296,11 @@ describe("HypercertOperationsImpl", () => {
               value: {
                 title: "First",
                 description: "Desc",
-                     workScope: {
-        withinAllOf: ["Climate"],
-        withinAnyOf: [],
-        withinNoneOf: [],
-      },
+                workScope: {
+                  withinAllOf: ["Climate"],
+                  withinAnyOf: [],
+                  withinNoneOf: [],
+                },
                 startDate: "2024-01-01",
                 endDate: "2024-12-31",
                 createdAt: "2024-01-01",
@@ -312,11 +312,11 @@ describe("HypercertOperationsImpl", () => {
               value: {
                 title: "Second",
                 description: "Desc",
-                     workScope: {
-        withinAllOf: ["Climate"],
-        withinAnyOf: [],
-        withinNoneOf: [],
-      },
+                workScope: {
+                  withinAllOf: ["Climate"],
+                  withinAnyOf: [],
+                  withinNoneOf: [],
+                },
                 startDate: "2024-01-01",
                 endDate: "2024-12-31",
                 createdAt: "2024-01-01",
@@ -356,11 +356,11 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Old Title",
             description: "Old description",
-                 workScope: {
-        withinAllOf: ["Climate"],
-        withinAnyOf: [],
-        withinNoneOf: [],
-      },
+            workScope: {
+              withinAllOf: ["Climate"],
+              withinAnyOf: [],
+              withinNoneOf: [],
+            },
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01T00:00:00Z",
@@ -426,11 +426,11 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Title",
             description: "Desc",
-                 workScope: {
-        withinAllOf: ["Climate"],
-        withinAnyOf: [],
-        withinNoneOf: [],
-      },
+            workScope: {
+              withinAllOf: ["Climate"],
+              withinAnyOf: [],
+              withinNoneOf: [],
+            },
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -489,11 +489,11 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-                 workScope: {
-        withinAllOf: ["Climate"],
-        withinAnyOf: [],
-        withinNoneOf: [],
-      },
+            workScope: {
+              withinAllOf: ["Climate"],
+              withinAnyOf: [],
+              withinNoneOf: [],
+            },
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -550,11 +550,11 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-                 workScope: {
-        withinAllOf: ["Climate"],
-        withinAnyOf: [],
-        withinNoneOf: [],
-      },
+            workScope: {
+              withinAllOf: ["Climate"],
+              withinAnyOf: [],
+              withinNoneOf: [],
+            },
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -590,11 +590,11 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-                 workScope: {
-        withinAllOf: ["Climate"],
-        withinAnyOf: [],
-        withinNoneOf: [],
-      },
+            workScope: {
+              withinAllOf: ["Climate"],
+              withinAnyOf: [],
+              withinNoneOf: [],
+            },
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
