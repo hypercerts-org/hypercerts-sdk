@@ -820,7 +820,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       } else {
         // Use value as a URI reference
         locationData = {
-          $type: "app.certified.defs#uri",
+          $type: "org.hypercerts.defs#uri",
           uri: location.value,
         };
         locationType = "coordinate-decimal";
