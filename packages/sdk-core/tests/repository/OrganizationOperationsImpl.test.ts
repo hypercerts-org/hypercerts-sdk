@@ -29,7 +29,7 @@ describe("OrganizationOperationsImpl", () => {
       const result = await orgOps.create({
         name: "My Organization",
         description: "A test organization",
-        handle: "myorg",
+        handlePrefix: "myorg",
       });
 
       expect(result.did).toBe("did:plc:neworg123");
@@ -57,7 +57,7 @@ describe("OrganizationOperationsImpl", () => {
         }),
       });
 
-      const result = await orgOps.create({ name: "Org" });
+      const result = await orgOps.create({ name: "Org", handlePrefix: "test" });
 
       expect(result.name).toBe("Org");
       expect(result.createdAt).toBeDefined(); // Should default to current time
@@ -69,7 +69,7 @@ describe("OrganizationOperationsImpl", () => {
         statusText: "Conflict",
       });
 
-      await expect(orgOps.create({ name: "Test Org" })).rejects.toThrow(NetworkError);
+      await expect(orgOps.create({ name: "Test Org", handlePrefix: "test" })).rejects.toThrow(NetworkError);
     });
   });
 

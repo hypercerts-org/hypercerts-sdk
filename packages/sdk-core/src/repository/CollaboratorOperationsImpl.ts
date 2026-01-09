@@ -9,8 +9,8 @@
 
 import { NetworkError } from "../core/errors.js";
 import type { CollaboratorPermissions, Session } from "../core/types.js";
-import type { CollaboratorOperations } from "./interfaces.js";
-import type { RepositoryRole, RepositoryAccessGrant } from "./types.js";
+import type { CollaboratorOperations, GrantAccessParams } from "./interfaces.js";
+import type { RepositoryAccessGrant, RepositoryRole } from "./types.js";
 
 /**
  * Implementation of collaborator operations for SDS access control.
@@ -156,7 +156,7 @@ export class CollaboratorOperationsImpl implements CollaboratorOperations {
    * });
    * ```
    */
-  async grant(params: { userDid: string; role: RepositoryRole }): Promise<void> {
+  async grant(params: GrantAccessParams): Promise<void> {
     const permissions = this.roleToPermissions(params.role);
 
     const response = await this.session.fetchHandler(`${this.serverUrl}/xrpc/com.sds.repo.grantAccess`, {

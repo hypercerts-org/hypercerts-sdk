@@ -89,6 +89,7 @@ import type {
  * };
  * ```
  */
+
 export interface CreateHypercertParams {
   /**
    * Title of the hypercert.
@@ -243,6 +244,23 @@ export interface CreateHypercertParams {
    * record creation, attachment linking, etc.).
    */
   onProgress?: (step: ProgressStep) => void;
+}
+
+export interface CreateOrganizationParams {
+  /**
+   * Name of the organization
+   */
+  name: string;
+  /**
+   * The handle of the organization without attaching the SDS domain
+   *
+   * @example: "gainforest" for "gainforest.sds.hypercerts.org"
+   */
+  handlePrefix: string;
+  /**
+   * Optional description of the organization
+   */
+  description?: string;
 }
 
 /**
@@ -798,6 +816,17 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
  * await repo.collaborators.revoke({ userDid: "did:plc:former-user" });
  * ```
  */
+
+export interface GrantAccessParams {
+  /**
+   * DID of the user to grant access to
+   */
+  userDid: string;
+  /**
+   * Role to assign
+   */
+  role: RepositoryRole;
+}
 export interface CollaboratorOperations {
   /**
    * Grants repository access to a user.
@@ -806,7 +835,7 @@ export interface CollaboratorOperations {
    * @param params.userDid - DID of the user to grant access to
    * @param params.role - Role to assign
    */
-  grant(params: { userDid: string; role: RepositoryRole }): Promise<void>;
+  grant(params: GrantAccessParams): Promise<void>;
 
   /**
    * Revokes repository access from a user.
@@ -888,13 +917,10 @@ export interface OrganizationOperations {
   /**
    * Creates a new organization.
    *
-   * @param params - Organization parameters
-   * @param params.name - Organization name
-   * @param params.description - Optional description
-   * @param params.handle - Optional custom handle
+   * @param params - Organization creation parameters
    * @returns Promise resolving to organization info
    */
-  create(params: { name: string; description?: string; handle?: string }): Promise<OrganizationInfo>;
+  create(params: CreateOrganizationParams): Promise<OrganizationInfo>;
 
   /**
    * Gets an organization by DID.

@@ -7,10 +7,10 @@
  * @packageDocumentation
  */
 
-import { NetworkError } from "../core/errors.js";
+import { NetworkError, ValidationError } from "../core/errors.js";
 import type { CollaboratorPermissions, Session } from "../core/types.js";
 import type { LoggerInterface } from "../core/interfaces.js";
-import type { OrganizationOperations } from "./interfaces.js";
+import type { CreateOrganizationParams, OrganizationOperations } from "./interfaces.js";
 import type { OrganizationInfo } from "./types.js";
 
 /**
@@ -108,10 +108,17 @@ export class OrganizationOperationsImpl implements OrganizationOperations {
    * });
    * ```
    */
-  async create(params: { name: string; description?: string; handle?: string }): Promise<OrganizationInfo> {
+  async create(params: CreateOrganizationParams): Promise<OrganizationInfo> {
     const userDid = this.session.did || this.session.sub;
     if (!userDid) {
       throw new NetworkError("No authenticated user found");
+    }
+
+    if (!params.handlePrefix) {
+      throw new ValidationError("Missing handlePrefix");
+    }
+    if (!params.name) {
+      throw new ValidationError("Missing name");
     }
 
     const response = await this.session.fetchHandler(`${this.serverUrl}/xrpc/com.sds.organization.create`, {
