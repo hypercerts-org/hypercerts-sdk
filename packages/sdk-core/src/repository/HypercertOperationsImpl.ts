@@ -638,12 +638,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         throw new NetworkError("Failed to get hypercert");
       }
 
-      // Validate with lexicon (more lenient - doesn't require $type)
-      const validation = validate(result.data.value, HYPERCERT_COLLECTIONS.CLAIM, "main", false);
-      if (!validation.success) {
-        throw new ValidationError(`Invalid hypercert record format: ${validation.error?.message}`);
-      }
-
       return {
         uri: result.data.uri,
         cid: result.data.cid ?? "",
