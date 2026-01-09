@@ -20,6 +20,11 @@ const sdk = createATProtoSDK({
     jwksUri: "https://your-app.com/jwks.json",
     jwkPrivate: process.env.ATPROTO_JWK_PRIVATE!,
   },
+  // set up with your pds url.
+  // entryway doesn't work for this. Has to be a PDS URL.
+  servers: {
+    pds: "https://pds-eu-west4.test.certified.app",
+  },
 });
 
 // 2. Authenticate user
