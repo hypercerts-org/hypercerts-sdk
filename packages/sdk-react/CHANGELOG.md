@@ -1,5 +1,14 @@
 # @hypercerts-org/sdk-react
 
+## 0.10.0-beta.5
+
+### Patch Changes
+
+- [#83](https://github.com/hypercerts-org/hypercerts-sdk/pull/83)
+  [`323ac4b`](https://github.com/hypercerts-org/hypercerts-sdk/commit/323ac4bc109243de6ecb5f44874c9cfae4deb826) Thanks
+  [@aspiers](https://github.com/aspiers)! - Fix type error in useOrganizations hook: use `handlePrefix` instead of
+  `handle` in CreateOrganizationParams
+
 ## 0.10.0-beta.4
 
 ### Patch Changes

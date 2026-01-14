@@ -7,6 +7,7 @@
   },
   "changesets": [
     "configurable-agent-routing",
+    "five-seas-do",
     "fix-collaborator-permissions-format",
     "fix-create-org-params",
     "fix-errant-changelog-versions",
