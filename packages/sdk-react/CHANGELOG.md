@@ -1,5 +1,14 @@
 # @hypercerts-org/sdk-react
 
+## 0.10.0-beta.4
+
+### Patch Changes
+
+- Updated dependencies
+  [[`3419471`](https://github.com/hypercerts-org/hypercerts-sdk/commit/34194710cae3a53b4106d8b8dc4007505a8b5f0a),
+  [`48ecd6c`](https://github.com/hypercerts-org/hypercerts-sdk/commit/48ecd6cfddfb13a6c155df7c6618965dd2157253)]:
+  - @hypercerts-org/sdk-core@0.10.0-beta.4
+
 ## 0.10.0-beta.3
 
 ### Patch Changes

@@ -8,11 +8,13 @@
   "changesets": [
     "configurable-agent-routing",
     "fix-collaborator-permissions-format",
+    "fix-create-org-params",
     "fix-errant-changelog-versions",
     "fix-hypcertcreation-params",
     "fix-lexicon-fields",
     "fix-missing-type-field-in-records",
     "fix-package-publishing-files",
+    "fix-remove-validation-from-hypercert-get",
     "fix-repository-routing-to-sds",
     "fix-sds-api-contracts",
     "fix-sds-endpoints-and-nsids",

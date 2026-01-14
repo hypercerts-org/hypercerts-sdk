@@ -1,5 +1,21 @@
 # @hypercerts-org/sdk-core
 
+## 0.10.0-beta.4
+
+### Minor Changes
+
+- [#80](https://github.com/hypercerts-org/hypercerts-sdk/pull/80)
+  [`3419471`](https://github.com/hypercerts-org/hypercerts-sdk/commit/34194710cae3a53b4106d8b8dc4007505a8b5f0a) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Update the params for create organization. Created a separate interface for
+  it. Changed the params from handle to handlePrefix as expected by the actual `sds.organizations.create` procedure
+  call. Added validation to check the required parameters in the call
+
+### Patch Changes
+
+- [#79](https://github.com/hypercerts-org/hypercerts-sdk/pull/79)
+  [`48ecd6c`](https://github.com/hypercerts-org/hypercerts-sdk/commit/48ecd6cfddfb13a6c155df7c6618965dd2157253) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Remove validation from hypercert.get
+
 ## 0.10.0-beta.3
 
 ### Minor Changes
