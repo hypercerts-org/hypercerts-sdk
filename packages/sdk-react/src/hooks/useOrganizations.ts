@@ -90,7 +90,7 @@ export function useOrganizations(): UseOrganizationsResult {
       const org = await repository.organizations.create({
         name: params.name,
         description: params.description,
-        handle: params.handle,
+        handlePrefix: params.handlePrefix,
       });
 
       return org;
