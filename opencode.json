@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "bash": {
+      "pnpm build*": "allow",
+      "pnpm check*": "allow",
+      "pnpm format*": "allow",
+      "pnpm lint*": "allow",
+      "pnpm test*": "allow",
+      "pnpm typecheck*": "allow"
+    }
+  }
+}

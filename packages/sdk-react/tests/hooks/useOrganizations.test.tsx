@@ -161,6 +161,7 @@ describe("useOrganizations", () => {
 
       const createParams = {
         name: "New Org",
+        handlePrefix: "new-org",
         description: "A new organization",
       };
 
@@ -172,6 +173,7 @@ describe("useOrganizations", () => {
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           name: "New Org",
+          handlePrefix: "new-org",
           description: "A new organization",
         }),
       );
@@ -214,7 +216,7 @@ describe("useOrganizations", () => {
 
       // Start create without awaiting
       act(() => {
-        result.current.create({ name: "New Org" });
+        result.current.create({ name: "New Org", handlePrefix: "new-org" });
       });
 
       await waitFor(() => {
