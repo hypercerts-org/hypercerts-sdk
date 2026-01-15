@@ -16,6 +16,8 @@ import type {
   UseOrganizationResult,
   UseOrganizationsResult,
   UseProfileResult,
+  UseProjectResult,
+  UseProjectsResult,
   UseRepositoryResult,
 } from "../types.js";
 import { createMockProfile, createMockSession } from "./mocks.js";
@@ -43,6 +45,8 @@ export interface MockATProtoReactOptions {
     useCollaborators?: Partial<UseCollaboratorsResult>;
     useHypercerts?: Partial<UseHypercertsResult>;
     useHypercert?: Partial<UseHypercertResult>;
+    useProjects?: Partial<UseProjectsResult>;
+    useProject?: Partial<UseProjectResult>;
   };
 }
 
@@ -215,6 +219,30 @@ export function createMockATProtoReact(options: MockATProtoReactOptions = {}): A
     ...options.mockHooks?.useHypercert,
   };
 
+  const defaultProjects: UseProjectsResult = {
+    projects: [],
+    isLoading: false,
+    error: null,
+    create: async () => ({ uri: "", cid: "" }),
+    isCreating: false,
+    hasNextPage: false,
+    fetchNextPage: async () => {},
+    refetch: async () => {},
+    ...options.mockHooks?.useProjects,
+  };
+
+  const defaultProject: UseProjectResult = {
+    project: null,
+    isLoading: false,
+    error: null,
+    update: async () => ({ uri: "", cid: "" }),
+    remove: async () => {},
+    isUpdating: false,
+    isDeleting: false,
+    refetch: async () => {},
+    ...options.mockHooks?.useProject,
+  };
+
   // Create mock Provider
   const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <>{children}</>;
@@ -233,6 +261,8 @@ export function createMockATProtoReact(options: MockATProtoReactOptions = {}): A
     useCollaborators: () => defaultCollaborators,
     useHypercerts: () => defaultHypercerts,
     useHypercert: () => defaultHypercert,
+    useProjects: () => defaultProjects,
+    useProject: () => defaultProject,
     queryKeys: atprotoKeys,
   };
 }

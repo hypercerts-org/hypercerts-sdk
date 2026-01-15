@@ -12,6 +12,7 @@ import type {
   CreateHypercertParams,
   CreateHypercertResult,
   HypercertClaim,
+  HypercertProject,
   OrganizationInfo,
   Repository,
   RepositoryRole,
@@ -392,6 +393,102 @@ export interface UseHypercertResult {
 }
 
 // ─────────────────────────────────────────────
+// Project Types
+// ─────────────────────────────────────────────
+
+/**
+ * Project with metadata for display.
+ */
+export interface Project extends HypercertProject {
+  uri: string;
+  cid: string;
+}
+
+/**
+ * Parameters for creating a project.
+ */
+export interface CreateProjectParams {
+  title: string;
+  shortDescription: string;
+  description?: unknown; // Leaflet linear document - type TBD
+  avatar?: Blob;
+  coverPhoto?: Blob;
+  activities?: Array<{ uri: string; cid: string; weight: string }>;
+  location?: { uri: string; cid: string };
+}
+
+/**
+ * Parameters for updating a project.
+ */
+export interface UpdateProjectParams {
+  title?: string;
+  shortDescription?: string;
+  description?: unknown; // Leaflet linear document
+  avatar?: Blob;
+  coverPhoto?: Blob;
+  activities?: Array<{ uri: string; cid: string; weight: string }>;
+  location?: { uri: string; cid: string };
+}
+
+/**
+ * Result of the useProjects hook.
+ */
+export interface UseProjectsResult {
+  /** List of projects */
+  projects: Project[];
+
+  /** Query loading state */
+  isLoading: boolean;
+
+  /** Query error */
+  error: Error | null;
+
+  /** Create project */
+  create: (params: CreateProjectParams) => Promise<{ uri: string; cid: string }>;
+
+  /** Create loading state */
+  isCreating: boolean;
+
+  /** Whether there are more pages */
+  hasNextPage: boolean;
+
+  /** Fetch next page */
+  fetchNextPage: () => Promise<void>;
+
+  /** Refetch projects */
+  refetch: () => Promise<void>;
+}
+
+/**
+ * Result of the useProject hook.
+ */
+export interface UseProjectResult {
+  /** Project data */
+  project: Project | null;
+
+  /** Query loading state */
+  isLoading: boolean;
+
+  /** Query error */
+  error: Error | null;
+
+  /** Update project */
+  update: (params: UpdateProjectParams) => Promise<{ uri: string; cid: string }>;
+
+  /** Delete project */
+  remove: () => Promise<void>;
+
+  /** Update loading state */
+  isUpdating: boolean;
+
+  /** Delete loading state */
+  isDeleting: boolean;
+
+  /** Refetch project */
+  refetch: () => Promise<void>;
+}
+
+// ─────────────────────────────────────────────
 // SSR Types
 // ─────────────────────────────────────────────
 
@@ -434,6 +531,7 @@ export type {
   CreateHypercertParams,
   CreateHypercertResult,
   HypercertClaim,
+  HypercertProject,
   OrganizationInfo,
   Repository,
   RepositoryRole,

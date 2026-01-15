@@ -129,6 +129,30 @@ export const atprotoKeys = {
    * Key for a single hypercert by URI.
    */
   hypercert: (uri: string) => [...atprotoKeys.allHypercerts(), "detail", uri] as const,
+
+  // ─────────────────────────────────────────────
+  // Project Keys
+  // ─────────────────────────────────────────────
+
+  /**
+   * Key for all project queries.
+   */
+  allProjects: () => [...atprotoKeys.all, "projects"] as const,
+
+  /**
+   * Key for projects in a specific repository.
+   */
+  projects: (repoDid?: string) => [...atprotoKeys.allProjects(), repoDid ?? "all"] as const,
+
+  /**
+   * Key for a projects list with pagination params.
+   */
+  projectsList: (repoDid: string, params?: ListParams) => [...atprotoKeys.projects(repoDid), "list", params] as const,
+
+  /**
+   * Key for a single project by URI.
+   */
+  project: (uri: string) => [...atprotoKeys.allProjects(), "detail", uri] as const,
 } as const;
 
 /**
@@ -157,4 +181,8 @@ export type ATProtoQueryKey =
   | ReturnType<typeof atprotoKeys.allHypercerts>
   | ReturnType<typeof atprotoKeys.hypercerts>
   | ReturnType<typeof atprotoKeys.hypercertsList>
-  | ReturnType<typeof atprotoKeys.hypercert>;
+  | ReturnType<typeof atprotoKeys.hypercert>
+  | ReturnType<typeof atprotoKeys.allProjects>
+  | ReturnType<typeof atprotoKeys.projects>
+  | ReturnType<typeof atprotoKeys.projectsList>
+  | ReturnType<typeof atprotoKeys.project>;
