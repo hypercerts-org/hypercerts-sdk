@@ -27,19 +27,13 @@ import {
 } from "../services/hypercerts/types.js";
 import type {
   AttachLocationParams,
+  CreateHypercertEvidenceParams,
   CreateHypercertParams,
   CreateHypercertResult,
   HypercertEvents,
   HypercertOperations,
 } from "./interfaces.js";
-import type {
-  CreateResult,
-  HypercertEvidenceInput,
-  ListParams,
-  PaginatedList,
-  ProgressStep,
-  UpdateResult,
-} from "./types.js";
+import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
 
 /**
  * Implementation of high-level hypercert operations.
@@ -869,13 +863,13 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @throws {@link ValidationError} if validation fails
    * @throws {@link NetworkError} if the operation fails
    */
-  async addEvidence(evidence: HypercertEvidenceInput): Promise<UpdateResult> {
+  async addEvidence(evidence: CreateHypercertEvidenceParams): Promise<UpdateResult> {
     try {
       const { subjectUri, content, ...rest } = evidence;
       const subject = await this.get(subjectUri);
       const createdAt = new Date().toISOString();
 
-      let evidenceContent;
+      let evidenceContent: HypercertEvidence["content"];
       if (typeof content === "string") {
         evidenceContent = {
           $type: "org.hypercerts.defs#uri",
@@ -905,7 +899,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         createdAt,
         content: evidenceContent,
         subject: { uri: subject.uri, cid: subject.cid },
-      } as HypercertEvidence;
+      };
       const validation = validate(evidenceRecord, HYPERCERT_COLLECTIONS.EVIDENCE, "main", false);
       if (!validation.success) {
         throw new ValidationError(`Invalid evidence record: ${validation.error?.message}`);
