@@ -9,35 +9,36 @@
  */
 
 import type { Agent } from "@atproto/api";
+import { validate } from "@hypercerts-org/lexicon";
 import { EventEmitter } from "eventemitter3";
 import { NetworkError, ValidationError } from "../core/errors.js";
 import type { LoggerInterface } from "../core/interfaces.js";
-import { validate } from "@hypercerts-org/lexicon";
 import {
   HYPERCERT_COLLECTIONS,
-  type JsonBlobRef,
-  type HypercertEvidence,
   type HypercertClaim,
-  type HypercertRights,
-  type HypercertContribution,
-  type HypercertMeasurement,
-  type HypercertEvaluation,
   type HypercertCollection,
+  type HypercertContribution,
+  type HypercertEvaluation,
+  type HypercertEvidence,
   type HypercertLocation,
+  type HypercertMeasurement,
+  type HypercertRights,
+  type JsonBlobRef,
 } from "../services/hypercerts/types.js";
 import type {
-  HypercertOperations,
-  HypercertEvents,
+  AttachLocationParams,
   CreateHypercertParams,
   CreateHypercertResult,
+  HypercertEvents,
+  HypercertOperations,
 } from "./interfaces.js";
 import type {
   CreateResult,
-  UpdateResult,
-  PaginatedList,
-  ListParams,
-  ProgressStep,
   HypercertEvidenceInput,
+  ListParams,
+  PaginatedList,
+  ProgressStep,
+  UpdateResult,
 } from "./types.js";
 
 /**
@@ -298,7 +299,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   private async attachLocationWithProgress(
     hypercertUri: string,
-    location: { value: string; name?: string; description?: string; srs?: string; geojson?: Blob },
+    location: AttachLocationParams,
     onProgress?: (step: ProgressStep) => void,
   ): Promise<string> {
     this.emitProgress(onProgress, { name: "attachLocation", status: "start" });
@@ -780,12 +781,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * });
    * ```
    */
-  async attachLocation(
-    hypercertUri: string,
-    location: { value: string; name?: string; description?: string; srs?: string; geojson?: Blob },
-  ): Promise<CreateResult> {
+  async attachLocation(hypercertUri: string, location: AttachLocationParams): Promise<CreateResult> {
     try {
-      // Validate required srs field
       if (!location.srs) {
         throw new ValidationError(
           "srs (Spatial Reference System) is required. Example: 'EPSG:4326' for WGS84 coordinates, or 'http://www.opengis.net/def/crs/OGC/1.3/CRS84' for CRS84.",
@@ -796,43 +793,34 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       await this.get(hypercertUri);
       const createdAt = new Date().toISOString();
 
-      // Determine location type and prepare location data
-      let locationData: { $type: string; uri: string } | JsonBlobRef;
-      let locationType: string;
+      let locationData: HypercertLocation["location"];
+      const content = location.location;
 
-      if (location.geojson) {
-        // Upload GeoJSON as a blob
-        const arrayBuffer = await location.geojson.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-          encoding: location.geojson.type || "application/geo+json",
-        });
-        if (uploadResult.success) {
-          locationData = {
-            $type: "blob",
-            ref: { $link: uploadResult.data.blob.ref.toString() },
-            mimeType: uploadResult.data.blob.mimeType,
-            size: uploadResult.data.blob.size,
-          };
-          locationType = "geojson-point";
-        } else {
-          throw new NetworkError("Failed to upload GeoJSON blob");
-        }
-      } else {
-        // Use value as a URI reference
+      if (typeof content === "string") {
         locationData = {
           $type: "org.hypercerts.defs#uri",
-          uri: location.value,
+          uri: content,
         };
-        locationType = "coordinate-decimal";
+      } else {
+        const arrayBuffer = await content.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
+          encoding: content.type || "application/geo+json",
+        });
+        if (!uploadResult.success) {
+          throw new NetworkError("Failed to upload location blob");
+        }
+        locationData = {
+          $type: "org.hypercerts.defs#smallBlob",
+          blob: uploadResult.data.blob,
+        };
       }
 
-      // Build location record according to app.certified.location lexicon
       const locationRecord: HypercertLocation = {
         $type: HYPERCERT_COLLECTIONS.LOCATION,
         lpVersion: "1.0",
         srs: location.srs,
-        locationType,
+        locationType: location.locationType,
         location: locationData,
         createdAt,
         name: location.name,
@@ -847,12 +835,23 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const result = await this.agent.com.atproto.repo.createRecord({
         repo: this.repoDid,
         collection: HYPERCERT_COLLECTIONS.LOCATION,
-        record: locationRecord as Record<string, unknown>,
+        record: locationRecord,
       });
 
       if (!result.success) {
         throw new NetworkError("Failed to attach location");
       }
+
+      await this.update({
+        uri: hypercertUri,
+        updates: {
+          location: {
+            $type: "com.atproto.repo.strongRef",
+            uri: result.data.uri,
+            cid: result.data.cid,
+          },
+        },
+      });
 
       this.emit("locationAttached", { uri: result.data.uri, cid: result.data.cid, hypercertUri });
       return { uri: result.data.uri, cid: result.data.cid };

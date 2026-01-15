@@ -25,6 +25,7 @@ export type {
   RepositoryAccessGrant,
   OrganizationInfo,
   ProgressStep,
+  HypercertEvidenceInput,
 } from "./repository/types.js";
 export type {
   RecordOperations,
@@ -36,6 +37,7 @@ export type {
   OrganizationOperations,
   CreateHypercertParams,
   CreateHypercertResult,
+  AttachLocationParams,
 } from "./repository/interfaces.js";
 
 // ============================================================================
