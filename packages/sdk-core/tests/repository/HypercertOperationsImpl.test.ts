@@ -540,6 +540,88 @@ describe("HypercertOperationsImpl", () => {
     });
   });
 
+  describe("addEvidence", () => {
+    beforeEach(() => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.claim.record/abc",
+          cid: "hypercert-cid",
+          value: {
+            title: "Test",
+            description: "Test",
+            workScope: {
+              withinAllOf: ["Climate"],
+              withinAnyOf: [],
+              withinNoneOf: [],
+            },
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            createdAt: "2024-01-01",
+          },
+        },
+      });
+
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.evidence/xyz", cid: "evidence-cid" },
+      });
+    });
+
+    it("should add evidence to a hypercert with a URI string", async () => {
+      const result = await hypercertOps.addEvidence({
+        subjectUri: "at://did:plc:test/org.hypercerts.claim.record/abc",
+        title: "Impact Report",
+        content: "https://example.com/report.pdf",
+      });
+
+      expect(result.uri).toContain("evidence");
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalled();
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+      expect(call.record.content).toEqual({
+        $type: "org.hypercerts.defs#uri",
+        uri: "https://example.com/report.pdf",
+      });
+    });
+
+    it("should add evidence to a hypercert with a Blob upload", async () => {
+      const blob = new Blob(["evidence data"], { type: "application/pdf" });
+      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
+        success: true,
+        data: {
+          blob: { ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
+        },
+      });
+
+      const result = await hypercertOps.addEvidence({
+        subjectUri: "at://did:plc:test/org.hypercerts.claim.record/abc",
+        title: "Impact Report",
+        content: blob,
+      });
+
+      expect(result.uri).toContain("evidence");
+      expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalled();
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+      expect(call.record.content).toEqual({
+        $type: "org.hypercerts.defs#smallBlob",
+        blob: { ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
+      });
+    });
+
+    it("should emit evidenceAdded event", async () => {
+      const handler = vi.fn();
+      hypercertOps.on("evidenceAdded", handler);
+
+      await hypercertOps.addEvidence({
+        subjectUri: "at://did:plc:test/org.hypercerts.claim.record/abc",
+        title: "Impact Report",
+        content: "https://example.com/report.pdf",
+      });
+
+      expect(handler).toHaveBeenCalledWith({ uri: expect.any(String), cid: "evidence-cid" });
+    });
+  });
+
   describe("addMeasurement", () => {
     beforeEach(() => {
       mockAgent.com.atproto.repo.getRecord.mockResolvedValue({

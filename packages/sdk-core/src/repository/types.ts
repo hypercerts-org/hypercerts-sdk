@@ -4,6 +4,7 @@
  */
 
 import type { CollaboratorPermissions } from "../core/types.js";
+import { HypercertEvidence } from "../types.js";
 
 // ============================================================================
 // Basic Types
@@ -109,3 +110,8 @@ export interface ProgressStep {
   data?: unknown;
   error?: Error;
 }
+
+export type HypercertEvidenceInput = Omit<HypercertEvidence, "$type" | "createdAt" | "subject" | "content"> & {
+  subjectUri: string;
+  content: string | Blob;
+};

@@ -9,16 +9,17 @@
  */
 
 import type { EventEmitter } from "eventemitter3";
-import type { HypercertCollection, HypercertEvidence, HypercertClaim } from "../services/hypercerts/types.js";
+import type { HypercertClaim, HypercertCollection } from "../services/hypercerts/types.js";
 import type {
   CreateResult,
-  UpdateResult,
-  PaginatedList,
+  HypercertEvidenceInput,
   ListParams,
-  RepositoryRole,
-  RepositoryAccessGrant,
   OrganizationInfo,
+  PaginatedList,
   ProgressStep,
+  RepositoryAccessGrant,
+  RepositoryRole,
+  UpdateResult,
 } from "./types.js";
 
 // ============================================================================
@@ -235,7 +236,7 @@ export interface CreateHypercertParams {
   /**
    * Optional evidence supporting the impact claim.
    */
-  evidence?: HypercertEvidence[];
+  evidence?: Array<Omit<HypercertEvidenceInput, "subjectUri">>;
 
   /**
    * Optional callback for progress updates during creation.
@@ -707,11 +708,10 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
   /**
    * Adds evidence to an existing hypercert.
    *
-   * @param uri - AT-URI of the hypercert
-   * @param evidence - Array of evidence items to add
+   * @param evidence - Evidence item to add
    * @returns Promise resolving to update result
    */
-  addEvidence(uri: string, evidence: HypercertEvidence[]): Promise<UpdateResult>;
+  addEvidence(evidence: HypercertEvidenceInput): Promise<UpdateResult>;
 
   /**
    * Creates a contribution record.
