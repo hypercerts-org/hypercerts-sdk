@@ -9,16 +9,16 @@
  */
 
 import type { EventEmitter } from "eventemitter3";
-import type { HypercertCollection, HypercertEvidence, HypercertClaim } from "../services/hypercerts/types.js";
+import type { HypercertClaim, HypercertCollection } from "../services/hypercerts/types.js";
 import type {
   CreateResult,
-  UpdateResult,
-  PaginatedList,
   ListParams,
-  RepositoryRole,
-  RepositoryAccessGrant,
   OrganizationInfo,
+  PaginatedList,
   ProgressStep,
+  RepositoryAccessGrant,
+  RepositoryRole,
+  UpdateResult,
 } from "./types.js";
 
 // ============================================================================
@@ -235,7 +235,7 @@ export interface CreateHypercertParams {
   /**
    * Optional evidence supporting the impact claim.
    */
-  evidence?: HypercertEvidence[];
+  evidence?: Array<Omit<CreateHypercertEvidenceParams, "subjectUri">>;
 
   /**
    * Optional callback for progress updates during creation.
@@ -261,6 +261,51 @@ export interface CreateOrganizationParams {
    * Optional description of the organization
    */
   description?: string;
+}
+/**
+ * Input params for creating Hypercert evidence.
+ *
+ * Based on `org.hypercerts.claim.evidence` but:
+ * - removes: $type, createdAt, subject, content
+ * - adds: subjectUri, content (string | Blob)
+ */
+export interface CreateHypercertEvidenceParams {
+  /**
+   * URI for the subject this evidence is attached to.
+   */
+  subjectUri: string;
+
+  /**
+   * Evidence content.
+   * - string: e.g. URL, IPFS URI, or inline text (depending on your conventions)
+   * - Blob: binary payload (e.g. image/pdf)
+   */
+  content: string | Blob;
+
+  /**
+   * Title to describe the nature of the evidence.
+   */
+  title: string;
+
+  /**
+   * Short description explaining what this evidence shows.
+   */
+  shortDescription?: string;
+
+  /**
+   * Longer description describing the evidence in more detail.
+   */
+  description?: string;
+
+  /**
+   * How this evidence relates to the subject.
+   */
+  relationType?: "supports" | "challenges" | "clarifies" | (string & {});
+
+  /**
+   * Any additional custom fields supported by the record.
+   */
+  [k: string]: unknown;
 }
 
 /**
@@ -707,11 +752,10 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
   /**
    * Adds evidence to an existing hypercert.
    *
-   * @param uri - AT-URI of the hypercert
-   * @param evidence - Array of evidence items to add
+   * @param evidence - Evidence item to add
    * @returns Promise resolving to update result
    */
-  addEvidence(uri: string, evidence: HypercertEvidence[]): Promise<UpdateResult>;
+  addEvidence(evidence: CreateHypercertEvidenceParams): Promise<UpdateResult>;
 
   /**
    * Creates a contribution record.
