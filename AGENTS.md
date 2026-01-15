@@ -294,6 +294,7 @@ docs(readme): update installation instructions
 ```
 
 **Common types:**
+
 - `feat`: New feature or enhancement
 - `fix`: Bug fix
 - `test`: Adding or updating tests
