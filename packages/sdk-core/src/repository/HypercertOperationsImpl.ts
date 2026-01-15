@@ -20,6 +20,7 @@ import {
   type HypercertContribution,
   type HypercertEvaluation,
   type HypercertEvidence,
+  type HypercertProject,
   type HypercertLocation,
   type HypercertMeasurement,
   type HypercertRights,
@@ -1368,6 +1369,418 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         `Failed to list collections: ${error instanceof Error ? error.message : "Unknown"}`,
         error,
       );
+    }
+  }
+
+  /**
+   * Creates a new project that organizes multiple hypercert activities.
+   *
+   * @param params - Project creation parameters
+   * @returns Promise resolving to created project URI and CID
+   *
+   * @example
+   * ```typescript
+   * const result = await repo.hypercerts.createProject({
+   *   title: "Climate Impact 2024",
+   *   shortDescription: "Year-long climate initiative",
+   *   activities: [
+   *     { uri: activity1Uri, cid: activity1Cid, weight: "0.6" },
+   *     { uri: activity2Uri, cid: activity2Cid, weight: "0.4" }
+   *   ]
+   * });
+   * console.log(`Created project: ${result.uri}`);
+   * ```
+   */
+  async createProject(params: {
+    title: string;
+    shortDescription: string;
+    description?: unknown;
+    avatar?: Blob;
+    coverPhoto?: Blob;
+    activities?: Array<{ uri: string; cid: string; weight: string }>;
+    location?: { uri: string; cid: string };
+  }): Promise<CreateResult> {
+    try {
+      const createdAt = new Date().toISOString();
+
+      // Upload avatar blob if provided
+      let avatarRef: JsonBlobRef | undefined;
+      if (params.avatar) {
+        const arrayBuffer = await params.avatar.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
+          encoding: params.avatar.type || "image/jpeg",
+        });
+        if (uploadResult.success) {
+          avatarRef = {
+            $type: "blob",
+            ref: { $link: uploadResult.data.blob.ref.toString() },
+            mimeType: uploadResult.data.blob.mimeType,
+            size: uploadResult.data.blob.size,
+          };
+        } else {
+          throw new NetworkError("Failed to upload avatar image");
+        }
+      }
+
+      // Upload cover photo blob if provided
+      let coverPhotoRef: JsonBlobRef | undefined;
+      if (params.coverPhoto) {
+        const arrayBuffer = await params.coverPhoto.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
+          encoding: params.coverPhoto.type || "image/jpeg",
+        });
+        if (uploadResult.success) {
+          coverPhotoRef = {
+            $type: "blob",
+            ref: { $link: uploadResult.data.blob.ref.toString() },
+            mimeType: uploadResult.data.blob.mimeType,
+            size: uploadResult.data.blob.size,
+          };
+        } else {
+          throw new NetworkError("Failed to upload cover photo image");
+        }
+      }
+
+      // Build project record
+      const projectRecord: Record<string, unknown> = {
+        $type: HYPERCERT_COLLECTIONS.PROJECT,
+        title: params.title,
+        shortDescription: params.shortDescription,
+        createdAt,
+      };
+
+      // Add optional fields
+      if (params.description) {
+        projectRecord.description = params.description;
+      }
+
+      if (avatarRef) {
+        projectRecord.avatar = avatarRef;
+      }
+
+      if (coverPhotoRef) {
+        projectRecord.coverPhoto = coverPhotoRef;
+      }
+
+      // Transform activities array to lexicon format
+      if (params.activities && params.activities.length > 0) {
+        projectRecord.activities = params.activities.map((a) => ({
+          activity: { uri: a.uri, cid: a.cid },
+          weight: a.weight,
+        }));
+      }
+
+      if (params.location) {
+        projectRecord.location = params.location;
+      }
+
+      // Validate against lexicon
+      const validation = validate(projectRecord, HYPERCERT_COLLECTIONS.PROJECT, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid project record: ${validation.error?.message}`);
+      }
+
+      // Create record
+      const result = await this.agent.com.atproto.repo.createRecord({
+        repo: this.repoDid,
+        collection: HYPERCERT_COLLECTIONS.PROJECT,
+        record: projectRecord,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to create project");
+      }
+
+      // Emit event
+      this.emit("projectCreated", { uri: result.data.uri, cid: result.data.cid });
+      return { uri: result.data.uri, cid: result.data.cid };
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
+      throw new NetworkError(`Failed to create project: ${error instanceof Error ? error.message : "Unknown"}`, error);
+    }
+  }
+
+  /**
+   * Gets a project by its AT-URI.
+   *
+   * @param uri - AT-URI of the project
+   * @returns Promise resolving to project data
+   *
+   * @example
+   * ```typescript
+   * const { record } = await repo.hypercerts.getProject(projectUri);
+   * console.log(`${record.title}: ${record.activities?.length || 0} activities`);
+   * ```
+   */
+  async getProject(uri: string): Promise<{ uri: string; cid: string; record: HypercertProject }> {
+    try {
+      // Parse URI
+      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
+      if (!uriMatch) {
+        throw new ValidationError(`Invalid URI format: ${uri}`);
+      }
+      const [, , collection, rkey] = uriMatch;
+
+      // Fetch record
+      const result = await this.agent.com.atproto.repo.getRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to get project");
+      }
+
+      // Validate
+      const validation = validate(result.data.value, HYPERCERT_COLLECTIONS.PROJECT, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid project record format: ${validation.error?.message}`);
+      }
+
+      return {
+        uri: result.data.uri,
+        cid: result.data.cid ?? "",
+        record: result.data.value as HypercertProject,
+      };
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
+      throw new NetworkError(`Failed to get project: ${error instanceof Error ? error.message : "Unknown"}`, error);
+    }
+  }
+
+  /**
+   * Lists all projects with optional pagination.
+   *
+   * @param params - Optional pagination parameters
+   * @returns Promise resolving to paginated list of projects
+   *
+   * @example
+   * ```typescript
+   * const { records } = await repo.hypercerts.listProjects();
+   * for (const { record } of records) {
+   *   console.log(`${record.title}: ${record.shortDescription}`);
+   * }
+   * ```
+   */
+  async listProjects(
+    params?: ListParams,
+  ): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertProject }>> {
+    try {
+      const result = await this.agent.com.atproto.repo.listRecords({
+        repo: this.repoDid,
+        collection: HYPERCERT_COLLECTIONS.PROJECT,
+        limit: params?.limit,
+        cursor: params?.cursor,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to list projects");
+      }
+
+      return {
+        records:
+          result.data.records?.map((r) => ({
+            uri: r.uri,
+            cid: r.cid,
+            record: r.value as HypercertProject,
+          })) || [],
+        cursor: result.data.cursor ?? undefined,
+      };
+    } catch (error) {
+      if (error instanceof NetworkError) throw error;
+      throw new NetworkError(`Failed to list projects: ${error instanceof Error ? error.message : "Unknown"}`, error);
+    }
+  }
+
+  /**
+   * Updates an existing project.
+   *
+   * @param uri - AT-URI of the project to update
+   * @param updates - Fields to update
+   * @returns Promise resolving to updated project URI and CID
+   *
+   * @example
+   * ```typescript
+   * const result = await repo.hypercerts.updateProject(projectUri, {
+   *   title: "Updated Project Title",
+   *   shortDescription: "New description"
+   * });
+   * ```
+   */
+  async updateProject(
+    uri: string,
+    updates: {
+      title?: string;
+      shortDescription?: string;
+      description?: unknown;
+      avatar?: Blob | null;
+      coverPhoto?: Blob | null;
+      activities?: Array<{ uri: string; cid: string; weight: string }>;
+      location?: { uri: string; cid: string };
+    },
+  ): Promise<UpdateResult> {
+    try {
+      // Parse URI and fetch existing record
+      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
+      if (!uriMatch) {
+        throw new ValidationError(`Invalid URI format: ${uri}`);
+      }
+      const [, , collection, rkey] = uriMatch;
+
+      const existing = await this.agent.com.atproto.repo.getRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+      });
+
+      if (!existing.success) {
+        throw new NetworkError(`Project not found: ${uri}`);
+      }
+
+      const existingRecord = existing.data.value as Record<string, unknown>;
+
+      // Merge updates with existing record
+      const recordForUpdate: Record<string, unknown> = {
+        ...existingRecord,
+        ...updates,
+        // MUST preserve createdAt - cannot be changed
+        createdAt: existingRecord.createdAt,
+      };
+
+      // Handle avatar update with three-way logic:
+      // - undefined: preserve existing value
+      // - null: remove field
+      // - Blob: upload and set new value
+      delete (recordForUpdate as { avatar?: unknown }).avatar;
+      if (updates.avatar !== undefined) {
+        if (updates.avatar === null) {
+          // Remove avatar
+        } else {
+          const arrayBuffer = await updates.avatar.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
+            encoding: updates.avatar.type || "image/jpeg",
+          });
+          if (uploadResult.success) {
+            recordForUpdate.avatar = {
+              $type: "blob",
+              ref: uploadResult.data.blob.ref,
+              mimeType: uploadResult.data.blob.mimeType,
+              size: uploadResult.data.blob.size,
+            };
+          } else {
+            throw new NetworkError("Failed to upload avatar image");
+          }
+        }
+      } else if (existingRecord.avatar) {
+        // Preserve existing avatar
+        recordForUpdate.avatar = existingRecord.avatar;
+      }
+
+      // Handle coverPhoto update with three-way logic:
+      // - undefined: preserve existing value
+      // - null: remove field
+      // - Blob: upload and set new value
+      delete (recordForUpdate as { coverPhoto?: unknown }).coverPhoto;
+      if (updates.coverPhoto !== undefined) {
+        if (updates.coverPhoto === null) {
+          // Remove coverPhoto
+        } else {
+          const arrayBuffer = await updates.coverPhoto.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
+            encoding: updates.coverPhoto.type || "image/jpeg",
+          });
+          if (uploadResult.success) {
+            recordForUpdate.coverPhoto = {
+              $type: "blob",
+              ref: uploadResult.data.blob.ref,
+              mimeType: uploadResult.data.blob.mimeType,
+              size: uploadResult.data.blob.size,
+            };
+          } else {
+            throw new NetworkError("Failed to upload cover photo image");
+          }
+        }
+      } else if (existingRecord.coverPhoto) {
+        // Preserve existing coverPhoto
+        recordForUpdate.coverPhoto = existingRecord.coverPhoto;
+      }
+
+      // Transform activities array if provided
+      if (updates.activities) {
+        recordForUpdate.activities = updates.activities.map((a) => ({
+          activity: { uri: a.uri, cid: a.cid },
+          weight: a.weight,
+        }));
+      }
+
+      // Validate merged record
+      const validation = validate(recordForUpdate, HYPERCERT_COLLECTIONS.PROJECT, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid project record: ${validation.error?.message}`);
+      }
+
+      // Update record
+      const result = await this.agent.com.atproto.repo.putRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+        record: recordForUpdate,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to update project");
+      }
+
+      // Emit event
+      this.emit("projectUpdated", { uri: result.data.uri, cid: result.data.cid });
+      return { uri: result.data.uri, cid: result.data.cid };
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
+      throw new NetworkError(`Failed to update project: ${error instanceof Error ? error.message : "Unknown"}`, error);
+    }
+  }
+
+  /**
+   * Deletes a project.
+   *
+   * @param uri - AT-URI of the project to delete
+   *
+   * @example
+   * ```typescript
+   * await repo.hypercerts.deleteProject(projectUri);
+   * console.log("Project deleted");
+   * ```
+   */
+  async deleteProject(uri: string): Promise<void> {
+    try {
+      // Parse URI
+      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
+      if (!uriMatch) {
+        throw new ValidationError(`Invalid URI format: ${uri}`);
+      }
+      const [, , collection, rkey] = uriMatch;
+
+      // Delete record
+      const result = await this.agent.com.atproto.repo.deleteRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to delete project");
+      }
+
+      // Emit event
+      this.emit("projectDeleted", { uri });
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
+      throw new NetworkError(`Failed to delete project: ${error instanceof Error ? error.message : "Unknown"}`, error);
     }
   }
 }
