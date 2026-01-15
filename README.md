@@ -24,7 +24,7 @@ This SDK is designed around the ATProto (AT Protocol) ecosystem, providing tools
 - **OAuth Authentication** - DPoP-bound token management with automatic refresh
 - **Repository Operations** - Unified interface for PDS (Personal Data Server) and SDS (Shared Data Server)
 - **Lexicon Management** - Schema validation and registration for hypercert record types
-- **Domain Services** - High-level services for hypercerts, collaborators, and organizations
+- **Domain Services** - High-level services for hypercerts, projects, collaborators, and organizations
 - **React Integration** - Hooks and providers with React Query for data fetching and caching
 
 ### Core Concepts
@@ -44,7 +44,8 @@ management, organizations) available when connected to an SDS.
 │                    Your Application                      │
 ├─────────────────────────────────────────────────────────┤
 │  @hypercerts-org/sdk-react                              │
-│  - React hooks (useAuth, useProfile, useHypercerts)     │
+│  - React hooks (useAuth, useProfile, useHypercerts,     │
+│    useProjects, useOrganizations, useCollaborators)     │
 │  - Factory pattern (createATProtoReact)                 │
 │  - React Query integration                              │
 ├─────────────────────────────────────────────────────────┤

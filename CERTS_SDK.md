@@ -100,6 +100,8 @@ export const {
   useProfile,
   useOrganizations,
   useOrganization,
+  useProjects,
+  useProject,
   useCollaborators,
   useHypercerts,
   useHypercert,
@@ -352,6 +354,101 @@ export function Organizations() {
 }
 ```
 
+### Projects
+
+```typescript
+// components/Projects.tsx
+"use client";
+
+import { useProjects } from "@/lib/atproto";
+
+export function Projects() {
+  const { projects, isLoading, create, isCreating } = useProjects();
+
+  const handleCreate = async () => {
+    await create({
+      title: "Clean Water Initiative",
+      shortDescription: "Providing clean water access to rural communities",
+      description: { /* Leaflet linear document */ },
+      activities: [
+        { uri: "at://did:plc:xyz/org.hypercerts.claim/abc", cid: "bafyreiabc", weight: "60" },
+        { uri: "at://did:plc:xyz/org.hypercerts.claim/def", cid: "bafyreidef", weight: "40" },
+      ],
+      location: { uri: "at://did:plc:xyz/app.certified.location/loc1", cid: "bafyreiloc" },
+    });
+  };
+
+  if (isLoading) return <div>Loading...</div>;
+
+  return (
+    <div>
+      <button onClick={handleCreate} disabled={isCreating}>
+        Create Project
+      </button>
+
+      <ul>
+        {projects?.map((project) => (
+          <li key={project.uri}>
+            <h3>{project.title}</h3>
+            <p>{project.shortDescription}</p>
+            {project.activities && (
+              <small>{project.activities.length} activities</small>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+### Single Project
+
+```typescript
+// components/ProjectDetail.tsx
+"use client";
+
+import { useProject } from "@/lib/atproto";
+
+export function ProjectDetail({ uri }: { uri: string }) {
+  const { project, isLoading, update, remove, isUpdating, isDeleting } = useProject(uri);
+
+  if (isLoading) return <div>Loading...</div>;
+  if (!project) return <div>Project not found</div>;
+
+  const handleAddAvatar = async () => {
+    const avatarBlob = new Blob([/* image data */], { type: "image/png" });
+    await update({ avatar: avatarBlob });
+  };
+
+  return (
+    <div>
+      <h1>{project.title}</h1>
+      <p>{project.shortDescription}</p>
+
+      {project.avatar && (
+        <img src={/* blob URL */} alt="Project avatar" />
+      )}
+
+      <button onClick={handleAddAvatar} disabled={isUpdating}>
+        Add Avatar
+      </button>
+
+      <button
+        onClick={() => update({ title: "Updated Title" })}
+        disabled={isUpdating}
+      >
+        Update
+      </button>
+
+      <button onClick={() => remove()} disabled={isDeleting}>
+        Delete
+      </button>
+    </div>
+  );
+}
+```
+
 ### Collaborators
 
 ```typescript
@@ -588,6 +685,8 @@ export const {
   useAuth,
   useProfile,
   useOrganizations,
+  useProjects,
+  useProject,
   useHypercerts,
   useHypercert,
   useCollaborators,
