@@ -153,7 +153,7 @@ describe("HypercertOperationsImpl", () => {
         })
         .mockResolvedValueOnce({
           success: true,
-          data: { uri: "at://did:plc:test/org.hypercerts.claim.location/ghi", cid: "location-cid" },
+          data: { uri: "at://did:plc:test/app.certified.location/ghi", cid: "location-cid" },
         });
 
       // Mock getRecord for attachLocation's internal get call
@@ -177,12 +177,25 @@ describe("HypercertOperationsImpl", () => {
         },
       });
 
-      const result = await hypercertOps.create({
-        ...validParams,
-        location: { value: "New York, NY", srs: "EPSG:4326" },
+      // Mock putRecord for the update call
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "updated-cid" },
       });
 
-      expect(result.locationUri).toBe("at://did:plc:test/org.hypercerts.claim.location/ghi");
+      const result = await hypercertOps.create({
+        ...validParams,
+        location: {
+          lpVersion: "1.0.0",
+          srs: "EPSG:4326",
+          locationType: "coordinate-decimal",
+          location: "https://example.com/location",
+          name: "Test Location",
+          description: "A test location",
+        },
+      });
+
+      expect(result.locationUri).toBe("at://did:plc:test/app.certified.location/ghi");
     });
 
     it("should create contributions when provided", async () => {
@@ -488,6 +501,92 @@ describe("HypercertOperationsImpl", () => {
       });
 
       expect(handler).toHaveBeenCalled();
+    });
+  });
+
+  describe("attachLocation", () => {
+    beforeEach(() => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.claim.record/abc",
+          cid: "hypercert-cid",
+          value: {
+            title: "Test",
+            description: "Test",
+            workScope: {
+              withinAllOf: ["Climate"],
+              withinAnyOf: [],
+              withinNoneOf: [],
+            },
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            createdAt: "2024-01-01",
+          },
+        },
+      });
+
+      // Add this mock for putRecord
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.record/abc", cid: "updated-cid" },
+      });
+
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.location/xyz", cid: "location-cid" },
+      });
+    });
+
+    it("should attach a location using a string URI", async () => {
+      const hypercertUri = "at://did:plc:test/org.hypercerts.claim.record/abc";
+      const result = await hypercertOps.attachLocation(hypercertUri, {
+        lpVersion: "1.0.0",
+        locationType: "coordinate-decimal",
+        location: "https://example.com/location",
+        srs: "EPSG:4326",
+      });
+
+      expect(result.uri).toContain("location");
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+      expect(call.record.location).toEqual({
+        $type: "org.hypercerts.defs#uri",
+        uri: "https://example.com/location",
+      });
+    });
+    it("should attach a location using a GeoJSON Blob", async () => {
+      const hypercertUri = "at://did:plc:test/org.hypercerts.claim.record/abc";
+      const blob = new Blob([JSON.stringify({ type: "Point", coordinates: [0, 0] })], {
+        type: "application/geo+json",
+      });
+      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
+        success: true,
+        data: {
+          blob: { ref: { $link: "blob-cid" }, mimeType: "application/geo+json", size: 100 },
+        },
+      });
+
+      const result = await hypercertOps.attachLocation(hypercertUri, {
+        lpVersion: "1.0.0",
+        locationType: "coordinate-decimal",
+        location: blob,
+        srs: "EPSG:4326",
+      });
+
+      expect(result.uri).toContain("location");
+      expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalled();
+
+      // Check the location record that was created
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+      expect(call.record.location).toEqual({
+        $type: "org.hypercerts.defs#smallBlob", // Your code wraps it in smallBlob
+        blob: {
+          // The actual blob data is nested here
+          ref: { $link: "blob-cid" },
+          mimeType: "application/geo+json",
+          size: 100,
+        },
+      });
     });
   });
 

@@ -38,6 +38,7 @@ export type {
   CreateHypercertResult,
   CreateHypercertEvidenceParams,
   CreateOrganizationParams,
+  AttachLocationParams,
 } from "./repository/interfaces.js";
 
 // ============================================================================

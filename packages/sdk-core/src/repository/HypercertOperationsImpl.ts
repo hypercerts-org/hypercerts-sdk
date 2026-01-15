@@ -27,6 +27,7 @@ import {
 } from "../services/hypercerts/types.js";
 import type {
   CreateHypercertEvidenceParams,
+  AttachLocationParams,
   CreateHypercertParams,
   CreateHypercertResult,
   HypercertEvents,
@@ -310,7 +311,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   private async attachLocationWithProgress(
     hypercertUri: string,
-    location: { value: string; name?: string; description?: string; srs?: string; geojson?: Blob },
+    location: AttachLocationParams,
     onProgress?: (step: ProgressStep) => void,
   ): Promise<string> {
     this.emitProgress(onProgress, { name: "attachLocation", status: "start" });
@@ -839,12 +840,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * });
    * ```
    */
-  async attachLocation(
-    hypercertUri: string,
-    location: { value: string; name?: string; description?: string; srs?: string; geojson?: Blob },
-  ): Promise<CreateResult> {
+  async attachLocation(hypercertUri: string, location: AttachLocationParams): Promise<CreateResult> {
     try {
-      // Validate required srs field
       if (!location.srs) {
         throw new ValidationError(
           "srs (Spatial Reference System) is required. Example: 'EPSG:4326' for WGS84 coordinates, or 'http://www.opengis.net/def/crs/OGC/1.3/CRS84' for CRS84.",
@@ -855,43 +852,13 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       await this.get(hypercertUri);
       const createdAt = new Date().toISOString();
 
-      // Determine location type and prepare location data
-      let locationData: { $type: string; uri: string } | JsonBlobRef;
-      let locationType: string;
+      const locationData = await this.resolveUriOrBlob(location.location, "application/geo+json");
 
-      if (location.geojson) {
-        // Upload GeoJSON as a blob
-        const arrayBuffer = await location.geojson.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-          encoding: location.geojson.type || "application/geo+json",
-        });
-        if (uploadResult.success) {
-          locationData = {
-            $type: "blob",
-            ref: { $link: uploadResult.data.blob.ref.toString() },
-            mimeType: uploadResult.data.blob.mimeType,
-            size: uploadResult.data.blob.size,
-          };
-          locationType = "geojson-point";
-        } else {
-          throw new NetworkError("Failed to upload GeoJSON blob");
-        }
-      } else {
-        // Use value as a URI reference
-        locationData = {
-          $type: "org.hypercerts.defs#uri",
-          uri: location.value,
-        };
-        locationType = "coordinate-decimal";
-      }
-
-      // Build location record according to app.certified.location lexicon
       const locationRecord: HypercertLocation = {
         $type: HYPERCERT_COLLECTIONS.LOCATION,
-        lpVersion: "1.0",
+        lpVersion: location.lpVersion || "1.0",
         srs: location.srs,
-        locationType,
+        locationType: location.locationType,
         location: locationData,
         createdAt,
         name: location.name,
@@ -906,12 +873,23 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const result = await this.agent.com.atproto.repo.createRecord({
         repo: this.repoDid,
         collection: HYPERCERT_COLLECTIONS.LOCATION,
-        record: locationRecord as Record<string, unknown>,
+        record: locationRecord,
       });
 
       if (!result.success) {
         throw new NetworkError("Failed to attach location");
       }
+
+      await this.update({
+        uri: hypercertUri,
+        updates: {
+          location: {
+            $type: "com.atproto.repo.strongRef",
+            uri: result.data.uri,
+            cid: result.data.cid,
+          },
+        },
+      });
 
       this.emit("locationAttached", { uri: result.data.uri, cid: result.data.cid, hypercertUri });
       return { uri: result.data.uri, cid: result.data.cid };
@@ -922,26 +900,26 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Helper function to get the content of a hypercert evidence.
+   * Generic helper to resolve string | Blob into a URI or blob reference.
    *
-   * @param content - Blob | string
-   * @returns Promise resolving to HypercertEvidence["content"]
+   * @param content - Either a URI string or a Blob to upload
+   * @param fallbackMimeType - MIME type to use if Blob.type is empty
+   * @returns Promise resolving to either a URI ref or blob ref union type
+   * @internal
    */
-  private async getHypercertEvidenceContent(content: CreateHypercertEvidenceParams["content"]) {
-    let evidenceContent: HypercertEvidence["content"];
+  private async resolveUriOrBlob(content: string | Blob, fallbackMimeType: string) {
     if (typeof content === "string") {
-      evidenceContent = {
-        $type: "org.hypercerts.defs#uri",
+      return {
+        $type: "org.hypercerts.defs#uri" as const,
         uri: content,
       };
     } else {
-      const uploadedBlob = await this.handleBlobUpload(content, "application/octet-stream");
-      evidenceContent = {
-        $type: "org.hypercerts.defs#smallBlob",
+      const uploadedBlob = await this.handleBlobUpload(content, fallbackMimeType);
+      return {
+        $type: "org.hypercerts.defs#smallBlob" as const,
         blob: uploadedBlob,
       };
     }
-    return evidenceContent;
   }
 
   /**
@@ -970,7 +948,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const subject = await this.get(subjectUri);
       const createdAt = new Date().toISOString();
 
-      const evidenceContent = await this.getHypercertEvidenceContent(content);
+      const evidenceContent = await this.resolveUriOrBlob(content, "application/octet-stream");
       const evidenceRecord: HypercertEvidence = {
         ...rest,
         $type: HYPERCERT_COLLECTIONS.EVIDENCE,
