@@ -9,7 +9,7 @@
  */
 
 import type { EventEmitter } from "eventemitter3";
-import type { HypercertClaim, HypercertCollection } from "../services/hypercerts/types.js";
+import type { HypercertCollection, HypercertClaim, HypercertProject } from "../services/hypercerts/types.js";
 import type {
   CreateResult,
   ListParams,
@@ -657,6 +657,21 @@ export interface HypercertEvents {
    * Emitted when a collection is created.
    */
   collectionCreated: { uri: string; cid: string };
+
+  /**
+   * Emitted when a project is created.
+   */
+  projectCreated: { uri: string; cid: string };
+
+  /**
+   * Emitted when a project is updated.
+   */
+  projectUpdated: { uri: string; cid: string };
+
+  /**
+   * Emitted when a project is deleted.
+   */
+  projectDeleted: { uri: string };
 }
 
 /**
@@ -832,6 +847,66 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
   listCollections(
     params?: ListParams,
   ): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertCollection }>>;
+
+  /**
+   * Creates a project.
+   *
+   * @param params - Project parameters
+   * @returns Promise resolving to project record result
+   */
+  createProject(params: {
+    title: string;
+    shortDescription: string;
+    description?: unknown;
+    avatar?: Blob;
+    coverPhoto?: Blob;
+    activities?: Array<{ uri: string; cid: string; weight: string }>;
+    location?: { uri: string; cid: string };
+  }): Promise<CreateResult>;
+
+  /**
+   * Gets a project by URI.
+   *
+   * @param uri - AT-URI of the project
+   * @returns Promise resolving to project data
+   */
+  getProject(uri: string): Promise<{ uri: string; cid: string; record: HypercertProject }>;
+
+  /**
+   * Lists projects with pagination.
+   *
+   * @param params - Optional pagination parameters
+   * @returns Promise resolving to paginated list
+   */
+  listProjects(params?: ListParams): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertProject }>>;
+
+  /**
+   * Updates a project.
+   *
+   * @param uri - AT-URI of the project
+   * @param updates - Fields to update
+   * @returns Promise resolving to update result
+   */
+  updateProject(
+    uri: string,
+    updates: {
+      title?: string;
+      shortDescription?: string;
+      description?: unknown;
+      avatar?: Blob;
+      coverPhoto?: Blob;
+      activities?: Array<{ uri: string; cid: string; weight: string }>;
+      location?: { uri: string; cid: string };
+    },
+  ): Promise<UpdateResult>;
+
+  /**
+   * Deletes a project.
+   *
+   * @param uri - AT-URI of the project
+   * @returns Promise resolving when deleted
+   */
+  deleteProject(uri: string): Promise<void>;
 }
 
 /**
