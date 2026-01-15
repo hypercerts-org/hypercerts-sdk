@@ -281,7 +281,7 @@ git commit -m "chore: exit prerelease mode"
 
 ### Commit Messages
 
-Follow conventional commits:
+Follow [Conventional Commits](https://www.conventionalcommits.org/) format:
 
 ```
 type(scope): description
@@ -292,6 +292,90 @@ chore(deps): update dependencies
 test(oauth): add callback handler tests
 docs(readme): update installation instructions
 ```
+
+**Common types:**
+- `feat`: New feature or enhancement
+- `fix`: Bug fix
+- `test`: Adding or updating tests
+- `refactor`: Code refactoring without behavior change
+- `docs`: Documentation changes
+- `chore`: Maintenance tasks (deps, configs, etc.)
+- `perf`: Performance improvements
+- `style`: Code style/formatting changes
+
+**Scope examples:** `auth`, `repository`, `oauth`, `sdk-core`, `sdk-react`, `hooks`, `deps`
+
+### Commit Requirements
+
+**IMPORTANT: Always run commits with pre-commit hooks enabled. Never use `--no-verify`.**
+
+The repository has Git hooks that ensure code quality:
+
+1. **Pre-commit hooks** (via Husky):
+   - Run `pnpm build` to verify the code compiles
+   - Check formatting and linting
+   - Warn about missing changesets
+
+2. **Testing requirements**:
+   - All tests must pass before committing changes to business logic
+   - Run `pnpm test` to verify all tests pass
+   - Run `pnpm --filter <package> test` for package-specific tests
+   - Changes to business logic (non-test code) require passing tests
+
+3. **Git hooks must not be skipped**:
+   - ✅ **DO**: `git commit -m "message"` (runs hooks)
+   - ❌ **DON'T**: `git commit --no-verify -m "message"` (skips hooks)
+   - The hooks ensure code quality and prevent broken builds
+
+4. **Use conventional commits**:
+   - Structure: `type(scope): description`
+   - Keep descriptions concise and clear
+   - Use imperative mood ("add" not "added")
+
+### Commit Workflow
+
+```bash
+# 1. Make changes
+# ... edit files ...
+
+# 2. Run tests for affected packages
+pnpm --filter @hypercerts-org/sdk-core test
+
+# 3. Verify the build works
+pnpm build
+
+# 4. Stage changes
+git add <files>
+
+# 5. Commit (hooks will run automatically)
+git commit -m "feat(hypercerts): add project CRUD operations"
+
+# The pre-commit hook will:
+# - Build all packages
+# - Warn if changeset is needed
+# - Block commit if build fails
+
+# 6. If prompted, add changeset for user-facing changes
+pnpm changeset
+git add .changeset/*.md
+git commit -m "chore: add changeset for project operations"
+```
+
+### When to Add a Changeset
+
+Run `pnpm changeset` before pushing if your changes include:
+
+- New features or API changes
+- Bug fixes that affect users
+- Breaking changes
+- Performance improvements
+
+Skip changesets for:
+
+- Internal refactoring
+- Test-only changes
+- Documentation updates
+- Development tooling changes
 
 ## Key Files Reference
 
