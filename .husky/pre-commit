@@ -1,3 +1,5 @@
+pnpm lint-staged
+
 pnpm build
 
 # Warn if committing package changes without a changeset

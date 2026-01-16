@@ -26,10 +26,14 @@
     "@vitest/coverage-v8": "^4.0.6",
     "@vitest/ui": "^4.0.6",
     "eslint": "^9.25.1",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.5.3",
     "turbo": "^2.6.1",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.47.0",
     "vitest": "^4.0.6"
+  },
+  "lint-staged": {
+    "*": "prettier --write --ignore-unknown"
   }
 }
