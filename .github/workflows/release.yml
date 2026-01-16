@@ -58,8 +58,10 @@ jobs:
       - run: npm install -g npm@latest
 
       - run: pnpm install
-      - run: pnpm build
-      - run: pnpm test
+      # Run checks early to fail fast before any versioning/git operations.
+      # Note: checks run again in `pnpm release` - this is intentional to also
+      # guard local releases and catch any issues after version bumps.
+      - run: pnpm check
 
       # Stable release: Verify prerelease mode has been exited
       # The exit intent should already be set on develop before merging to main
