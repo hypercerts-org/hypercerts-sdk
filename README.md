@@ -185,7 +185,7 @@ const atproto = createATProtoReact({ config, queryClient });
       <App />
     </atproto.Provider>
   </WagmiProvider>
-</QueryClientProvider>
+</QueryClientProvider>;
 ```
 
 ## Development

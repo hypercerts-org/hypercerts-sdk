@@ -5,7 +5,8 @@
 
 feat: add HTTP loopback URL support for local development
 
-Enable local development and testing with HTTP loopback URLs (`http://localhost`, `http://127.0.0.1`, `http://[::1]`) while maintaining security for production deployments.
+Enable local development and testing with HTTP loopback URLs (`http://localhost`, `http://127.0.0.1`, `http://[::1]`)
+while maintaining security for production deployments.
 
 **Configuration Updates**
 
@@ -13,7 +14,8 @@ Enable local development and testing with HTTP loopback URLs (`http://localhost`
 - Update `OAuthConfigSchema` to allow loopback URLs for `clientId`, `redirectUri`, `jwksUri`
 - Add optional `developmentMode` boolean flag to suppress warnings
 - Update `ServerConfigSchema` to allow loopback URLs for PDS/SDS servers
-- Export `isLoopbackUrl()` helper function and TypeScript types (`LoopbackUrl`, `HttpsUrl`, `DevelopmentOrProductionUrl`)
+- Export `isLoopbackUrl()` helper function and TypeScript types (`LoopbackUrl`, `HttpsUrl`,
+  `DevelopmentOrProductionUrl`)
 
 **Development Mode Features**
 
@@ -41,4 +43,5 @@ Enable local development and testing with HTTP loopback URLs (`http://localhost`
 
 **Migration**: No migration needed for existing configurations. Existing HTTPS URLs continue to work without changes.
 
-This feature enables developers to test the SDK locally without requiring HTTPS certificates, while the underlying `@atproto/oauth-client-node` library handles loopback OAuth flows per the AT Protocol specification.
+This feature enables developers to test the SDK locally without requiring HTTPS certificates, while the underlying
+`@atproto/oauth-client-node` library handles loopback OAuth flows per the AT Protocol specification.

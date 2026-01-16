@@ -124,9 +124,7 @@ import { queryClient, ATProtoProvider } from "@/lib/atproto";
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <ATProtoProvider>
-        {children}
-      </ATProtoProvider>
+      <ATProtoProvider>{children}</ATProtoProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
@@ -139,11 +137,7 @@ Wrap your app in the root layout:
 // app/layout.tsx
 import { Providers } from "./providers";
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
@@ -201,9 +195,7 @@ export function AuthButton() {
 
   return (
     <div>
-      <button onClick={() => login("bsky.social")}>
-        Sign in with Bluesky
-      </button>
+      <button onClick={() => login("bsky.social")}>Sign in with Bluesky</button>
       {error && <p className="error">{error.message}</p>}
     </div>
   );
@@ -249,13 +241,7 @@ export function Profile() {
 import { useHypercerts } from "@/lib/atproto";
 
 export function HypercertList() {
-  const {
-    hypercerts,
-    isLoading,
-    create,
-    isCreating,
-    error,
-  } = useHypercerts();
+  const { hypercerts, isLoading, create, isCreating, error } = useHypercerts();
 
   const handleCreate = async () => {
     const result = await create({
@@ -315,17 +301,11 @@ export function HypercertDetail({ uri }: { uri: string }) {
       <h1>{hypercert.value.title}</h1>
       <p>{hypercert.value.description}</p>
 
-      <button
-        onClick={() => update({ title: "Updated Title" })}
-        disabled={isUpdating}
-      >
+      <button onClick={() => update({ title: "Updated Title" })} disabled={isUpdating}>
         Update
       </button>
 
-      <button
-        onClick={() => remove()}
-        disabled={isDeleting}
-      >
+      <button onClick={() => remove()} disabled={isDeleting}>
         Delete
       </button>
     </div>
@@ -634,11 +614,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 // app/layout.tsx
 import { Providers } from "./providers";
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
@@ -699,9 +675,7 @@ export default function Home() {
           </button>
         </div>
       ) : (
-        <button onClick={() => login("bsky.social")}>
-          Sign in with Bluesky
-        </button>
+        <button onClick={() => login("bsky.social")}>Sign in with Bluesky</button>
       )}
     </main>
   );
@@ -722,7 +696,9 @@ const queryClient = new QueryClient();
 
 const atproto = createATProtoReact({
   queryClient, // Same instance used by wagmi
-  config: { /* ... */ },
+  config: {
+    /* ... */
+  },
 });
 
 function App() {
@@ -749,7 +725,9 @@ const queryClient = new QueryClient();
 
 const atproto = createATProtoReact({
   queryClient,
-  config: { /* ... */ },
+  config: {
+    /* ... */
+  },
 });
 
 function App() {
@@ -815,7 +793,7 @@ describe("MyComponent", () => {
     render(
       <TestProvider initialSession={mockSession}>
         <MyComponent />
-      </TestProvider>
+      </TestProvider>,
     );
 
     expect(screen.getByText("Welcome")).toBeInTheDocument();
