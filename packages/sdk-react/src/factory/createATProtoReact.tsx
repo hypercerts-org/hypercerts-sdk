@@ -185,6 +185,27 @@ export interface ATProtoReactInstance {
  * });
  * const atproto = createATProtoReact({ config, queryClient });
  * ```
+ *
+ * @example Local Development
+ * ```typescript
+ * // For local development, use HTTP loopback URLs
+ * const atproto = createATProtoReact({
+ *   config: {
+ *     oauth: {
+ *       clientId: "http://localhost/",
+ *       redirectUri: "http://127.0.0.1:3000/api/auth/callback",
+ *       scope: "atproto",
+ *       jwksUri: "http://127.0.0.1:3000/.well-known/jwks.json",
+ *       jwkPrivate: process.env.ATPROTO_JWK_PRIVATE!,
+ *       developmentMode: true, // Suppresses loopback warnings
+ *     },
+ *     servers: {
+ *       pds: "http://localhost:2583", // Local PDS for testing
+ *     },
+ *     logger: console, // Enable debug logging
+ *   },
+ * });
+ * ```
  */
 export function createATProtoReact(options: CreateATProtoReactOptions): ATProtoReactInstance {
   // Validate options
