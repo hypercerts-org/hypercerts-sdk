@@ -2,26 +2,88 @@ import { z } from "zod";
 import type { SessionStore, StateStore, CacheInterface, LoggerInterface } from "./interfaces.js";
 
 /**
+ * Type for HTTP loopback URLs (localhost, 127.0.0.1, [::1])
+ */
+export type LoopbackUrl = `http://localhost${string}` | `http://127.0.0.1${string}` | `http://[::1]${string}`;
+
+/**
+ * Type for HTTPS URLs (production)
+ */
+export type HttpsUrl = `https://${string}`;
+
+/**
+ * Type for URLs that can be used in development or production
+ */
+export type DevelopmentOrProductionUrl = HttpsUrl | LoopbackUrl;
+
+/**
+ * Custom URL validator that allows HTTP loopback addresses for development.
+ *
+ * Accepts:
+ * - Any HTTPS URL (production)
+ * - http://localhost (with optional port and path)
+ * - http://127.0.0.1 (with optional port and path)
+ * - http://[::1] (with optional port and path) - IPv6 loopback
+ *
+ * Rejects:
+ * - Other HTTP URLs (e.g., http://example.com)
+ * - Invalid URLs
+ *
+ * @internal
+ */
+const urlOrLoopback = z.string().refine(
+  (value) => {
+    try {
+      const url = new URL(value);
+
+      // Always allow HTTPS
+      if (url.protocol === "https:") {
+        return true;
+      }
+
+      // For HTTP, only allow loopback addresses
+      if (url.protocol === "http:") {
+        const hostname = url.hostname.toLowerCase();
+        return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  },
+  {
+    message: "Must be a valid HTTPS URL or HTTP loopback URL (localhost, 127.0.0.1, [::1])",
+  },
+);
+
+/**
  * Zod schema for OAuth configuration validation.
  *
  * @remarks
- * All URLs must be valid and use HTTPS in production. The `jwkPrivate` field
- * should contain the private key in JWK (JSON Web Key) format as a string.
+ * All URLs must be valid and use HTTPS in production. For local development,
+ * HTTP loopback URLs (localhost, 127.0.0.1, [::1]) are allowed.
+ * The `jwkPrivate` field should contain the private key in JWK (JSON Web Key) format as a string.
  */
 export const OAuthConfigSchema = z.object({
   /**
    * URL to the OAuth client metadata JSON document.
    * This document describes your application to the authorization server.
    *
+   * For local development, you can use `http://localhost/` as a loopback client.
+   *
    * @see https://atproto.com/specs/oauth#client-metadata
    */
-  clientId: z.string().url(),
+  clientId: urlOrLoopback,
 
   /**
    * URL where users are redirected after authentication.
    * Must match one of the redirect URIs in your client metadata.
+   *
+   * For local development, you can use HTTP loopback URLs like
+   * `http://127.0.0.1:3000/callback` or `http://localhost:3000/callback`.
    */
-  redirectUri: z.string().url(),
+  redirectUri: urlOrLoopback,
 
   /**
    * OAuth scopes to request, space-separated.
@@ -57,8 +119,11 @@ export const OAuthConfigSchema = z.object({
   /**
    * URL to your public JWKS (JSON Web Key Set) endpoint.
    * Used by the authorization server to verify your client's signatures.
+   *
+   * For local development, you can serve JWKS from a loopback URL like
+   * `http://127.0.0.1:3000/.well-known/jwks.json`.
    */
-  jwksUri: z.string().url(),
+  jwksUri: urlOrLoopback,
 
   /**
    * Private JWK (JSON Web Key) as a JSON string.
@@ -69,6 +134,26 @@ export const OAuthConfigSchema = z.object({
    * Typically loaded from environment variables or a secrets manager.
    */
   jwkPrivate: z.string(),
+
+  /**
+   * Enable development mode features (optional).
+   *
+   * When true, suppresses warnings about using HTTP loopback URLs.
+   * Should be set to true for local development to reduce console noise.
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * oauth: {
+   *   clientId: "http://localhost/",
+   *   redirectUri: "http://127.0.0.1:3000/callback",
+   *   // ... other config
+   *   developmentMode: true, // Suppress loopback warnings
+   * }
+   * ```
+   */
+  developmentMode: z.boolean().optional(),
 });
 
 /**
@@ -76,23 +161,40 @@ export const OAuthConfigSchema = z.object({
  *
  * @remarks
  * At least one server (PDS or SDS) should be configured for the SDK to be useful.
+ * For local development, HTTP loopback URLs are allowed.
  */
 export const ServerConfigSchema = z.object({
   /**
    * Personal Data Server URL - the user's own AT Protocol server.
    * This is the primary server for user data operations.
    *
-   * @example "https://bsky.social"
+   * @example Production
+   * ```typescript
+   * pds: "https://bsky.social"
+   * ```
+   *
+   * @example Local development
+   * ```typescript
+   * pds: "http://localhost:2583"
+   * ```
    */
-  pds: z.string().url().optional(),
+  pds: urlOrLoopback.optional(),
 
   /**
    * Shared Data Server URL - for collaborative data storage.
    * Required for collaborator and organization operations.
    *
-   * @example "https://sds.hypercerts.org"
+   * @example Production
+   * ```typescript
+   * sds: "https://sds.hypercerts.org"
+   * ```
+   *
+   * @example Local development
+   * ```typescript
+   * sds: "http://127.0.0.1:2584"
+   * ```
    */
-  sds: z.string().url().optional(),
+  sds: urlOrLoopback.optional(),
 });
 
 /**
