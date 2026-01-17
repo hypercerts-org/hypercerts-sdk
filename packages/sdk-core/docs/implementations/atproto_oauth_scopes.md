@@ -98,14 +98,43 @@ export const IdentityAttrSchema = z.enum(["handle", "*"]);
 export type IdentityAttr = z.infer<typeof IdentityAttrSchema>;
 
 /**
- * Zod schema for MIME type patterns
+ * Zod schema for MIME type patterns.
+ *
+ * Validates MIME type strings used in blob permissions.
+ * Supports standard MIME types and wildcard patterns per ATProto spec.
+ *
+ * **References:**
+ * - ATProto Permission Spec: https://atproto.com/specs/permission (blob resource)
+ * - RFC 2045 (MIME): https://www.rfc-editor.org/rfc/rfc2045 (token definition)
+ * - IANA Media Types: https://www.iana.org/assignments/media-types/
+ *
+ * **Implementation:**
+ * This is a "good enough" validation that allows common real-world MIME types:
+ * - Type: letters, digits (e.g., "3gpp")
+ * - Subtype: letters, digits, hyphens, plus signs, dots, underscores, wildcards
+ * - Examples: "image/png", "application/vnd.api+json", "video/*", "clue_info+xml"
+ *
+ * Note: We use a simplified regex rather than full RFC 2045 token validation
+ * for practicality. Zod v4 has native MIME support (z.file().mime()) but would
+ * require a larger migration effort.
  */
-export const MimeTypeSchema = z.string().regex(/^[a-z]+\/[a-z*]+$/i, "Invalid MIME type pattern");
+export const MimeTypeSchema = z
+  .string()
+  .regex(
+    /^[a-z0-9]+\/[a-z0-9*+._-]+$/i,
+    'Invalid MIME type pattern. Expected format: type/subtype (e.g., "image/*", "video/mp4", "application/vnd.api+json")',
+  );
 
 /**
  * Zod schema for NSID (Namespaced Identifier)
+ * Official ATProto spec: 1-63 char segments, proper hyphen placement, authority/name segment rules
  */
-export const NsidSchema = z.string().regex(/^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/, "Invalid NSID format");
+export const NsidSchema = z
+  .string()
+  .regex(
+    /^[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(\.[a-zA-Z]([a-zA-Z0-9]{0,62})?)$/,
+    'Invalid NSID format (must follow ATProto spec: max 63 chars per segment, proper hyphen placement)'
+  );
 
 /**
  * Zod schema for account permission
@@ -310,19 +339,99 @@ export function buildScope(...scopes: string[]): string {
 }
 
 /**
- * Parse a scope string into individual scopes
- * Returns validation result with detailed errors
+ * Parse a scope string into individual scopes/permissions
+ * Returns array of permission strings
  */
-export function parseScope(scopeString: string) {
-  return ScopeStringSchema.safeParse(scopeString);
+export function parseScope(scopeString: string): string[] {
+  return scopeString.split(" ").filter((s) => s.length > 0);
 }
 
 /**
- * Validate if a scope string contains a specific permission
+ * Helper function to match MIME type patterns with wildcard support.
+ *
+ * Implements MIME type matching for blob permissions per ATProto spec.
+ *
+ * **Reference:**
+ * - ATProto Permission Spec: https://atproto.com/specs/permission
+ *   "MIME types or partial MIME type glob patterns (*/* or text/* for example)"
+ *
+ * **Supported patterns:**
+ * - Exact matches: "image/png" matches "image/png"
+ * - Type wildcards: "image/*" matches "image/png", "image/jpeg", etc.
+ * - Full wildcards: "*\/*" matches any MIME type
  */
-export function hasPermission(scopeString: string, permission: string): boolean {
-  const scopes = scopeString.split(" ");
-  return scopes.includes(permission);
+function matchMimePattern(pattern: string, mimeType: string): boolean {
+  if (pattern === "*/*") return true;
+  if (pattern === mimeType) return true;
+
+  const [patternType, patternSubtype] = pattern.split("/");
+  const [mimeTypeType, mimeTypeSubtype] = mimeType.split("/");
+
+  if (patternSubtype === "*" && patternType === mimeTypeType) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if a scope string contains a specific permission.
+ *
+ * Implements permission matching per ATProto OAuth spec with support for
+ * exact matching and limited wildcard patterns.
+ *
+ * **References:**
+ * - ATProto Permission Spec: https://atproto.com/specs/permission
+ * - ATProto OAuth Spec: https://atproto.com/specs/oauth
+ *
+ * **Supported wildcards (per spec):**
+ * - `repo:*` - Matches any repository collection (e.g., `repo:app.bsky.feed.post`)
+ * - `rpc:*` - Matches any RPC lexicon (but aud cannot also be wildcard)
+ * - `blob:image/*` - MIME type wildcards (e.g., matches `blob:image/png`, `blob:image/jpeg`)
+ * - `blob:*/*` - Matches any MIME type
+ * - `identity:*` - Full control of DID document and handle (spec allows `*` as attr value)
+ *
+ * **NOT supported (per spec):**
+ * - `account:*` - Account attr does not support wildcards (only `email` and `repo` allowed)
+ * - `include:*` - Include NSID does not support wildcards
+ * - Partial wildcards like `com.example.*` are not supported
+ */
+export function hasPermission(scope: string, permission: string): boolean {
+  const permissions = parseScope(scope);
+
+  // 1. Check exact match first
+  if (permissions.includes(permission)) return true;
+
+  // 2. Check wildcard matches (only those supported by ATProto spec)
+  for (const scopePermission of permissions) {
+    // repo:* - Wildcard for repository collections
+    // Spec: "Wildcard (*) is allowed in scope string syntax"
+    if (scopePermission.startsWith("repo:*") && permission.startsWith("repo:")) {
+      return true;
+    }
+
+    // rpc:* - Wildcard for RPC lexicons
+    // Spec: "Wildcard (*) is allowed in scope string syntax for lxm parameter"
+    if (scopePermission.startsWith("rpc:*") && permission.startsWith("rpc:")) {
+      return true;
+    }
+
+    // blob MIME wildcards - image/*, video/*, */*
+    // Spec: "MIME types or partial MIME type glob patterns (*/* or text/* for example)"
+    if (scopePermission.startsWith("blob:") && permission.startsWith("blob:")) {
+      const scopeMime = scopePermission.substring(5).split("?")[0];
+      const permMime = permission.substring(5).split("?")[0];
+      if (matchMimePattern(scopeMime, permMime)) return true;
+    }
+
+    // identity:* - Full control of DID document and handle
+    // Spec: "* - Full control of DID document and handle" (as attr value)
+    if (scopePermission === "identity:*" && permission.startsWith("identity:")) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
