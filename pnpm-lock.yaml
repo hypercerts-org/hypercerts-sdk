@@ -19,13 +19,16 @@ importers:
         version: 9.39.1
       '@vitest/coverage-v8':
         specifier: ^4.0.6
-        version: 4.0.16(vitest@4.0.16(@types/node@24.10.1)(@vitest/ui@4.0.16)(jsdom@26.1.0)(yaml@2.8.2))
+        version: 4.0.16(vitest@4.0.16)
       '@vitest/ui':
         specifier: ^4.0.6
         version: 4.0.16(vitest@4.0.16)
       eslint:
         specifier: ^9.25.1
         version: 9.39.1
+      husky:
+        specifier: ^9.1.7
+        version: 9.1.7
       lint-staged:
         specifier: ^16.2.7
         version: 16.2.7
@@ -1362,6 +1365,11 @@ packages:
 
   human-id@4.1.2:
     resolution: {integrity: sha512-v/J+4Z/1eIJovEBdlV5TYj1IR+ZiohcYGRY+qN/oC9dAfKzVT023N/Bgw37hrKCoVRBvk3bqyzpr2PP5YeTMSg==}
+    hasBin: true
+
+  husky@9.1.7:
+    resolution: {integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==}
+    engines: {node: '>=18'}
     hasBin: true
 
   iconv-lite@0.6.3:
@@ -3061,7 +3069,7 @@ snapshots:
       '@typescript-eslint/types': 8.48.0
       eslint-visitor-keys: 4.2.1
 
-  '@vitest/coverage-v8@4.0.16(vitest@4.0.16(@types/node@24.10.1)(@vitest/ui@4.0.16)(jsdom@26.1.0)(yaml@2.8.2))':
+  '@vitest/coverage-v8@4.0.16(vitest@4.0.16)':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
       '@vitest/utils': 4.0.16
@@ -3530,6 +3538,8 @@ snapshots:
       - supports-color
 
   human-id@4.1.2: {}
+
+  husky@9.1.7: {}
 
   iconv-lite@0.6.3:
     dependencies:
