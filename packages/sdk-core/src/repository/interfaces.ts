@@ -277,7 +277,7 @@ export interface CreateHypercertEvidenceParams {
 
   /**
    * Evidence content.
-   * - string: e.g. URL, IPFS URI, or inline text (depending on your conventions)
+   * - string: should be a URI.
    * - Blob: binary payload (e.g. image/pdf)
    */
   content: string | Blob;
@@ -343,6 +343,11 @@ export interface CreateHypercertResult {
    * AT-URIs of contribution records, if contributions were provided.
    */
   contributionUris?: string[];
+
+  /**
+   * AT-URIs of evidence records, if evidence was provided.
+   */
+  evidenceUris?: string[];
 }
 
 // ============================================================================

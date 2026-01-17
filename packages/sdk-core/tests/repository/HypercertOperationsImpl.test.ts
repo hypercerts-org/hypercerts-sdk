@@ -89,26 +89,54 @@ describe("HypercertOperationsImpl", () => {
       expect(hypercertCall.record.shortDescription).toBe("Short desc");
     });
 
-    it("should include evidence when provided", async () => {
+    it("should create evidence records when provided", async () => {
       const evidence = [
         {
-          $type: "org.hypercerts.claim.evidence" as const,
-          content: {
-            uri: "https://example.com/evidence",
-            $type: "org.hypercerts.defs#uri" as const,
-          },
-          title: "Evidence",
-          createdAt: new Date().toISOString(),
+          content: "https://example.com/evidence",
+          title: "Evidence Document",
+          shortDescription: "Supporting evidence",
+          relationType: "supports" as const,
         },
       ];
 
-      await hypercertOps.create({
+      // Mock getRecord for evidence creation (called by addEvidence)
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.claim.record/def456",
+          cid: "hypercert-cid",
+          value: {
+            title: "Test",
+            description: "Test",
+            workScope: { withinAllOf: ["Testing"] },
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            createdAt: "2024-01-01",
+          },
+        },
+      });
+
+      // Mock evidence record creation (third createRecord call after rights and hypercert)
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValueOnce({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.evidence/evidence123", cid: "evidence-cid" },
+      });
+
+      const result = await hypercertOps.create({
         ...validParams,
         evidence,
       });
 
-      const hypercertCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
-      expect(hypercertCall.record.evidence).toEqual(evidence);
+      // Verify evidence records were created
+      expect(result.evidenceUris).toBeDefined();
+      expect(result.evidenceUris).toHaveLength(1);
+      expect(result.evidenceUris?.[0]).toContain("evidence");
+
+      // Verify createRecord was called for evidence (3rd call: rights, hypercert, evidence)
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledTimes(3);
+      const evidenceCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
+      expect(evidenceCall.collection).toBe("org.hypercerts.claim.evidence");
+      expect(evidenceCall.record.title).toBe("Evidence Document");
     });
 
     it("should attach location when provided", async () => {

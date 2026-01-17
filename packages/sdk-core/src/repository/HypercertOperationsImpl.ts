@@ -119,6 +119,28 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
+   * Helper function to upload a blob to the repository, returns a blob reference
+   *
+   * @param content - Blob to upload
+   * @param fallbackContentType | if content.type is empty,we use this
+   * @returns BlobRef
+   * @throws {@link NetworkError} if upload fails
+   * @internal
+   */
+
+  private async handleBlobUpload(content: Blob, fallbackContentType: string) {
+    const arrayBuffer = await content.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
+      encoding: content.type || fallbackContentType,
+    });
+    if (!uploadResult.success) {
+      throw new NetworkError("Failed to upload blob");
+    }
+    return uploadResult.data.blob;
+  }
+
+  /**
    * Uploads an image blob and returns a blob reference.
    *
    * @param image - Image blob to upload
@@ -250,10 +272,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       hypercertRecord.image = imageBlobRef;
     }
 
-    if (params.evidence && params.evidence.length > 0) {
-      hypercertRecord.evidence = params.evidence;
-    }
-
     const hypercertValidation = validate(hypercertRecord, HYPERCERT_COLLECTIONS.CLAIM, "main", false);
     if (!hypercertValidation.success) {
       throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error?.message}`);
@@ -351,6 +369,43 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
+   * Creates evidence records with progress tracking.
+   *
+   * @param hypercertUri - URI of the hypercert
+   * @param evidenceItems - Array of evidence data (without subjectUri)
+   * @param onProgress - Optional progress callback
+   * @returns Promise resolving to array of evidence URIs
+   * @internal
+   */
+  private async createEvidenceWithProgress(
+    hypercertUri: string,
+    evidenceItems: Array<Omit<CreateHypercertEvidenceParams, "subjectUri">>,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<string[]> {
+    this.emitProgress(onProgress, { name: "addEvidence", status: "start" });
+    try {
+      const evidenceUris = await Promise.all(
+        evidenceItems.map((evidence) =>
+          this.addEvidence({
+            subjectUri: hypercertUri,
+            ...evidence,
+          } as CreateHypercertEvidenceParams).then((result) => result.uri),
+        ),
+      );
+      this.emitProgress(onProgress, {
+        name: "addEvidence",
+        status: "success",
+        data: { count: evidenceUris.length },
+      });
+      return evidenceUris;
+    } catch (error) {
+      this.emitProgress(onProgress, { name: "addEvidence", status: "error", error: error as Error });
+      this.logger?.warn(`Failed to create evidence: ${error instanceof Error ? error.message : "Unknown"}`);
+      throw error;
+    }
+  }
+
+  /**
    * Creates a new hypercert with all related records.
    *
    * This method orchestrates the creation of a hypercert and its associated
@@ -378,6 +433,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * - `createHypercert`: Main hypercert record creation
    * - `attachLocation`: Location record creation
    * - `createContributions`: Contribution records creation
+   * - `addEvidence`: Evidence records creation
    *
    * @example Minimal hypercert
    * ```typescript
@@ -467,6 +523,15 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
             params.contributions,
             params.onProgress,
           );
+        } catch {
+          // Error already logged and progress emitted
+        }
+      }
+
+      // Step 6: Add evidence records if provided
+      if (params.evidence && params.evidence.length > 0) {
+        try {
+          result.evidenceUris = await this.createEvidenceWithProgress(hypercertUri, params.evidence, params.onProgress);
         } catch {
           // Error already logged and progress emitted
         }
@@ -857,12 +922,47 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
+   * Helper function to get the content of a hypercert evidence.
+   *
+   * @param content - Blob | string
+   * @returns Promise resolving to HypercertEvidence["content"]
+   */
+  private async getHypercertEvidenceContent(content: CreateHypercertEvidenceParams["content"]) {
+    let evidenceContent: HypercertEvidence["content"];
+    if (typeof content === "string") {
+      evidenceContent = {
+        $type: "org.hypercerts.defs#uri",
+        uri: content,
+      };
+    } else {
+      const uploadedBlob = await this.handleBlobUpload(content, "application/octet-stream");
+      evidenceContent = {
+        $type: "org.hypercerts.defs#smallBlob",
+        blob: uploadedBlob,
+      };
+    }
+    return evidenceContent;
+  }
+
+  /**
    * Adds evidence to any subject via the subject ref.
    *
    * @param evidence - HypercertEvidenceInput
    * @returns Promise resolving to update result
    * @throws {@link ValidationError} if validation fails
    * @throws {@link NetworkError} if the operation fails
+   *
+   * @example
+   * ```typescript
+   * await repo.hypercerts.addEvidence({
+   *   subjectUri: "at://did:plc:u7h3dstby64di67bxaotzxcz/org.hypercerts.claim.activity/3mbvv5d7ixh2g"
+   *   content: Blob,
+   *   title: "Meeting Notes",
+   *   shortDescription: "Meetings notes from the 3rd of December 2025",
+   *   description: "The meeting with the board of directors and audience on 2025 in regards to the ecological landscape",
+   *   relationType: "supports",
+   * })
+   * ```
    */
   async addEvidence(evidence: CreateHypercertEvidenceParams): Promise<UpdateResult> {
     try {
@@ -870,30 +970,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const subject = await this.get(subjectUri);
       const createdAt = new Date().toISOString();
 
-      let evidenceContent: HypercertEvidence["content"];
-      if (typeof content === "string") {
-        evidenceContent = {
-          $type: "org.hypercerts.defs#uri",
-          uri: content,
-        };
-      } else {
-        // Handle Blob upload
-        const arrayBuffer = await content.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-          encoding: content.type || "application/octet-stream",
-        });
-
-        if (!uploadResult.success) {
-          throw new NetworkError("Failed to upload evidence blob");
-        }
-
-        evidenceContent = {
-          $type: "org.hypercerts.defs#smallBlob",
-          blob: uploadResult.data.blob,
-        };
-      }
-
+      const evidenceContent = await this.getHypercertEvidenceContent(content);
       const evidenceRecord: HypercertEvidence = {
         ...rest,
         $type: HYPERCERT_COLLECTIONS.EVIDENCE,
