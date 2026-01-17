@@ -1325,10 +1325,11 @@ describe("HypercertOperationsImpl", () => {
 
       it("should upload and update avatar", async () => {
         const newAvatar = new Blob(["new avatar"], { type: "image/png" });
+        const mockRef = { toString: () => "new-avatar-cid" };
         mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
           success: true,
           data: {
-            blob: { ref: { toString: () => "new-avatar-cid" }, mimeType: "image/png", size: 150 },
+            blob: { ref: mockRef, mimeType: "image/png", size: 150 },
           },
         });
 
@@ -1340,7 +1341,7 @@ describe("HypercertOperationsImpl", () => {
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
         expect(putCall.record.avatar).toEqual({
           $type: "blob",
-          ref: { $link: "new-avatar-cid" },
+          ref: mockRef,
           mimeType: "image/png",
           size: 150,
         });

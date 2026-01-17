@@ -4,8 +4,8 @@
  * @packageDocumentation
  */
 
-import { useCallback, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { atprotoKeys } from "../queries/keys.js";
 import { useATProtoAuth } from "./useATProtoAuth.js";
 import { useRepository } from "./useRepository.js";
@@ -85,19 +85,15 @@ export function useProjects(repoDid?: string): UseProjectsResult {
     repoDid: targetDid,
   });
 
-  // Pagination state
-  const [cursor, setCursor] = useState<string | undefined>(undefined);
-  const [allProjects, setAllProjects] = useState<Project[]>([]);
-
-  // Projects query
-  const projectsQuery = useQuery({
-    queryKey: atprotoKeys.projectsList(targetDid ?? "", { cursor, limit: DEFAULT_LIMIT }),
-    queryFn: async (): Promise<{ projects: Project[]; cursor?: string }> => {
+  // Projects query with infinite pagination
+  const projectsQuery = useInfiniteQuery({
+    queryKey: atprotoKeys.projects(targetDid),
+    queryFn: async ({ pageParam }): Promise<{ projects: Project[]; cursor?: string }> => {
       if (!repository) return { projects: [] };
 
       const result = await repository.hypercerts.listProjects({
         limit: DEFAULT_LIMIT,
-        cursor,
+        cursor: pageParam,
       });
 
       const projects: Project[] = result.records.map((item) => ({
@@ -111,15 +107,14 @@ export function useProjects(repoDid?: string): UseProjectsResult {
         cursor: result.cursor,
       };
     },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.cursor,
     enabled: !!targetDid && authStatus === "authenticated" && repoStatus === "ready" && !!repository,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Update all projects when query data changes
-  // This accumulates pages for infinite scroll
-  const displayProjects = cursor
-    ? [...allProjects, ...(projectsQuery.data?.projects ?? [])]
-    : (projectsQuery.data?.projects ?? []);
+  // Flatten all pages into a single array
+  const displayProjects = projectsQuery.data?.pages.flatMap((page) => page.projects) ?? [];
 
   // Create mutation
   const createMutation = useMutation({
@@ -132,9 +127,7 @@ export function useProjects(repoDid?: string): UseProjectsResult {
       return result;
     },
     onSuccess: () => {
-      // Reset pagination and refetch
-      setCursor(undefined);
-      setAllProjects([]);
+      // Invalidate queries to refetch
       queryClient.invalidateQueries({
         queryKey: atprotoKeys.projects(targetDid),
       });
@@ -150,15 +143,12 @@ export function useProjects(repoDid?: string): UseProjectsResult {
   );
 
   const fetchNextPage = useCallback(async () => {
-    if (projectsQuery.data?.cursor) {
-      setAllProjects(displayProjects);
-      setCursor(projectsQuery.data.cursor);
+    if (projectsQuery.hasNextPage && !projectsQuery.isFetchingNextPage) {
+      await projectsQuery.fetchNextPage();
     }
-  }, [projectsQuery.data?.cursor, displayProjects]);
+  }, [projectsQuery]);
 
   const refetch = useCallback(async () => {
-    setCursor(undefined);
-    setAllProjects([]);
     await projectsQuery.refetch();
   }, [projectsQuery]);
 
@@ -168,7 +158,7 @@ export function useProjects(repoDid?: string): UseProjectsResult {
     error: projectsQuery.error ?? null,
     create,
     isCreating: createMutation.isPending,
-    hasNextPage: !!projectsQuery.data?.cursor,
+    hasNextPage: projectsQuery.hasNextPage,
     fetchNextPage,
     refetch,
   };

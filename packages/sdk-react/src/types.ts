@@ -241,6 +241,12 @@ export interface UseOrganizationsResult {
   /** Create loading state */
   isCreating: boolean;
 
+  /** Whether there are more pages to fetch */
+  hasNextPage: boolean;
+
+  /** Fetch next page of organizations */
+  fetchNextPage: () => Promise<void>;
+
   /** Refetch organizations */
   refetch: () => Promise<void>;
 }
@@ -298,6 +304,12 @@ export interface UseCollaboratorsResult {
 
   /** Revoke loading state */
   isRevoking: boolean;
+
+  /** Whether there are more pages to fetch */
+  hasNextPage: boolean;
+
+  /** Fetch next page of collaborators */
+  fetchNextPage: () => Promise<void>;
 
   /** Refetch collaborators */
   refetch: () => Promise<void>;

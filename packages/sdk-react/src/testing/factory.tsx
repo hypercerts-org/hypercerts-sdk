@@ -171,6 +171,8 @@ export function createMockATProtoReact(options: MockATProtoReactOptions = {}): A
       },
     }),
     isCreating: false,
+    hasNextPage: false,
+    fetchNextPage: async () => {},
     refetch: async () => {},
     ...options.mockHooks?.useOrganizations,
   };
@@ -191,6 +193,8 @@ export function createMockATProtoReact(options: MockATProtoReactOptions = {}): A
     revoke: async () => {},
     isGranting: false,
     isRevoking: false,
+    hasNextPage: false,
+    fetchNextPage: async () => {},
     refetch: async () => {},
     ...options.mockHooks?.useCollaborators,
   };
