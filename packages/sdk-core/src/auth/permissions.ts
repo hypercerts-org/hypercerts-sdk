@@ -1037,7 +1037,7 @@ function matchMimePattern(pattern: string, mimeType: string): boolean {
   if (pattern === mimeType) return true;
 
   const [patternType, patternSubtype] = pattern.split("/");
-  const [mimeTypeType, mimeTypeSubtype] = mimeType.split("/");
+  const [mimeTypeType] = mimeType.split("/");
 
   if (patternSubtype === "*" && patternType === mimeTypeType) {
     return true;
