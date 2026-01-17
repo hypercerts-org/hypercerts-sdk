@@ -1,6 +1,7 @@
 pnpm lint-staged
 
-pnpm build
+# This is too slow and discourages committing early and often
+# pnpm build
 
 # Warn if committing package changes without a changeset
 if git diff --cached --name-only | grep -q "^packages/" && \
