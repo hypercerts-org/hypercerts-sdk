@@ -17,7 +17,8 @@
     "clean": "turbo clean",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "turbo check && changeset publish"
+    "release": "turbo check && changeset publish",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.2",
@@ -26,6 +27,7 @@
     "@vitest/coverage-v8": "^4.0.6",
     "@vitest/ui": "^4.0.6",
     "eslint": "^9.25.1",
+    "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "^3.5.3",
     "turbo": "^2.6.1",
@@ -34,6 +36,7 @@
     "vitest": "^4.0.6"
   },
   "lint-staged": {
-    "*": "prettier --write --ignore-unknown"
+    "*": "prettier --write --ignore-unknown",
+    "*.{js,ts,tsx,jsx,mjs,cjs}": "eslint --fix --max-warnings 0"
   }
 }
