@@ -51,6 +51,99 @@ const claim = await repo.hypercerts.create({
 });
 ```
 
+## Local Development
+
+For local development and testing, you can use HTTP loopback URLs with `localhost` or `127.0.0.1`:
+
+### NextJS App Router Example
+
+```typescript
+// lib/atproto.ts
+import { createATProtoSDK } from "@hypercerts-org/sdk-core";
+
+const sdk = createATProtoSDK({
+  oauth: {
+    // Use localhost for client_id (loopback client)
+    clientId: "http://localhost/",
+
+    // Use 127.0.0.1 with your app's port for redirect
+    redirectUri: "http://127.0.0.1:3000/api/auth/callback",
+
+    scope: "atproto",
+
+    // Serve JWKS from your app
+    jwksUri: "http://127.0.0.1:3000/.well-known/jwks.json",
+
+    // Load from environment variable
+    jwkPrivate: process.env.ATPROTO_JWK_PRIVATE!,
+
+    // Optional: suppress warnings
+    developmentMode: true,
+  },
+  servers: {
+    // Point to local PDS for testing
+    pds: "http://localhost:2583",
+  },
+  logger: console, // Enable debug logging
+});
+
+export default sdk;
+```
+
+### API Route Setup
+
+```typescript
+// app/api/auth/callback/route.ts
+import sdk from "@/lib/atproto";
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+
+  try {
+    const session = await sdk.callback(searchParams);
+
+    // Store session (use secure httpOnly cookie in production)
+    return Response.json({ success: true, did: session.sub });
+  } catch (error) {
+    return Response.json({ error: "Authentication failed" }, { status: 401 });
+  }
+}
+```
+
+### Serve JWKS Endpoint
+
+```typescript
+// app/.well-known/jwks.json/route.ts
+export async function GET() {
+  const jwk = JSON.parse(process.env.ATPROTO_JWK_PRIVATE!);
+
+  // Return public keys only (remove private key 'd' parameter)
+  const publicKeys = jwk.keys.map(({ d, ...publicKey }) => publicKey);
+
+  return Response.json({ keys: publicKeys });
+}
+```
+
+### Environment Variables
+
+```bash
+# .env.local
+ATPROTO_JWK_PRIVATE='{"keys":[{"kty":"EC","crv":"P-256",...}]}'
+```
+
+### Important Notes
+
+> **Authorization Server Support**: The AT Protocol OAuth spec makes loopback support **optional**. Most AT Protocol
+> servers support loopback clients for development, but verify your target authorization server supports this feature.
+
+> **Port Matching**: Redirect URIs can use any port - the authorization server ignores port numbers when validating
+> loopback redirects (only the path must match).
+
+> **Production Use**: ⚠️ Never use HTTP loopback URLs in production. Always use HTTPS with proper TLS certificates.
+
+> **IP vs Hostname**: Use `http://localhost/` for `clientId` and `http://127.0.0.1:<port>` for `redirectUri` and
+> `jwksUri` (this is the recommended pattern per AT Protocol spec).
+
 ## Core Concepts
 
 ### 1. PDS vs SDS: Understanding Server Types

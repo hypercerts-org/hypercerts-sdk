@@ -51,14 +51,7 @@ const atproto = createATProtoReact({
 });
 
 // 2. Export hooks
-export const {
-  Provider,
-  queryClient,
-  useAuth,
-  useProfile,
-  useOrganizations,
-  useHypercerts,
-} = atproto;
+export const { Provider, queryClient, useAuth, useProfile, useOrganizations, useHypercerts } = atproto;
 
 // 3. Wrap app with QueryClientProvider
 function App() {
@@ -96,7 +89,7 @@ const atproto = createATProtoReact({ config, queryClient });
       <App />
     </atproto.Provider>
   </WagmiProvider>
-</QueryClientProvider>
+</QueryClientProvider>;
 ```
 
 ## Hooks API
@@ -135,7 +128,7 @@ test("renders profile", () => {
   render(
     <TestProvider mockSession={createMockSession({ handle: "test.bsky.social" })}>
       <ProfileComponent />
-    </TestProvider>
+    </TestProvider>,
   );
 });
 ```

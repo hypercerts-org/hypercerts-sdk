@@ -1,6 +1,7 @@
 import { NodeOAuthClient, JoseKey, type NodeSavedSession } from "@atproto/oauth-client-node";
 import type { SessionStore, StateStore, LoggerInterface } from "../core/interfaces.js";
 import type { ATProtoSDKConfig } from "../core/config.js";
+import { isLoopbackUrl } from "../lib/url-utils.js";
 import { AuthenticationError, NetworkError } from "../core/errors.js";
 import { InMemorySessionStore } from "../storage/InMemorySessionStore.js";
 import { InMemoryStateStore } from "../storage/InMemoryStateStore.js";
@@ -163,6 +164,26 @@ export class OAuthClient {
   }
 
   /**
+   * Detects if a URL is a loopback address (localhost or 127.0.0.1 or [::1]).
+   *
+   * @param urlString - The URL to check
+   * @returns True if the URL is an HTTP loopback address
+   * @internal
+   */
+  private isLoopbackUrl(urlString: string): boolean {
+    try {
+      const url = new URL(urlString);
+      if (url.protocol !== "http:") {
+        return false;
+      }
+      const hostname = url.hostname.toLowerCase();
+      return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Builds OAuth client metadata from configuration.
    *
    * The metadata describes your application to the authorization server
@@ -180,6 +201,27 @@ export class OAuthClient {
    */
   private buildClientMetadata() {
     const clientIdUrl = new URL(this.config.oauth.clientId);
+
+    // Detect and warn about loopback configuration
+    const isDevelopment = isLoopbackUrl(this.config.oauth.clientId) || isLoopbackUrl(this.config.oauth.redirectUri);
+
+    if (isDevelopment && !this.config.oauth.developmentMode) {
+      this.logger?.warn("Using HTTP loopback URLs without explicit developmentMode flag", {
+        clientId: this.config.oauth.clientId,
+        redirectUri: this.config.oauth.redirectUri,
+        note: "This is suitable for local development only. For production, use HTTPS URLs.",
+        recommendation: "Set oauth.developmentMode: true to suppress this warning.",
+      });
+    }
+
+    if (isDevelopment) {
+      this.logger?.info("Running in development mode with loopback URLs", {
+        clientId: this.config.oauth.clientId,
+        redirectUri: this.config.oauth.redirectUri,
+        note: "Authorization server must support loopback clients (optional per AT Protocol spec)",
+      });
+    }
+
     const metadata = {
       client_id: this.config.oauth.clientId,
       client_name: "ATProto SDK Client",

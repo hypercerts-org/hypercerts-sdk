@@ -185,7 +185,7 @@ const atproto = createATProtoReact({ config, queryClient });
       <App />
     </atproto.Provider>
   </WagmiProvider>
-</QueryClientProvider>
+</QueryClientProvider>;
 ```
 
 ## Development
@@ -339,6 +339,8 @@ npm install @hypercerts-org/sdk-react@beta
 
 ## Documentation
 
+- **[Core SDK Documentation](./packages/sdk-core/README.md)** - Complete SDK reference with local development guide
+- **[React SDK Documentation](./packages/sdk-react/README.md)** - React hooks and components
 - [Implementation Plan](./IMPLEMENTATION_PLAN.MD) - Detailed architecture and implementation phases
 - [Core & Auth Spec](./specs/01-core-and-auth.md) - OAuth and session management
 - [Repository & Lexicons Spec](./specs/02-repository-and-lexicons.md) - Repository operations
