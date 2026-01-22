@@ -11,6 +11,7 @@ import type {
   CollaboratorPermissions,
   CreateHypercertParams,
   CreateHypercertResult,
+  CreateOrganizationParams,
   CreateProjectParams,
   HypercertClaim,
   HypercertProjectWithMetadata,
@@ -204,26 +205,6 @@ export interface UseProfileResult {
 // ─────────────────────────────────────────────
 // Organization Types
 // ─────────────────────────────────────────────
-
-/**
- * Parameters for creating an organization.
- */
-export interface CreateOrganizationParams {
-  /**
-   * Name of the organization
-   */
-  name: string;
-  /**
-   * The handle of the organization without attaching the SDS domain
-   *
-   * @example: "gainforest" for "gainforest.sds.hypercerts.org"
-   */
-  handlePrefix: string;
-  /**
-   * Optional description of the organization
-   */
-  description?: string;
-}
 
 /**
  * Result of the useOrganizations hook.
@@ -514,6 +495,7 @@ export type {
   CollaboratorPermissions,
   CreateHypercertParams,
   CreateHypercertResult,
+  CreateOrganizationParams,
   CreateProjectParams,
   HypercertClaim,
   HypercertProjectWithMetadata,
