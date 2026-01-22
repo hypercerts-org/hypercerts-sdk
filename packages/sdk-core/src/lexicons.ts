@@ -95,6 +95,10 @@ import {
   WORK_SCOPE_TAG_NSID,
 } from "@hypercerts-org/lexicon";
 
+// Export LexiconRegistry for custom lexicon management
+export { LexiconRegistry } from "./repository/LexiconRegistry.js";
+export type { ValidationResult } from "./repository/LexiconRegistry.js";
+
 /**
  * All hypercert-related lexicons for registration with AT Protocol Agent.
  * This array contains all lexicon documents from the published package.

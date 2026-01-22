@@ -15,6 +15,8 @@ export { ConfigurableAgent } from "./agent/ConfigurableAgent.js";
 
 // Repository (fluent API)
 export { Repository } from "./repository/Repository.js";
+export { LexiconRegistry } from "./repository/LexiconRegistry.js";
+export type { ValidationResult } from "./repository/LexiconRegistry.js";
 export type {
   RepositoryOptions,
   CreateResult,
