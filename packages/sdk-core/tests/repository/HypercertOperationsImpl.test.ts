@@ -1,8 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
+import type { OrgHypercertsDefs } from "@hypercerts-org/lexicon";
 import { HypercertOperationsImpl } from "../../src/repository/HypercertOperationsImpl.js";
 import { NetworkError, ValidationError } from "../../src/core/errors.js";
 import { createMockAgent, TEST_REPO_DID, TEST_PDS_URL } from "../utils/mocks.js";
+
+function createWorkScopeAny(tags: string[]): OrgHypercertsDefs.WorkScopeAny {
+  return {
+    $type: "org.hypercerts.defs#workScopeAny",
+    op: "any",
+    args: tags.map((tag) => ({
+      $type: "org.hypercerts.defs#workScopeAtom",
+      atom: { uri: `at://did:plc:tag/${tag.toLowerCase()}#main`, cid: "bafybeig" },
+    })),
+  };
+}
+
+function createWorkScopeAll(tags: string[]): OrgHypercertsDefs.WorkScopeAll {
+  return {
+    $type: "org.hypercerts.defs#workScopeAll",
+    op: "all",
+    args: tags.map((tag) => ({
+      $type: "org.hypercerts.defs#workScopeAtom",
+      atom: { uri: `at://did:plc:tag/${tag.toLowerCase()}#main`, cid: "bafybeig" },
+    })),
+  };
+}
 
 // Mock the validate function from lexicon package
 vi.mock("@hypercerts-org/lexicon", async (importOriginal) => {
@@ -27,9 +50,7 @@ describe("HypercertOperationsImpl", () => {
       title: "Test Hypercert",
       shortDescription: "A test hypercert",
       description: "A test hypercert for unit testing",
-      workScope: {
-        withinAnyOf: ["Testing"],
-      },
+      workScope: createWorkScopeAny(["Testing"]),
       startDate: "2024-01-01T00:00:00Z",
       endDate: "2024-12-31T23:59:59Z",
       rights: {
@@ -108,7 +129,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: { withinAllOf: ["Testing"] },
+            workScope: createWorkScopeAll(["Testing"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -165,11 +186,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: {
-              withinAllOf: ["Climate"],
-              withinAnyOf: [],
-              withinNoneOf: [],
-            },
+            workScope: createWorkScopeAll(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -222,11 +239,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: {
-              withinAllOf: ["Climate"],
-              withinAnyOf: [],
-              withinNoneOf: [],
-            },
+            workScope: createWorkScopeAll(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -284,11 +297,7 @@ describe("HypercertOperationsImpl", () => {
       const mockRecord = {
         title: "Test",
         description: "Test description",
-        workScope: {
-          withinAllOf: ["Climate"],
-          withinAnyOf: [],
-          withinNoneOf: [],
-        },
+        workScope: createWorkScopeAll(["Climate"]),
         startDate: "2024-01-01",
         endDate: "2024-12-31",
         createdAt: "2024-01-01T00:00:00Z",
@@ -337,11 +346,7 @@ describe("HypercertOperationsImpl", () => {
               value: {
                 title: "First",
                 description: "Desc",
-                workScope: {
-                  withinAllOf: ["Climate"],
-                  withinAnyOf: [],
-                  withinNoneOf: [],
-                },
+                workScope: createWorkScopeAll(["Climate"]),
                 startDate: "2024-01-01",
                 endDate: "2024-12-31",
                 createdAt: "2024-01-01",
@@ -353,11 +358,7 @@ describe("HypercertOperationsImpl", () => {
               value: {
                 title: "Second",
                 description: "Desc",
-                workScope: {
-                  withinAllOf: ["Climate"],
-                  withinAnyOf: [],
-                  withinNoneOf: [],
-                },
+                workScope: createWorkScopeAll(["Climate"]),
                 startDate: "2024-01-01",
                 endDate: "2024-12-31",
                 createdAt: "2024-01-01",
@@ -397,11 +398,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Old Title",
             description: "Old description",
-            workScope: {
-              withinAllOf: ["Climate"],
-              withinAnyOf: [],
-              withinNoneOf: [],
-            },
+            workScope: createWorkScopeAll(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01T00:00:00Z",
@@ -467,11 +464,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Title",
             description: "Desc",
-            workScope: {
-              withinAllOf: ["Climate"],
-              withinAnyOf: [],
-              withinNoneOf: [],
-            },
+            workScope: createWorkScopeAll(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -514,11 +507,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: {
-              withinAllOf: ["Climate"],
-              withinAnyOf: [],
-              withinNoneOf: [],
-            },
+            workScope: createWorkScopeAll(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -616,11 +605,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: {
-              withinAllOf: ["Climate"],
-              withinAnyOf: [],
-              withinNoneOf: [],
-            },
+            workScope: createWorkScopeAll(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -677,11 +662,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: {
-              withinAllOf: ["Climate"],
-              withinAnyOf: [],
-              withinNoneOf: [],
-            },
+            workScope: createWorkScopeAll(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -759,11 +740,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: {
-              withinAllOf: ["Climate"],
-              withinAnyOf: [],
-              withinNoneOf: [],
-            },
+            workScope: createWorkScopeAll(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -799,11 +776,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: {
-              withinAllOf: ["Climate"],
-              withinAnyOf: [],
-              withinNoneOf: [],
-            },
+            workScope: createWorkScopeAll(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -901,11 +874,12 @@ describe("HypercertOperationsImpl", () => {
   });
 
   describe("Project Operations", () => {
+    // Projects are now collections with type='project'
     describe("createProject", () => {
       beforeEach(() => {
         mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
           success: true,
-          data: { uri: "at://did:plc:test/org.hypercerts.claim.project/abc123", cid: "project-cid" },
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123", cid: "project-cid" },
         });
       });
 
@@ -915,15 +889,17 @@ describe("HypercertOperationsImpl", () => {
           shortDescription: "A test project for unit testing",
         });
 
-        expect(result.uri).toBe("at://did:plc:test/org.hypercerts.claim.project/abc123");
+        expect(result.uri).toBe("at://did:plc:test/org.hypercerts.claim.collection/abc123");
         expect(result.cid).toBe("project-cid");
         expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
           expect.objectContaining({
-            collection: "org.hypercerts.claim.project",
+            collection: "org.hypercerts.claim.collection",
             record: expect.objectContaining({
-              $type: "org.hypercerts.claim.project",
+              $type: "org.hypercerts.claim.collection",
+              type: "project",
               title: "Test Project",
               shortDescription: "A test project for unit testing",
+              items: [],
               createdAt: expect.any(String),
             }),
           }),
@@ -936,24 +912,22 @@ describe("HypercertOperationsImpl", () => {
           { uri: "at://activity1", cid: "cid1", weight: "50" },
           { uri: "at://activity2", cid: "cid2", weight: "50" },
         ];
-        const location = { uri: "at://location", cid: "location-cid" };
 
         const result = await hypercertOps.createProject({
           title: "Complete Project",
           shortDescription: "A complete project with all fields",
           description,
           activities,
-          location,
         });
 
         expect(result.uri).toBeDefined();
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
         expect(createCall.record.description).toEqual(description);
-        expect(createCall.record.activities).toEqual([
-          { activity: { uri: "at://activity1", cid: "cid1" }, weight: "50" },
-          { activity: { uri: "at://activity2", cid: "cid2" }, weight: "50" },
+        // Activities are mapped to items in collection schema
+        expect(createCall.record.items).toEqual([
+          { itemIdentifier: { uri: "at://activity1", cid: "cid1" }, itemWeight: "50" },
+          { itemIdentifier: { uri: "at://activity2", cid: "cid2" }, itemWeight: "50" },
         ]);
-        expect(createCall.record.location).toEqual(location);
       });
 
       it("should upload avatar blob when provided", async () => {
@@ -985,13 +959,13 @@ describe("HypercertOperationsImpl", () => {
         });
       });
 
-      it("should upload coverPhoto blob when provided", async () => {
-        const coverPhotoBlob = new Blob(["cover photo data"], { type: "image/jpeg" });
+      it("should upload banner blob when provided", async () => {
+        const bannerBlob = new Blob(["banner data"], { type: "image/jpeg" });
         mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
           success: true,
           data: {
             blob: {
-              ref: { toString: () => "cover-cid" },
+              ref: { toString: () => "banner-cid" },
               mimeType: "image/jpeg",
               size: 200,
             },
@@ -999,24 +973,24 @@ describe("HypercertOperationsImpl", () => {
         });
 
         await hypercertOps.createProject({
-          title: "Project with Cover",
-          shortDescription: "Project with cover photo",
-          coverPhoto: coverPhotoBlob,
+          title: "Project with Banner",
+          shortDescription: "Project with banner image",
+          banner: bannerBlob,
         });
 
         expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalled();
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-        expect(createCall.record.coverPhoto).toEqual({
+        expect(createCall.record.banner).toEqual({
           $type: "blob",
-          ref: { $link: "cover-cid" },
+          ref: { $link: "banner-cid" },
           mimeType: "image/jpeg",
           size: 200,
         });
       });
 
-      it("should upload both avatar and coverPhoto when provided", async () => {
+      it("should upload both avatar and banner when provided", async () => {
         const avatarBlob = new Blob(["avatar"], { type: "image/png" });
-        const coverPhotoBlob = new Blob(["cover"], { type: "image/jpeg" });
+        const bannerBlob = new Blob(["banner"], { type: "image/jpeg" });
 
         mockAgent.com.atproto.repo.uploadBlob
           .mockResolvedValueOnce({
@@ -1028,7 +1002,7 @@ describe("HypercertOperationsImpl", () => {
           .mockResolvedValueOnce({
             success: true,
             data: {
-              blob: { ref: { toString: () => "cover-cid" }, mimeType: "image/jpeg", size: 100 },
+              blob: { ref: { toString: () => "banner-cid" }, mimeType: "image/jpeg", size: 100 },
             },
           });
 
@@ -1036,16 +1010,16 @@ describe("HypercertOperationsImpl", () => {
           title: "Full Project",
           shortDescription: "Project with both images",
           avatar: avatarBlob,
-          coverPhoto: coverPhotoBlob,
+          banner: bannerBlob,
         });
 
         expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalledTimes(2);
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
         expect(createCall.record.avatar).toBeDefined();
-        expect(createCall.record.coverPhoto).toBeDefined();
+        expect(createCall.record.banner).toBeDefined();
       });
 
-      it("should transform activities array to lexicon format", async () => {
+      it("should transform activities array to items format", async () => {
         await hypercertOps.createProject({
           title: "Project with Activities",
           shortDescription: "Project with activities",
@@ -1056,9 +1030,10 @@ describe("HypercertOperationsImpl", () => {
         });
 
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-        expect(createCall.record.activities).toEqual([
-          { activity: { uri: "at://act1", cid: "cid1" }, weight: "30" },
-          { activity: { uri: "at://act2", cid: "cid2" }, weight: "70" },
+        // Activities are mapped to items in collection schema
+        expect(createCall.record.items).toEqual([
+          { itemIdentifier: { uri: "at://act1", cid: "cid1" }, itemWeight: "30" },
+          { itemIdentifier: { uri: "at://act2", cid: "cid2" }, itemWeight: "70" },
         ]);
       });
 
@@ -1072,7 +1047,7 @@ describe("HypercertOperationsImpl", () => {
         });
 
         expect(handler).toHaveBeenCalledWith({
-          uri: "at://did:plc:test/org.hypercerts.claim.project/abc123",
+          uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123",
           cid: "project-cid",
         });
       });
@@ -1109,25 +1084,28 @@ describe("HypercertOperationsImpl", () => {
 
     describe("getProject", () => {
       it("should get a project successfully", async () => {
+        // Projects are collections with type='project'
         const mockRecord = {
-          $type: "org.hypercerts.claim.project",
+          $type: "org.hypercerts.claim.collection",
+          type: "project",
           title: "Test Project",
           shortDescription: "A test project",
+          items: [],
           createdAt: "2024-01-01T00:00:00Z",
         };
 
         mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
           success: true,
           data: {
-            uri: "at://did:plc:test/org.hypercerts.claim.project/abc123",
+            uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123",
             cid: "project-cid",
             value: mockRecord,
           },
         });
 
-        const result = await hypercertOps.getProject("at://did:plc:test/org.hypercerts.claim.project/abc123");
+        const result = await hypercertOps.getProject("at://did:plc:test/org.hypercerts.claim.collection/abc123");
 
-        expect(result.uri).toBe("at://did:plc:test/org.hypercerts.claim.project/abc123");
+        expect(result.uri).toBe("at://did:plc:test/org.hypercerts.claim.collection/abc123");
         expect(result.cid).toBe("project-cid");
         expect(result.record.title).toBe("Test Project");
         expect(result.record.shortDescription).toBe("A test project");
@@ -1143,63 +1121,92 @@ describe("HypercertOperationsImpl", () => {
         });
 
         await expect(
-          hypercertOps.getProject("at://did:plc:test/org.hypercerts.claim.project/notfound"),
+          hypercertOps.getProject("at://did:plc:test/org.hypercerts.claim.collection/notfound"),
         ).rejects.toThrow(NetworkError);
       });
 
       it("should handle project with all optional fields", async () => {
+        // Projects are collections with type='project'
         const mockRecord = {
-          $type: "org.hypercerts.claim.project",
+          $type: "org.hypercerts.claim.collection",
+          type: "project",
           title: "Complete Project",
           shortDescription: "Full project",
           description: { type: "linearDocument", content: "Rich" },
           avatar: { $type: "blob", ref: { $link: "avatar-cid" } },
-          coverPhoto: { $type: "blob", ref: { $link: "cover-cid" } },
-          activities: [{ activity: { uri: "at://act", cid: "cid" }, weight: "100" }],
-          location: { uri: "at://loc", cid: "loc-cid" },
+          banner: { $type: "blob", ref: { $link: "cover-cid" } },
+          items: [{ itemIdentifier: { uri: "at://act", cid: "cid" }, itemWeight: "100" }],
           createdAt: "2024-01-01T00:00:00Z",
         };
 
         mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
           success: true,
           data: {
-            uri: "at://did:plc:test/org.hypercerts.claim.project/complete",
+            uri: "at://did:plc:test/org.hypercerts.claim.collection/complete",
             cid: "cid",
             value: mockRecord,
           },
         });
 
-        const result = await hypercertOps.getProject("at://did:plc:test/org.hypercerts.claim.project/complete");
+        const result = await hypercertOps.getProject("at://did:plc:test/org.hypercerts.claim.collection/complete");
 
         expect(result.record.description).toEqual({ type: "linearDocument", content: "Rich" });
-        expect(result.record.activities).toHaveLength(1);
-        expect(result.record.location).toBeDefined();
+        expect(result.record.items).toHaveLength(1);
+      });
+
+      it("should throw ValidationError when record is not a project", async () => {
+        // A collection with type='favorites' should not be returned as a project
+        const mockRecord = {
+          $type: "org.hypercerts.claim.collection",
+          type: "favorites",
+          title: "My Favorites",
+          items: [],
+          createdAt: "2024-01-01T00:00:00Z",
+        };
+
+        mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.collection/fav",
+            cid: "cid",
+            value: mockRecord,
+          },
+        });
+
+        await expect(hypercertOps.getProject("at://did:plc:test/org.hypercerts.claim.collection/fav")).rejects.toThrow(
+          ValidationError,
+        );
       });
     });
 
     describe("listProjects", () => {
       it("should list projects successfully", async () => {
+        // Lists collections and filters for type='project'
         mockAgent.com.atproto.repo.listRecords.mockResolvedValue({
           success: true,
           data: {
             records: [
               {
-                uri: "at://did:plc:test/org.hypercerts.claim.project/1",
+                uri: "at://did:plc:test/org.hypercerts.claim.collection/1",
                 cid: "cid1",
                 value: {
-                  $type: "org.hypercerts.claim.project",
+                  $type: "org.hypercerts.claim.collection",
+                  type: "project",
                   title: "Project 1",
                   shortDescription: "First project",
+                  items: [],
                   createdAt: "2024-01-01T00:00:00Z",
                 },
               },
               {
-                uri: "at://did:plc:test/org.hypercerts.claim.project/2",
+                uri: "at://did:plc:test/org.hypercerts.claim.collection/2",
                 cid: "cid2",
                 value: {
-                  $type: "org.hypercerts.claim.project",
+                  $type: "org.hypercerts.claim.collection",
+                  type: "project",
                   title: "Project 2",
                   shortDescription: "Second project",
+                  items: [],
                   createdAt: "2024-01-02T00:00:00Z",
                 },
               },
@@ -1216,7 +1223,7 @@ describe("HypercertOperationsImpl", () => {
         expect(result.cursor).toBe("next-cursor");
         expect(mockAgent.com.atproto.repo.listRecords).toHaveBeenCalledWith({
           repo: TEST_REPO_DID,
-          collection: "org.hypercerts.claim.project",
+          collection: "org.hypercerts.claim.collection",
           limit: 10,
         });
       });
@@ -1231,10 +1238,49 @@ describe("HypercertOperationsImpl", () => {
 
         expect(mockAgent.com.atproto.repo.listRecords).toHaveBeenCalledWith({
           repo: TEST_REPO_DID,
-          collection: "org.hypercerts.claim.project",
+          collection: "org.hypercerts.claim.collection",
           cursor: "previous-cursor",
           limit: 20,
         });
+      });
+
+      it("should filter out non-project collections", async () => {
+        mockAgent.com.atproto.repo.listRecords.mockResolvedValue({
+          success: true,
+          data: {
+            records: [
+              {
+                uri: "at://did:plc:test/org.hypercerts.claim.collection/1",
+                cid: "cid1",
+                value: {
+                  $type: "org.hypercerts.claim.collection",
+                  type: "project",
+                  title: "Project 1",
+                  items: [],
+                  createdAt: "2024-01-01T00:00:00Z",
+                },
+              },
+              {
+                uri: "at://did:plc:test/org.hypercerts.claim.collection/2",
+                cid: "cid2",
+                value: {
+                  $type: "org.hypercerts.claim.collection",
+                  type: "favorites", // Not a project
+                  title: "My Favorites",
+                  items: [],
+                  createdAt: "2024-01-02T00:00:00Z",
+                },
+              },
+            ],
+            cursor: undefined,
+          },
+        });
+
+        const result = await hypercertOps.listProjects();
+
+        // Should only return the project, not the favorites collection
+        expect(result.records).toHaveLength(1);
+        expect(result.records[0].record.title).toBe("Project 1");
       });
 
       it("should handle empty results", async () => {
@@ -1260,15 +1306,18 @@ describe("HypercertOperationsImpl", () => {
 
     describe("updateProject", () => {
       beforeEach(() => {
+        // Projects are collections with type='project'
         mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
           success: true,
           data: {
-            uri: "at://did:plc:test/org.hypercerts.claim.project/abc123",
+            uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123",
             cid: "old-cid",
             value: {
-              $type: "org.hypercerts.claim.project",
+              $type: "org.hypercerts.claim.collection",
+              type: "project",
               title: "Old Title",
               shortDescription: "Old description",
+              items: [],
               createdAt: "2024-01-01T00:00:00Z",
             },
           },
@@ -1276,16 +1325,16 @@ describe("HypercertOperationsImpl", () => {
 
         mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
           success: true,
-          data: { uri: "at://did:plc:test/org.hypercerts.claim.project/abc123", cid: "new-cid" },
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123", cid: "new-cid" },
         });
       });
 
       it("should update project title", async () => {
-        const result = await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.project/abc123", {
+        const result = await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           title: "New Title",
         });
 
-        expect(result.uri).toBe("at://did:plc:test/org.hypercerts.claim.project/abc123");
+        expect(result.uri).toBe("at://did:plc:test/org.hypercerts.claim.collection/abc123");
         expect(result.cid).toBe("new-cid");
 
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
@@ -1294,7 +1343,7 @@ describe("HypercertOperationsImpl", () => {
       });
 
       it("should update shortDescription", async () => {
-        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.project/abc123", {
+        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           shortDescription: "New short description",
         });
 
@@ -1304,7 +1353,7 @@ describe("HypercertOperationsImpl", () => {
       });
 
       it("should preserve createdAt timestamp", async () => {
-        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.project/abc123", {
+        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           title: "Updated",
         });
 
@@ -1315,7 +1364,7 @@ describe("HypercertOperationsImpl", () => {
       it("should update description", async () => {
         const newDescription = { type: "linearDocument", content: "New rich content" };
 
-        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.project/abc123", {
+        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           description: newDescription,
         });
 
@@ -1333,7 +1382,7 @@ describe("HypercertOperationsImpl", () => {
           },
         });
 
-        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.project/abc123", {
+        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           avatar: newAvatar,
         });
 
@@ -1347,22 +1396,22 @@ describe("HypercertOperationsImpl", () => {
         });
       });
 
-      it("should upload and update coverPhoto", async () => {
-        const newCover = new Blob(["new cover"], { type: "image/jpeg" });
+      it("should upload and update banner", async () => {
+        const newBanner = new Blob(["new banner"], { type: "image/jpeg" });
         mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
           success: true,
           data: {
-            blob: { ref: { toString: () => "new-cover-cid" }, mimeType: "image/jpeg", size: 250 },
+            blob: { ref: { toString: () => "new-banner-cid" }, mimeType: "image/jpeg", size: 250 },
           },
         });
 
-        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.project/abc123", {
-          coverPhoto: newCover,
+        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
+          banner: newBanner,
         });
 
         expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalled();
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
-        expect(putCall.record.coverPhoto).toBeDefined();
+        expect(putCall.record.banner).toBeDefined();
       });
 
       it("should update activities array", async () => {
@@ -1371,30 +1420,20 @@ describe("HypercertOperationsImpl", () => {
           { uri: "at://new-act2", cid: "new-cid2", weight: "60" },
         ];
 
-        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.project/abc123", {
+        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           activities: newActivities,
         });
 
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
-        expect(putCall.record.activities).toEqual([
-          { activity: { uri: "at://new-act1", cid: "new-cid1" }, weight: "40" },
-          { activity: { uri: "at://new-act2", cid: "new-cid2" }, weight: "60" },
+        // Activities are mapped to items in collection schema
+        expect(putCall.record.items).toEqual([
+          { itemIdentifier: { uri: "at://new-act1", cid: "new-cid1" }, itemWeight: "40" },
+          { itemIdentifier: { uri: "at://new-act2", cid: "new-cid2" }, itemWeight: "60" },
         ]);
       });
 
-      it("should update location", async () => {
-        const newLocation = { uri: "at://new-location", cid: "new-loc-cid" };
-
-        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.project/abc123", {
-          location: newLocation,
-        });
-
-        const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
-        expect(putCall.record.location).toEqual(newLocation);
-      });
-
       it("should update multiple fields at once", async () => {
-        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.project/abc123", {
+        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           title: "Multi Update",
           shortDescription: "Updated multiple fields",
           activities: [{ uri: "at://act", cid: "cid", weight: "100" }],
@@ -1403,7 +1442,7 @@ describe("HypercertOperationsImpl", () => {
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
         expect(putCall.record.title).toBe("Multi Update");
         expect(putCall.record.shortDescription).toBe("Updated multiple fields");
-        expect(putCall.record.activities).toHaveLength(1);
+        expect(putCall.record.items).toHaveLength(1);
         expect(putCall.record.createdAt).toBe("2024-01-01T00:00:00Z"); // Still preserved
       });
 
@@ -1411,12 +1450,12 @@ describe("HypercertOperationsImpl", () => {
         const handler = vi.fn();
         hypercertOps.on("projectUpdated", handler);
 
-        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.project/abc123", {
+        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           title: "Updated",
         });
 
         expect(handler).toHaveBeenCalledWith({
-          uri: "at://did:plc:test/org.hypercerts.claim.project/abc123",
+          uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123",
           cid: "new-cid",
         });
       });
@@ -1431,7 +1470,7 @@ describe("HypercertOperationsImpl", () => {
         });
 
         await expect(
-          hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.project/abc123", { title: "New" }),
+          hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", { title: "New" }),
         ).rejects.toThrow(NetworkError);
       });
 
@@ -1441,24 +1480,64 @@ describe("HypercertOperationsImpl", () => {
         });
 
         await expect(
-          hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.project/abc123", { title: "New" }),
+          hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", { title: "New" }),
         ).rejects.toThrow(NetworkError);
+      });
+
+      it("should throw ValidationError when record is not a project", async () => {
+        // Mock a collection with type='favorites' instead of type='project'
+        mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.collection/fav",
+            cid: "cid",
+            value: {
+              $type: "org.hypercerts.claim.collection",
+              type: "favorites",
+              title: "My Favorites",
+              items: [],
+              createdAt: "2024-01-01T00:00:00Z",
+            },
+          },
+        });
+
+        await expect(
+          hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/fav", { title: "New" }),
+        ).rejects.toThrow(ValidationError);
       });
     });
 
     describe("deleteProject", () => {
+      beforeEach(() => {
+        // Mock getRecord to return a valid project (collection with type='project')
+        mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123",
+            cid: "cid",
+            value: {
+              $type: "org.hypercerts.claim.collection",
+              type: "project",
+              title: "Test Project",
+              items: [],
+              createdAt: "2024-01-01T00:00:00Z",
+            },
+          },
+        });
+      });
+
       it("should delete a project successfully", async () => {
         mockAgent.com.atproto.repo.deleteRecord.mockResolvedValue({
           success: true,
         });
 
         await expect(
-          hypercertOps.deleteProject("at://did:plc:test/org.hypercerts.claim.project/abc123"),
+          hypercertOps.deleteProject("at://did:plc:test/org.hypercerts.claim.collection/abc123"),
         ).resolves.toBeUndefined();
 
         expect(mockAgent.com.atproto.repo.deleteRecord).toHaveBeenCalledWith({
           repo: TEST_REPO_DID,
-          collection: "org.hypercerts.claim.project",
+          collection: "org.hypercerts.claim.collection",
           rkey: "abc123",
         });
       });
@@ -1471,10 +1550,10 @@ describe("HypercertOperationsImpl", () => {
         const handler = vi.fn();
         hypercertOps.on("projectDeleted", handler);
 
-        await hypercertOps.deleteProject("at://did:plc:test/org.hypercerts.claim.project/abc123");
+        await hypercertOps.deleteProject("at://did:plc:test/org.hypercerts.claim.collection/abc123");
 
         expect(handler).toHaveBeenCalledWith({
-          uri: "at://did:plc:test/org.hypercerts.claim.project/abc123",
+          uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123",
         });
       });
 
@@ -1488,8 +1567,30 @@ describe("HypercertOperationsImpl", () => {
         });
 
         await expect(
-          hypercertOps.deleteProject("at://did:plc:test/org.hypercerts.claim.project/abc123"),
+          hypercertOps.deleteProject("at://did:plc:test/org.hypercerts.claim.collection/abc123"),
         ).rejects.toThrow(NetworkError);
+      });
+
+      it("should throw ValidationError when record is not a project", async () => {
+        // Mock a collection with type='favorites' instead of type='project'
+        mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.collection/fav",
+            cid: "cid",
+            value: {
+              $type: "org.hypercerts.claim.collection",
+              type: "favorites",
+              title: "My Favorites",
+              items: [],
+              createdAt: "2024-01-01T00:00:00Z",
+            },
+          },
+        });
+
+        await expect(
+          hypercertOps.deleteProject("at://did:plc:test/org.hypercerts.claim.collection/fav"),
+        ).rejects.toThrow(ValidationError);
       });
     });
   });

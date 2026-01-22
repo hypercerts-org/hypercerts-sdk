@@ -11,12 +11,15 @@ import type {
   CollaboratorPermissions,
   CreateHypercertParams,
   CreateHypercertResult,
+  CreateProjectParams,
   HypercertClaim,
-  HypercertProject,
+  HypercertProjectWithMetadata,
   OrganizationInfo,
+  OrgHypercertsDefs,
   Repository,
   RepositoryRole,
   Session,
+  UpdateProjectParams,
 } from "@hypercerts-org/sdk-core";
 import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -333,11 +336,12 @@ export interface Hypercert extends HypercertClaim {
 export interface UpdateHypercertParams {
   title?: string;
   description?: string;
-  workScope?: {
-    withinAllOf?: string[];
-    withinAnyOf?: string[];
-    withinNoneOf?: string[];
-  };
+  workScope?:
+    | OrgHypercertsDefs.WorkScopeAll
+    | OrgHypercertsDefs.WorkScopeAny
+    | OrgHypercertsDefs.WorkScopeNot
+    | OrgHypercertsDefs.WorkScopeAtom
+    | { $type: string };
   impactScope?: string;
   workTimeFrameFrom?: string;
   workTimeFrameTo?: string;
@@ -408,39 +412,7 @@ export interface UseHypercertResult {
 // Project Types
 // ─────────────────────────────────────────────
 
-/**
- * Project with metadata for display.
- */
-export interface Project extends HypercertProject {
-  uri: string;
-  cid: string;
-}
-
-/**
- * Parameters for creating a project.
- */
-export interface CreateProjectParams {
-  title: string;
-  shortDescription: string;
-  description?: unknown; // Leaflet linear document - type TBD
-  avatar?: Blob;
-  coverPhoto?: Blob;
-  activities?: Array<{ uri: string; cid: string; weight: string }>;
-  location?: { uri: string; cid: string };
-}
-
-/**
- * Parameters for updating a project.
- */
-export interface UpdateProjectParams {
-  title?: string;
-  shortDescription?: string;
-  description?: unknown; // Leaflet linear document
-  avatar?: Blob;
-  coverPhoto?: Blob;
-  activities?: Array<{ uri: string; cid: string; weight: string }>;
-  location?: { uri: string; cid: string };
-}
+export type Project = HypercertProjectWithMetadata;
 
 /**
  * Result of the useProjects hook.
@@ -542,10 +514,13 @@ export type {
   CollaboratorPermissions,
   CreateHypercertParams,
   CreateHypercertResult,
+  CreateProjectParams,
   HypercertClaim,
-  HypercertProject,
+  HypercertProjectWithMetadata,
   OrganizationInfo,
+  OrgHypercertsDefs,
   Repository,
   RepositoryRole,
   Session,
+  UpdateProjectParams,
 };

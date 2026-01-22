@@ -15,12 +15,13 @@ export {
   // Namespaced types with validation (isRecord, validateRecord)
   OrgHypercertsClaimActivity,
   OrgHypercertsClaimRights,
-  OrgHypercertsClaimContribution,
+  OrgHypercertsClaimContributionDetails,
+  OrgHypercertsClaimContributorInformation,
   OrgHypercertsClaimMeasurement,
   OrgHypercertsClaimEvaluation,
   OrgHypercertsClaimEvidence,
   OrgHypercertsClaimCollection,
-  OrgHypercertsClaimProject,
+  OrgHypercertsHelperWorkScopeTag,
   AppCertifiedLocation,
   AppCertifiedBadgeAward,
   AppCertifiedBadgeDefinition,
@@ -55,12 +56,13 @@ export type { AppCertifiedDefs, OrgHypercertsDefs } from "@hypercerts-org/lexico
 import type {
   OrgHypercertsClaimActivity,
   OrgHypercertsClaimRights,
-  OrgHypercertsClaimContribution,
+  OrgHypercertsClaimContributionDetails,
+  OrgHypercertsClaimContributorInformation,
   OrgHypercertsClaimMeasurement,
   OrgHypercertsClaimEvaluation,
   OrgHypercertsClaimEvidence,
   OrgHypercertsClaimCollection,
-  OrgHypercertsClaimProject,
+  OrgHypercertsHelperWorkScopeTag,
   AppCertifiedLocation,
   AppCertifiedBadgeAward,
   AppCertifiedBadgeDefinition,
@@ -77,13 +79,18 @@ import type {
 export type StrongRef = ComAtprotoRepoStrongRef.Main;
 export type HypercertClaim = OrgHypercertsClaimActivity.Main;
 export type HypercertRights = OrgHypercertsClaimRights.Main;
-export type HypercertContribution = OrgHypercertsClaimContribution.Main;
+export type HypercertContributionDetails = OrgHypercertsClaimContributionDetails.Main;
+export type HypercertContributorInformation = OrgHypercertsClaimContributorInformation.Main;
+/** Contributor entry in an activity - can be inline or reference external records */
+export type HypercertContributor = OrgHypercertsClaimActivity.Contributor;
 export type HypercertMeasurement = OrgHypercertsClaimMeasurement.Main;
 export type HypercertEvaluation = OrgHypercertsClaimEvaluation.Main;
 export type HypercertEvidence = OrgHypercertsClaimEvidence.Main;
 export type HypercertCollection = OrgHypercertsClaimCollection.Main;
-export type HypercertCollectionClaimItem = OrgHypercertsClaimActivity.ActivityWeight;
-export type HypercertProject = OrgHypercertsClaimProject.Main;
+/** Collection item with optional weight */
+export type HypercertCollectionItem = OrgHypercertsClaimCollection.Item;
+/** Work scope tag for creating reusable scope atoms */
+export type HypercertWorkScopeTag = OrgHypercertsHelperWorkScopeTag.Main;
 export type HypercertLocation = AppCertifiedLocation.Main;
 export type BadgeAward = AppCertifiedBadgeAward.Main;
 export type BadgeDefinition = AppCertifiedBadgeDefinition.Main;
@@ -120,4 +127,46 @@ export interface HypercertWithMetadata {
   uri: string;
   cid: string;
   record: HypercertClaim;
+}
+
+/**
+ * Project type - a HypercertCollection with type='project'.
+ */
+export interface HypercertProject extends HypercertCollection {
+  type: "project";
+}
+
+/**
+ * HypercertProject with AT Protocol metadata.
+ */
+export interface HypercertProjectWithMetadata {
+  uri: string;
+  cid: string;
+  record: HypercertProject;
+}
+
+/**
+ * Parameters for creating a project.
+ */
+export interface CreateProjectParams {
+  title: string;
+  shortDescription: string;
+  description?: unknown;
+  avatar?: Blob;
+  banner?: Blob;
+  activities?: Array<{ uri: string; cid: string; weight: string }>;
+  location?: { uri: string; cid: string };
+}
+
+/**
+ * Parameters for updating a project.
+ */
+export interface UpdateProjectParams {
+  title?: string;
+  shortDescription?: string;
+  description?: unknown;
+  avatar?: Blob;
+  banner?: Blob;
+  activities?: Array<{ uri: string; cid: string; weight: string }>;
+  location?: { uri: string; cid: string };
 }

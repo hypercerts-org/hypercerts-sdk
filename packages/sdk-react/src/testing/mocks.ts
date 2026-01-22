@@ -207,9 +207,11 @@ export function createMockHypercert(overrides: Partial<Hypercert> = {}): Hyperce
     shortDescription: "A mock hypercert",
     description: "A mock hypercert for testing purposes",
     workScope: {
-      withinAllOf: ["Testing"],
-      withinAnyOf: [],
-      withinNoneOf: [],
+      $type: "org.hypercerts.defs#workScopeAll",
+      op: "all",
+      args: [
+        { $type: "org.hypercerts.defs#workScopeAtom", atom: { uri: "at://did:plc:tag/test#main", cid: "bafybeig" } },
+      ],
     },
     startDate: yearAgo.toISOString(),
     endDate: now.toISOString(),

@@ -9,7 +9,7 @@
  */
 
 import type { EventEmitter } from "eventemitter3";
-import type { HypercertCollection, HypercertClaim, HypercertProject } from "../services/hypercerts/types.js";
+import type { HypercertCollection, HypercertClaim, OrgHypercertsDefs } from "../services/hypercerts/types.js";
 import type {
   CreateResult,
   ListParams,
@@ -108,15 +108,16 @@ export interface CreateHypercertParams {
 
   /**
    * Scope of work or impact area.
-   * Logical scope of the work using label-based conditions. All labels in `withinAllOf` must apply; at least one label in `withinAnyOf` must apply if provided; no label in `withinNoneOf` may apply.
+   * Logical scope of the work using label-based conditions.
    *
-   * @example "Climate Action", "Education", "Healthcare"
+   * @example WorkScopeAll with atom references
    */
-  workScope?: {
-    withinAllOf?: string[];
-    withinAnyOf?: string[];
-    withinNoneOf?: string[];
-  };
+  workScope?:
+    | OrgHypercertsDefs.WorkScopeAll
+    | OrgHypercertsDefs.WorkScopeAny
+    | OrgHypercertsDefs.WorkScopeNot
+    | OrgHypercertsDefs.WorkScopeAtom
+    | { $type: string };
 
   /**
    * Start date of the work period.
@@ -827,7 +828,7 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
     title: string;
     claims: Array<{ uri: string; cid: string; weight: string }>;
     shortDescription?: string;
-    coverPhoto?: Blob;
+    banner?: Blob;
   }): Promise<CreateResult>;
 
   /**
@@ -859,7 +860,7 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
     shortDescription: string;
     description?: unknown;
     avatar?: Blob;
-    coverPhoto?: Blob;
+    banner?: Blob;
     activities?: Array<{ uri: string; cid: string; weight: string }>;
     location?: { uri: string; cid: string };
   }): Promise<CreateResult>;
@@ -867,18 +868,22 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
   /**
    * Gets a project by URI.
    *
+   * Projects are collections with type='project'.
+   *
    * @param uri - AT-URI of the project
-   * @returns Promise resolving to project data
+   * @returns Promise resolving to project data (as collection)
    */
-  getProject(uri: string): Promise<{ uri: string; cid: string; record: HypercertProject }>;
+  getProject(uri: string): Promise<{ uri: string; cid: string; record: HypercertCollection }>;
 
   /**
    * Lists projects with pagination.
    *
+   * Projects are collections with type='project'.
+   *
    * @param params - Optional pagination parameters
    * @returns Promise resolving to paginated list
    */
-  listProjects(params?: ListParams): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertProject }>>;
+  listProjects(params?: ListParams): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertCollection }>>;
 
   /**
    * Updates a project.
@@ -894,7 +899,7 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
       shortDescription?: string;
       description?: unknown;
       avatar?: Blob;
-      coverPhoto?: Blob;
+      banner?: Blob;
       activities?: Array<{ uri: string; cid: string; weight: string }>;
       location?: { uri: string; cid: string };
     },

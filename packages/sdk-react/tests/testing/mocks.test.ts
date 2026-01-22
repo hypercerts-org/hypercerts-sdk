@@ -165,7 +165,7 @@ describe("createMockHypercert", () => {
     const hc = createMockHypercert();
 
     expect(hc.title).toBe("Mock Hypercert");
-    expect(hc.workScope?.withinAllOf).toEqual(["Testing"]);
+    expect((hc.workScope as { op: string }).op).toBe("all");
     expect(hc.$type).toBe("org.hypercerts.claim.activity");
     expect(hc.uri).toContain("at://");
     expect(hc.cid).toBeTruthy();
@@ -175,14 +175,19 @@ describe("createMockHypercert", () => {
     const hc = createMockHypercert({
       title: "Custom Hypercert",
       workScope: {
-        withinAllOf: ["Climate"],
-        withinAnyOf: [],
-        withinNoneOf: [],
+        $type: "org.hypercerts.defs#workScopeAll",
+        op: "all",
+        args: [
+          {
+            $type: "org.hypercerts.defs#workScopeAtom",
+            atom: { uri: "at://did:plc:tag/climate#main", cid: "bafybeig" },
+          },
+        ],
       },
     });
 
     expect(hc.title).toBe("Custom Hypercert");
-    expect(hc.workScope?.withinAllOf).toEqual(["Climate"]);
+    expect((hc.workScope as { op: string }).op).toBe("all");
   });
 
   it("should set valid date ranges", () => {

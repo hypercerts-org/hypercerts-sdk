@@ -1,9 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { validate } from "@hypercerts-org/lexicon";
+import type { OrgHypercertsDefs } from "@hypercerts-org/lexicon";
 import { HypercertOperationsImpl } from "../../src/repository/HypercertOperationsImpl.js";
 import { ValidationError } from "../../src/core/errors.js";
 import type { Agent } from "@atproto/api";
 import { createMockAgent, TEST_REPO_DID, TEST_PDS_URL } from "../utils/mocks.js";
+
+function createWorkScopeAll(tags: string[]): OrgHypercertsDefs.WorkScopeAll {
+  return {
+    $type: "org.hypercerts.defs#workScopeAll",
+    op: "all",
+    args: tags.map((tag) => ({
+      $type: "org.hypercerts.defs#workScopeAtom",
+      atom: { uri: `at://did:plc:tag/${tag.toLowerCase()}#main`, cid: "bafybeig" },
+    })),
+  };
+}
 
 // Partial mock - only mock validate function
 vi.mock("@hypercerts-org/lexicon", async (importOriginal) => {
@@ -29,11 +41,7 @@ describe("HypercertOperationsImpl validation", () => {
       title: "Test Hypercert",
       shortDescription: "A test",
       description: "A test hypercert",
-      workScope: {
-        withinAllOf: ["Climate"],
-        withinAnyOf: [],
-        withinNoneOf: [],
-      },
+      workScope: createWorkScopeAll(["Climate"]),
       startDate: "2024-01-01T00:00:00Z",
       endDate: "2024-12-31T23:59:59Z",
       rights: {

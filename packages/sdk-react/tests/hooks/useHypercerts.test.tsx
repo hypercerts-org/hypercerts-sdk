@@ -221,9 +221,14 @@ describe("useHypercerts", () => {
         shortDescription: "A new hypercert",
         description: "A new hypercert for testing",
         workScope: {
-          withinAllOf: ["Climate"],
-          withinAnyOf: [],
-          withinNoneOf: [],
+          $type: "org.hypercerts.defs#workScopeAll",
+          op: "all",
+          args: [
+            {
+              $type: "org.hypercerts.defs#workScopeAtom",
+              atom: { uri: "at://did:plc:tag/climate#main", cid: "bafybeig" },
+            },
+          ],
         },
         startDate: "2024-01-01",
         endDate: "2024-12-31",
@@ -279,9 +284,14 @@ describe("useHypercerts", () => {
           shortDescription: "Test HC",
           description: "Test description",
           workScope: {
-            withinAllOf: ["Climate"],
-            withinAnyOf: [],
-            withinNoneOf: [],
+            $type: "org.hypercerts.defs#workScopeAll",
+            op: "all",
+            args: [
+              {
+                $type: "org.hypercerts.defs#workScopeAtom",
+                atom: { uri: "at://did:plc:tag/climate#main", cid: "bafybeig" },
+              },
+            ],
           },
           startDate: "2024-01-01",
           endDate: "2024-12-31",

@@ -155,9 +155,9 @@ export type {
   Collaborator,
   CollaboratorPermissions,
   HypercertClaim,
-  HypercertProject,
   CreateHypercertParams,
   CreateHypercertResult,
   OrganizationInfo,
+  OrgHypercertsDefs,
   RepositoryRole,
 } from "./types.js";

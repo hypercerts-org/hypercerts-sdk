@@ -17,10 +17,9 @@ import {
   HYPERCERT_COLLECTIONS,
   type HypercertClaim,
   type HypercertCollection,
-  type HypercertContribution,
+  type HypercertContributionDetails,
   type HypercertEvaluation,
   type HypercertEvidence,
-  type HypercertProject,
   type HypercertLocation,
   type HypercertMeasurement,
   type HypercertRights,
@@ -978,22 +977,29 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Creates a contribution record.
+   * Creates a contribution details record.
+   *
+   * This creates a standalone contribution details record that can be referenced
+   * from an activity's `contributors` array via a strong reference.
    *
    * @param params - Contribution parameters
-   * @param params.hypercertUri - Optional hypercert to link (can be standalone)
-   * @param params.contributors - Array of contributor DIDs
-   * @param params.role - Role of the contributors (e.g., "coordinator", "implementer")
+   * @param params.hypercertUri - Optional hypercert (unused, kept for backward compatibility)
+   * @param params.contributors - Array of contributor DIDs (unused, kept for backward compatibility)
+   * @param params.role - Role of the contributor (e.g., "coordinator", "implementer")
    * @param params.description - Optional description of the contribution
-   * @returns Promise resolving to contribution record URI and CID
+   * @returns Promise resolving to contribution details record URI and CID
    * @throws {@link ValidationError} if validation fails
    * @throws {@link NetworkError} if the operation fails
+   *
+   * @remarks
+   * In the new lexicon structure, contributions are stored differently:
+   * - Use `contributionDetails` for detailed contribution records (role, description, timeframe)
+   * - Use `contributorInformation` for contributor profiles (identifier, displayName, image)
+   * - Reference these from the activity's `contributors` array using strong refs
    *
    * @example
    * ```typescript
    * await repo.hypercerts.addContribution({
-   *   hypercertUri: hypercertUri,
-   *   contributors: ["did:plc:alice", "did:plc:bob"],
    *   role: "implementer",
    *   description: "On-ground implementation team",
    * });
@@ -1007,33 +1013,26 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }): Promise<CreateResult> {
     try {
       const createdAt = new Date().toISOString();
-      const contributionRecord: HypercertContribution = {
-        $type: HYPERCERT_COLLECTIONS.CONTRIBUTION,
-        contributors: params.contributors,
+      const contributionRecord: HypercertContributionDetails = {
+        $type: HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
         role: params.role,
         createdAt,
-        description: params.description,
-        hypercert: { uri: "", cid: "" }, // Will be set below if hypercertUri provided
+        contributionDescription: params.description,
       };
 
-      if (params.hypercertUri) {
-        const hypercert = await this.get(params.hypercertUri);
-        contributionRecord.hypercert = { uri: hypercert.uri, cid: hypercert.cid };
-      }
-
-      const validation = validate(contributionRecord, HYPERCERT_COLLECTIONS.CONTRIBUTION, "main", false);
+      const validation = validate(contributionRecord, HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS, "main", false);
       if (!validation.success) {
-        throw new ValidationError(`Invalid contribution record: ${validation.error?.message}`);
+        throw new ValidationError(`Invalid contribution details record: ${validation.error?.message}`);
       }
 
       const result = await this.agent.com.atproto.repo.createRecord({
         repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.CONTRIBUTION,
+        collection: HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
         record: contributionRecord as Record<string, unknown>,
       });
 
       if (!result.success) {
-        throw new NetworkError("Failed to create contribution");
+        throw new NetworkError("Failed to create contribution details");
       }
 
       this.emit("contributionCreated", { uri: result.data.uri, cid: result.data.cid });
@@ -1188,7 +1187,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param params.title - Collection title
    * @param params.claims - Array of hypercert references with weights
    * @param params.shortDescription - Optional short description
-   * @param params.coverPhoto - Optional cover image blob
+   * @param params.banner - Optional cover image blob
    * @returns Promise resolving to collection record URI and CID
    * @throws {@link ValidationError} if validation fails
    * @throws {@link NetworkError} if the operation fails
@@ -1203,7 +1202,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *     { uri: hypercert2Uri, cid: hypercert2Cid, weight: "0.3" },
    *     { uri: hypercert3Uri, cid: hypercert3Cid, weight: "0.2" },
    *   ],
-   *   coverPhoto: coverImageBlob,
+   *   banner: coverImageBlob,
    * });
    * ```
    */
@@ -1211,20 +1210,20 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     title: string;
     claims: Array<{ uri: string; cid: string; weight: string }>;
     shortDescription?: string;
-    coverPhoto?: Blob;
+    banner?: Blob;
   }): Promise<CreateResult> {
     try {
       const createdAt = new Date().toISOString();
 
-      let coverPhotoRef: JsonBlobRef | undefined;
-      if (params.coverPhoto) {
-        const arrayBuffer = await params.coverPhoto.arrayBuffer();
+      let bannerRef: JsonBlobRef | undefined;
+      if (params.banner) {
+        const arrayBuffer = await params.banner.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
         const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-          encoding: params.coverPhoto.type || "image/jpeg",
+          encoding: params.banner.type || "image/jpeg",
         });
         if (uploadResult.success) {
-          coverPhotoRef = {
+          bannerRef = {
             $type: "blob",
             ref: { $link: uploadResult.data.blob.ref.toString() },
             mimeType: uploadResult.data.blob.mimeType,
@@ -1244,8 +1243,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         collectionRecord.shortDescription = params.shortDescription;
       }
 
-      if (coverPhotoRef) {
-        collectionRecord.coverPhoto = coverPhotoRef;
+      if (bannerRef) {
+        collectionRecord.banner = bannerRef;
       }
 
       const validation = validate(collectionRecord, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
@@ -1375,6 +1374,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   /**
    * Creates a new project that organizes multiple hypercert activities.
    *
+   * Projects are now implemented as collections with `type='project'`.
+   *
    * @param params - Project creation parameters
    * @returns Promise resolving to created project URI and CID
    *
@@ -1396,7 +1397,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     shortDescription: string;
     description?: unknown;
     avatar?: Blob;
-    coverPhoto?: Blob;
+    banner?: Blob;
     activities?: Array<{ uri: string; cid: string; weight: string }>;
     location?: { uri: string; cid: string };
   }): Promise<CreateResult> {
@@ -1423,31 +1424,40 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         }
       }
 
-      // Upload cover photo blob if provided
-      let coverPhotoRef: JsonBlobRef | undefined;
-      if (params.coverPhoto) {
-        const arrayBuffer = await params.coverPhoto.arrayBuffer();
+      // Upload banner blob if provided
+      let bannerRef: JsonBlobRef | undefined;
+      if (params.banner) {
+        const arrayBuffer = await params.banner.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
         const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-          encoding: params.coverPhoto.type || "image/jpeg",
+          encoding: params.banner.type || "image/jpeg",
         });
         if (uploadResult.success) {
-          coverPhotoRef = {
+          bannerRef = {
             $type: "blob",
             ref: { $link: uploadResult.data.blob.ref.toString() },
             mimeType: uploadResult.data.blob.mimeType,
             size: uploadResult.data.blob.size,
           };
         } else {
-          throw new NetworkError("Failed to upload cover photo image");
+          throw new NetworkError("Failed to upload banner image");
         }
       }
 
-      // Build project record
+      // Build project record as a collection with type='project'
+      // Collections require 'items' array, so we map activities to items
+      const items =
+        params.activities?.map((a) => ({
+          itemIdentifier: { uri: a.uri, cid: a.cid },
+          itemWeight: a.weight,
+        })) || [];
+
       const projectRecord: Record<string, unknown> = {
-        $type: HYPERCERT_COLLECTIONS.PROJECT,
+        $type: HYPERCERT_COLLECTIONS.COLLECTION,
+        type: "project",
         title: params.title,
         shortDescription: params.shortDescription,
+        items,
         createdAt,
       };
 
@@ -1460,24 +1470,12 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         projectRecord.avatar = avatarRef;
       }
 
-      if (coverPhotoRef) {
-        projectRecord.coverPhoto = coverPhotoRef;
+      if (bannerRef) {
+        projectRecord.banner = bannerRef;
       }
 
-      // Transform activities array to lexicon format
-      if (params.activities && params.activities.length > 0) {
-        projectRecord.activities = params.activities.map((a) => ({
-          activity: { uri: a.uri, cid: a.cid },
-          weight: a.weight,
-        }));
-      }
-
-      if (params.location) {
-        projectRecord.location = params.location;
-      }
-
-      // Validate against lexicon
-      const validation = validate(projectRecord, HYPERCERT_COLLECTIONS.PROJECT, "main", false);
+      // Validate against collection lexicon
+      const validation = validate(projectRecord, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
       if (!validation.success) {
         throw new ValidationError(`Invalid project record: ${validation.error?.message}`);
       }
@@ -1485,7 +1483,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // Create record
       const result = await this.agent.com.atproto.repo.createRecord({
         repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.PROJECT,
+        collection: HYPERCERT_COLLECTIONS.COLLECTION,
         record: projectRecord,
       });
 
@@ -1505,16 +1503,18 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   /**
    * Gets a project by its AT-URI.
    *
+   * Projects are collections with `type='project'`.
+   *
    * @param uri - AT-URI of the project
-   * @returns Promise resolving to project data
+   * @returns Promise resolving to project data (as collection)
    *
    * @example
    * ```typescript
    * const { record } = await repo.hypercerts.getProject(projectUri);
-   * console.log(`${record.title}: ${record.activities?.length || 0} activities`);
+   * console.log(`${record.title}: ${record.items?.length || 0} activities`);
    * ```
    */
-  async getProject(uri: string): Promise<{ uri: string; cid: string; record: HypercertProject }> {
+  async getProject(uri: string): Promise<{ uri: string; cid: string; record: HypercertCollection }> {
     try {
       // Parse URI
       const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
@@ -1534,16 +1534,22 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         throw new NetworkError("Failed to get project");
       }
 
-      // Validate
-      const validation = validate(result.data.value, HYPERCERT_COLLECTIONS.PROJECT, "main", false);
+      // Validate as collection
+      const validation = validate(result.data.value, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
       if (!validation.success) {
         throw new ValidationError(`Invalid project record format: ${validation.error?.message}`);
+      }
+
+      // Verify it's actually a project (collection with type='project')
+      const record = result.data.value as HypercertCollection;
+      if (record.type !== "project") {
+        throw new ValidationError(`Record is not a project (type='${record.type}')`);
       }
 
       return {
         uri: result.data.uri,
         cid: result.data.cid ?? "",
-        record: result.data.value as HypercertProject,
+        record,
       };
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
@@ -1553,6 +1559,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
   /**
    * Lists all projects with optional pagination.
+   *
+   * Projects are collections with `type='project'`. This method filters
+   * collections to only return those with type='project'.
    *
    * @param params - Optional pagination parameters
    * @returns Promise resolving to paginated list of projects
@@ -1567,11 +1576,12 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async listProjects(
     params?: ListParams,
-  ): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertProject }>> {
+  ): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertCollection }>> {
     try {
+      // List all collections and filter for type='project'
       const result = await this.agent.com.atproto.repo.listRecords({
         repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.PROJECT,
+        collection: HYPERCERT_COLLECTIONS.COLLECTION,
         limit: params?.limit,
         cursor: params?.cursor,
       });
@@ -1580,13 +1590,19 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         throw new NetworkError("Failed to list projects");
       }
 
+      // Filter to only projects (collections with type='project')
+      const projectRecords =
+        result.data.records?.filter((r) => {
+          const record = r.value as HypercertCollection;
+          return record.type === "project";
+        }) || [];
+
       return {
-        records:
-          result.data.records?.map((r) => ({
-            uri: r.uri,
-            cid: r.cid,
-            record: r.value as HypercertProject,
-          })) || [],
+        records: projectRecords.map((r) => ({
+          uri: r.uri,
+          cid: r.cid,
+          record: r.value as HypercertCollection,
+        })),
         cursor: result.data.cursor ?? undefined,
       };
     } catch (error) {
@@ -1597,6 +1613,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
   /**
    * Updates an existing project.
+   *
+   * Projects are collections with `type='project'`.
    *
    * @param uri - AT-URI of the project to update
    * @param updates - Fields to update
@@ -1617,7 +1635,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       shortDescription?: string;
       description?: unknown;
       avatar?: Blob | null;
-      coverPhoto?: Blob | null;
+      banner?: Blob | null;
       activities?: Array<{ uri: string; cid: string; weight: string }>;
       location?: { uri: string; cid: string };
     },
@@ -1640,20 +1658,27 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         throw new NetworkError(`Project not found: ${uri}`);
       }
 
-      const existingRecord = existing.data.value as Record<string, unknown>;
+      const existingRecord = existing.data.value as HypercertCollection;
+
+      // Verify it's actually a project
+      if (existingRecord.type !== "project") {
+        throw new ValidationError(`Record is not a project (type='${existingRecord.type}')`);
+      }
 
       // Merge updates with existing record
       const recordForUpdate: Record<string, unknown> = {
         ...existingRecord,
-        ...updates,
-        // MUST preserve createdAt - cannot be changed
+        // MUST preserve type, createdAt, and items structure
+        type: "project",
         createdAt: existingRecord.createdAt,
       };
 
-      // Handle avatar update with three-way logic:
-      // - undefined: preserve existing value
-      // - null: remove field
-      // - Blob: upload and set new value
+      // Apply simple field updates
+      if (updates.title !== undefined) recordForUpdate.title = updates.title;
+      if (updates.shortDescription !== undefined) recordForUpdate.shortDescription = updates.shortDescription;
+      if (updates.description !== undefined) recordForUpdate.description = updates.description;
+
+      // Handle avatar update with three-way logic
       delete (recordForUpdate as { avatar?: unknown }).avatar;
       if (updates.avatar !== undefined) {
         if (updates.avatar === null) {
@@ -1676,50 +1701,48 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           }
         }
       } else if (existingRecord.avatar) {
-        // Preserve existing avatar
         recordForUpdate.avatar = existingRecord.avatar;
       }
 
-      // Handle coverPhoto update with three-way logic:
-      // - undefined: preserve existing value
-      // - null: remove field
-      // - Blob: upload and set new value
-      delete (recordForUpdate as { coverPhoto?: unknown }).coverPhoto;
-      if (updates.coverPhoto !== undefined) {
-        if (updates.coverPhoto === null) {
-          // Remove coverPhoto
+      // Handle banner update
+      delete (recordForUpdate as { banner?: unknown }).banner;
+      if (updates.banner !== undefined) {
+        if (updates.banner === null) {
+          // Remove banner
         } else {
-          const arrayBuffer = await updates.coverPhoto.arrayBuffer();
+          const arrayBuffer = await updates.banner.arrayBuffer();
           const uint8Array = new Uint8Array(arrayBuffer);
           const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-            encoding: updates.coverPhoto.type || "image/jpeg",
+            encoding: updates.banner.type || "image/jpeg",
           });
           if (uploadResult.success) {
-            recordForUpdate.coverPhoto = {
+            recordForUpdate.banner = {
               $type: "blob",
               ref: uploadResult.data.blob.ref,
               mimeType: uploadResult.data.blob.mimeType,
               size: uploadResult.data.blob.size,
             };
           } else {
-            throw new NetworkError("Failed to upload cover photo image");
+            throw new NetworkError("Failed to upload banner image");
           }
         }
-      } else if (existingRecord.coverPhoto) {
-        // Preserve existing coverPhoto
-        recordForUpdate.coverPhoto = existingRecord.coverPhoto;
+      } else if (existingRecord.banner) {
+        recordForUpdate.banner = existingRecord.banner;
       }
 
-      // Transform activities array if provided
+      // Transform activities to items array
       if (updates.activities) {
-        recordForUpdate.activities = updates.activities.map((a) => ({
-          activity: { uri: a.uri, cid: a.cid },
-          weight: a.weight,
+        recordForUpdate.items = updates.activities.map((a) => ({
+          itemIdentifier: { uri: a.uri, cid: a.cid },
+          itemWeight: a.weight,
         }));
+      } else {
+        // Preserve existing items
+        recordForUpdate.items = existingRecord.items;
       }
 
       // Validate merged record
-      const validation = validate(recordForUpdate, HYPERCERT_COLLECTIONS.PROJECT, "main", false);
+      const validation = validate(recordForUpdate, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
       if (!validation.success) {
         throw new ValidationError(`Invalid project record: ${validation.error?.message}`);
       }
@@ -1748,6 +1771,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   /**
    * Deletes a project.
    *
+   * Projects are collections with `type='project'`.
+   *
    * @param uri - AT-URI of the project to delete
    *
    * @example
@@ -1764,6 +1789,20 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         throw new ValidationError(`Invalid URI format: ${uri}`);
       }
       const [, , collection, rkey] = uriMatch;
+
+      // Verify it's actually a project before deleting
+      const existing = await this.agent.com.atproto.repo.getRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+      });
+
+      if (existing.success) {
+        const record = existing.data.value as HypercertCollection;
+        if (record.type !== "project") {
+          throw new ValidationError(`Record is not a project (type='${record.type}')`);
+        }
+      }
 
       // Delete record
       const result = await this.agent.com.atproto.repo.deleteRecord({

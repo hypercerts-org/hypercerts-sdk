@@ -9,6 +9,7 @@ import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from "@tansta
 import { atprotoKeys } from "../queries/keys.js";
 import { useATProtoAuth } from "./useATProtoAuth.js";
 import { useRepository } from "./useRepository.js";
+import type { HypercertProject } from "@hypercerts-org/sdk-core";
 import type {
   CreateProjectParams,
   Project,
@@ -64,7 +65,7 @@ const DEFAULT_LIMIT = 50;
  *       description: data.description,
  *       activities: data.activities,
  *       avatar: data.avatarFile,
- *       coverPhoto: data.coverPhotoFile,
+ *       banner: data.bannerFile,
  *     });
  *     console.log("Created project:", result.uri);
  *   };
@@ -99,7 +100,7 @@ export function useProjects(repoDid?: string): UseProjectsResult {
       const projects: Project[] = result.records.map((item) => ({
         uri: item.uri,
         cid: item.cid,
-        ...item.record,
+        record: item.record as HypercertProject,
       }));
 
       return {
@@ -215,7 +216,7 @@ export function useProject(uri: string): UseProjectResult {
       return {
         uri: record.uri,
         cid: record.cid,
-        ...record.record,
+        record: record.record as HypercertProject,
       };
     },
     enabled: !!uri && authStatus === "authenticated" && repoStatus === "ready" && !!repository,
