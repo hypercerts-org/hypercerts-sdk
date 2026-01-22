@@ -1,10 +1,25 @@
 /**
  * Sidecar Pattern Utilities
  *
- * This module provides utilities for implementing the "sidecar pattern" where
- * additional records are created alongside a main record to reference it.
- * This is useful for creating related records like evaluations, comments,
- * or metadata that reference a primary entity.
+ * This module provides utilities for implementing the AT Protocol "sidecar pattern"
+ * where additional records are created that reference a main record via StrongRef.
+ *
+ * ## The Sidecar Pattern
+ *
+ * In AT Protocol, the sidecar pattern uses **unidirectional references**:
+ * - Sidecar records contain a StrongRef (uri + cid) pointing to the main record
+ * - Main records do NOT maintain back-references to sidecars
+ * - Sidecars are discovered by querying records that reference the main record
+ * - Optionally, sidecars can use the same rkey as the main record (in different collections)
+ *
+ * ## Example Use Cases
+ *
+ * - Evaluations that reference hypercerts
+ * - Comments that reference posts
+ * - Metadata records that reference primary entities
+ *
+ * @see https://atproto.com/specs/record-key
+ * @see https://atproto.com/specs/data-model
  *
  * @packageDocumentation
  */
@@ -152,78 +167,6 @@ export async function attachSidecar(repo: Repository, params: AttachSidecarParam
 }
 
 /**
- * Update a main record to reference a sidecar record.
- *
- * This is useful when you want the main record to maintain a back-reference
- * to related sidecar records. Note that this requires the main record's
- * lexicon to support such references.
- *
- * @param repo - The repository instance
- * @param mainRecordUri - The URI of the main record to update
- * @param sidecarRefs - Array of sidecar strongRefs to add
- * @param fieldName - The field name in the main record where refs should be stored
- * @returns The updated main record
- *
- * @example
- * ```typescript
- * // Create a hypercert
- * const hypercert = await repo.hypercerts.create({...});
- *
- * // Create an evaluation sidecar
- * const evaluation = await createSidecarRecord(repo, "org.myapp.evaluation", {...});
- *
- * // Update hypercert to reference the evaluation (if the lexicon supports it)
- * await updateWithSidecar(
- *   repo,
- *   hypercert.hypercertUri,
- *   [{ uri: evaluation.uri, cid: evaluation.cid }],
- *   "evaluations"
- * );
- * ```
- */
-export async function updateWithSidecar(
-  repo: Repository,
-  mainRecordUri: string,
-  sidecarRefs: Array<{ uri: string; cid: string }>,
-  fieldName: string,
-): Promise<CreateResult> {
-  // First, get the current record
-  const { uri, collection } = parseUri(mainRecordUri);
-  const rkey = extractRkey(uri);
-  const currentRecord = await repo.records.get({ collection, rkey });
-
-  // Get existing sidecar refs from the field (default to empty array)
-  const recordValue = currentRecord.value as Record<string, unknown>;
-  const existingRefs = (Array.isArray(recordValue[fieldName]) ? recordValue[fieldName] : []) as Array<{
-    uri: string;
-    cid: string;
-  }>;
-
-  // Merge and deduplicate sidecar references by uri+cid
-  const refMap = new Map<string, { uri: string; cid: string }>();
-  for (const ref of existingRefs) {
-    refMap.set(`${ref.uri}:${ref.cid}`, ref);
-  }
-  for (const ref of sidecarRefs) {
-    refMap.set(`${ref.uri}:${ref.cid}`, ref);
-  }
-  const mergedRefs = Array.from(refMap.values());
-
-  // Merge the new sidecar references
-  const updatedRecord = {
-    ...recordValue,
-    [fieldName]: mergedRefs,
-  };
-
-  // Update the record
-  return await repo.records.update({
-    collection,
-    rkey,
-    record: updatedRecord,
-  });
-}
-
-/**
  * Create a main record and multiple sidecar records in sequence.
  *
  * This orchestrates the creation of a main record followed by one or more
@@ -352,35 +295,4 @@ export async function batchCreateSidecars(repo: Repository, sidecars: SidecarRec
   }
 
   return results;
-}
-
-// ============================================================================
-// Internal helpers
-// ============================================================================
-
-/**
- * Parse a URI to extract collection and other components.
- * Internal helper function.
- */
-function parseUri(uri: string): { uri: string; collection: string } {
-  const parts = uri.replace("at://", "").split("/");
-  if (parts.length < 2) {
-    throw new Error(`Invalid AT-URI format: ${uri}`);
-  }
-  return {
-    uri,
-    collection: parts[1],
-  };
-}
-
-/**
- * Extract rkey from URI.
- * Internal helper function.
- */
-function extractRkey(uri: string): string {
-  const parts = uri.replace("at://", "").split("/");
-  if (parts.length < 3) {
-    throw new Error(`Invalid AT-URI format: ${uri}`);
-  }
-  return parts[2];
 }

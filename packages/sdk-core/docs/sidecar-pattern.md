@@ -315,9 +315,11 @@ Hypercert
       └── Comment
 ```
 
-### Bidirectional References
+### Discovering Sidecars
 
-You can create two-way references between records:
+In AT Protocol, the sidecar pattern uses **unidirectional references** - sidecars reference the main record, 
+but the main record does NOT maintain back-references. To discover sidecars, you query records that 
+reference your main record:
 
 ```typescript
 // Create main hypercert
@@ -334,14 +336,18 @@ const evidence = await createSidecarRecord(repo, "org.myapp.evidence", {
   createdAt: new Date().toISOString(),
 });
 
-// Update hypercert to reference the evidence
-// Note: This requires the hypercert lexicon to support an evidence field
-await repo.hypercerts.attachEvidence({
-  hypercertUri: hypercert.hypercertUri,
-  evidence: {
-    uri: evidence.uri,
-    cid: evidence.cid,
-  },
+// Later, discover sidecars by querying records in the evidence collection
+// that reference your hypercert URI
+const evidenceRecords = await repo.records.list({
+  collection: "org.myapp.evidence",
+  // Filter by records that contain a reference to your hypercert
+});
+
+// Or use the same rkey pattern for easy discovery:
+const sameRkey = hypercert.hypercertUri.split('/').pop();
+const evidenceByRkey = await repo.records.get({
+  collection: "org.myapp.evidence",
+  rkey: sameRkey,
 });
 ```
 

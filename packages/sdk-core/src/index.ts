@@ -73,13 +73,7 @@ export type {
   LexiconDoc,
 } from "./lexicons/builders.js";
 
-export {
-  createSidecarRecord,
-  attachSidecar,
-  updateWithSidecar,
-  createWithSidecars,
-  batchCreateSidecars,
-} from "./lexicons/sidecar.js";
+export { createSidecarRecord, attachSidecar, createWithSidecars, batchCreateSidecars } from "./lexicons/sidecar.js";
 export type {
   SidecarRecordParams,
   SidecarResult,
