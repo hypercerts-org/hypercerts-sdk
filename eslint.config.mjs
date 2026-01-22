@@ -30,6 +30,6 @@ export default [
     },
   },
   {
-    ignores: ["**/dist/**", "**/node_modules/**", "**/*.config.*", "**/.rollup.cache/**", "**/coverage/**"],
+    ignores: ["**/dist/**", "**/node_modules/**", "**/.rollup.cache/**", "**/coverage/**", "**/tmp/**"],
   },
 ];
