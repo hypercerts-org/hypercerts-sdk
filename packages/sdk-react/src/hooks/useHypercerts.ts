@@ -4,8 +4,8 @@
  * @packageDocumentation
  */
 
-import { useCallback, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreateHypercertParams, CreateHypercertResult } from "@hypercerts-org/sdk-core";
 import { atprotoKeys } from "../queries/keys.js";
 import { useATProtoAuth } from "./useATProtoAuth.js";
@@ -90,19 +90,15 @@ export function useHypercerts(repoDid?: string): UseHypercertsResult {
     repoDid: targetDid,
   });
 
-  // Pagination state
-  const [cursor, setCursor] = useState<string | undefined>(undefined);
-  const [allHypercerts, setAllHypercerts] = useState<Hypercert[]>([]);
-
-  // Hypercerts query
-  const hypercertsQuery = useQuery({
-    queryKey: atprotoKeys.hypercertsList(targetDid ?? "", { cursor, limit: DEFAULT_LIMIT }),
-    queryFn: async (): Promise<{ hypercerts: Hypercert[]; cursor?: string }> => {
+  // Hypercerts query with infinite pagination
+  const hypercertsQuery = useInfiniteQuery({
+    queryKey: atprotoKeys.hypercerts(targetDid),
+    queryFn: async ({ pageParam }): Promise<{ hypercerts: Hypercert[]; cursor?: string }> => {
       if (!repository) return { hypercerts: [] };
 
       const result = await repository.hypercerts.list({
         limit: DEFAULT_LIMIT,
-        cursor,
+        cursor: pageParam,
       });
 
       const hypercerts: Hypercert[] = result.records.map((item) => ({
@@ -116,15 +112,14 @@ export function useHypercerts(repoDid?: string): UseHypercertsResult {
         cursor: result.cursor,
       };
     },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.cursor,
     enabled: !!targetDid && authStatus === "authenticated" && repoStatus === "ready" && !!repository,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Update all hypercerts when query data changes
-  // This accumulates pages for infinite scroll
-  const displayHypercerts = cursor
-    ? [...allHypercerts, ...(hypercertsQuery.data?.hypercerts ?? [])]
-    : (hypercertsQuery.data?.hypercerts ?? []);
+  // Flatten all pages into a single array
+  const displayHypercerts = hypercertsQuery.data?.pages.flatMap((page) => page.hypercerts) ?? [];
 
   // Create mutation
   const createMutation = useMutation({
@@ -137,9 +132,7 @@ export function useHypercerts(repoDid?: string): UseHypercertsResult {
       return result;
     },
     onSuccess: () => {
-      // Reset pagination and refetch
-      setCursor(undefined);
-      setAllHypercerts([]);
+      // Invalidate queries to refetch
       queryClient.invalidateQueries({
         queryKey: atprotoKeys.hypercerts(targetDid),
       });
@@ -155,15 +148,12 @@ export function useHypercerts(repoDid?: string): UseHypercertsResult {
   );
 
   const fetchNextPage = useCallback(async () => {
-    if (hypercertsQuery.data?.cursor) {
-      setAllHypercerts(displayHypercerts);
-      setCursor(hypercertsQuery.data.cursor);
+    if (hypercertsQuery.hasNextPage && !hypercertsQuery.isFetchingNextPage) {
+      await hypercertsQuery.fetchNextPage();
     }
-  }, [hypercertsQuery.data?.cursor, displayHypercerts]);
+  }, [hypercertsQuery]);
 
   const refetch = useCallback(async () => {
-    setCursor(undefined);
-    setAllHypercerts([]);
     await hypercertsQuery.refetch();
   }, [hypercertsQuery]);
 
@@ -173,7 +163,7 @@ export function useHypercerts(repoDid?: string): UseHypercertsResult {
     error: hypercertsQuery.error ?? null,
     create,
     isCreating: createMutation.isPending,
-    hasNextPage: !!hypercertsQuery.data?.cursor,
+    hasNextPage: hypercertsQuery.hasNextPage,
     fetchNextPage,
     refetch,
   };

@@ -9,7 +9,7 @@
  */
 
 import type { EventEmitter } from "eventemitter3";
-import type { HypercertClaim, HypercertCollection } from "../services/hypercerts/types.js";
+import type { HypercertCollection, HypercertClaim, OrgHypercertsDefs } from "../services/hypercerts/types.js";
 import type {
   CreateResult,
   ListParams,
@@ -108,15 +108,16 @@ export interface CreateHypercertParams {
 
   /**
    * Scope of work or impact area.
-   * Logical scope of the work using label-based conditions. All labels in `withinAllOf` must apply; at least one label in `withinAnyOf` must apply if provided; no label in `withinNoneOf` may apply.
+   * Logical scope of the work using label-based conditions.
    *
-   * @example "Climate Action", "Education", "Healthcare"
+   * @example WorkScopeAll with atom references
    */
-  workScope?: {
-    withinAllOf?: string[];
-    withinAnyOf?: string[];
-    withinNoneOf?: string[];
-  };
+  workScope?:
+    | OrgHypercertsDefs.WorkScopeAll
+    | OrgHypercertsDefs.WorkScopeAny
+    | OrgHypercertsDefs.WorkScopeNot
+    | OrgHypercertsDefs.WorkScopeAtom
+    | { $type: string };
 
   /**
    * Start date of the work period.
@@ -657,6 +658,21 @@ export interface HypercertEvents {
    * Emitted when a collection is created.
    */
   collectionCreated: { uri: string; cid: string };
+
+  /**
+   * Emitted when a project is created.
+   */
+  projectCreated: { uri: string; cid: string };
+
+  /**
+   * Emitted when a project is updated.
+   */
+  projectUpdated: { uri: string; cid: string };
+
+  /**
+   * Emitted when a project is deleted.
+   */
+  projectDeleted: { uri: string };
 }
 
 /**
@@ -812,7 +828,7 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
     title: string;
     claims: Array<{ uri: string; cid: string; weight: string }>;
     shortDescription?: string;
-    coverPhoto?: Blob;
+    banner?: Blob;
   }): Promise<CreateResult>;
 
   /**
@@ -832,6 +848,68 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
   listCollections(
     params?: ListParams,
   ): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertCollection }>>;
+
+  /**
+   * Creates a project.
+   *
+   * @param params - Project parameters
+   * @returns Promise resolving to project record result
+   */
+  createProject(params: {
+    title: string;
+    shortDescription: string;
+    description?: unknown;
+    avatar?: Blob;
+    banner?: Blob;
+    activities?: Array<{ uri: string; cid: string; weight: string }>;
+  }): Promise<CreateResult>;
+
+  /**
+   * Gets a project by URI.
+   *
+   * Projects are collections with type='project'.
+   *
+   * @param uri - AT-URI of the project
+   * @returns Promise resolving to project data (as collection)
+   */
+  getProject(uri: string): Promise<{ uri: string; cid: string; record: HypercertCollection }>;
+
+  /**
+   * Lists projects with pagination.
+   *
+   * Projects are collections with type='project'.
+   *
+   * @param params - Optional pagination parameters
+   * @returns Promise resolving to paginated list
+   */
+  listProjects(params?: ListParams): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertCollection }>>;
+
+  /**
+   * Updates a project.
+   *
+   * @param uri - AT-URI of the project
+   * @param updates - Fields to update
+   * @returns Promise resolving to update result
+   */
+  updateProject(
+    uri: string,
+    updates: {
+      title?: string;
+      shortDescription?: string;
+      description?: unknown;
+      avatar?: Blob | null;
+      banner?: Blob | null;
+      activities?: Array<{ uri: string; cid: string; weight: string }>;
+    },
+  ): Promise<UpdateResult>;
+
+  /**
+   * Deletes a project.
+   *
+   * @param uri - AT-URI of the project
+   * @returns Promise resolving when deleted
+   */
+  deleteProject(uri: string): Promise<void>;
 }
 
 /**

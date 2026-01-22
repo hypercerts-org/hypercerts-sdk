@@ -11,11 +11,16 @@ import type {
   CollaboratorPermissions,
   CreateHypercertParams,
   CreateHypercertResult,
+  CreateOrganizationParams,
+  CreateProjectParams,
   HypercertClaim,
+  HypercertProjectWithMetadata,
   OrganizationInfo,
+  OrgHypercertsDefs,
   Repository,
   RepositoryRole,
   Session,
+  UpdateProjectParams,
 } from "@hypercerts-org/sdk-core";
 import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -202,26 +207,6 @@ export interface UseProfileResult {
 // ─────────────────────────────────────────────
 
 /**
- * Parameters for creating an organization.
- */
-export interface CreateOrganizationParams {
-  /**
-   * Name of the organization
-   */
-  name: string;
-  /**
-   * The handle of the organization without attaching the SDS domain
-   *
-   * @example: "gainforest" for "gainforest.sds.hypercerts.org"
-   */
-  handlePrefix: string;
-  /**
-   * Optional description of the organization
-   */
-  description?: string;
-}
-
-/**
  * Result of the useOrganizations hook.
  */
 export interface UseOrganizationsResult {
@@ -239,6 +224,12 @@ export interface UseOrganizationsResult {
 
   /** Create loading state */
   isCreating: boolean;
+
+  /** Whether there are more pages to fetch */
+  hasNextPage: boolean;
+
+  /** Fetch next page of organizations */
+  fetchNextPage: () => Promise<void>;
 
   /** Refetch organizations */
   refetch: () => Promise<void>;
@@ -298,6 +289,12 @@ export interface UseCollaboratorsResult {
   /** Revoke loading state */
   isRevoking: boolean;
 
+  /** Whether there are more pages to fetch */
+  hasNextPage: boolean;
+
+  /** Fetch next page of collaborators */
+  fetchNextPage: () => Promise<void>;
+
   /** Refetch collaborators */
   refetch: () => Promise<void>;
 }
@@ -320,11 +317,12 @@ export interface Hypercert extends HypercertClaim {
 export interface UpdateHypercertParams {
   title?: string;
   description?: string;
-  workScope?: {
-    withinAllOf?: string[];
-    withinAnyOf?: string[];
-    withinNoneOf?: string[];
-  };
+  workScope?:
+    | OrgHypercertsDefs.WorkScopeAll
+    | OrgHypercertsDefs.WorkScopeAny
+    | OrgHypercertsDefs.WorkScopeNot
+    | OrgHypercertsDefs.WorkScopeAtom
+    | { $type: string };
   impactScope?: string;
   workTimeFrameFrom?: string;
   workTimeFrameTo?: string;
@@ -392,6 +390,70 @@ export interface UseHypercertResult {
 }
 
 // ─────────────────────────────────────────────
+// Project Types
+// ─────────────────────────────────────────────
+
+export type Project = HypercertProjectWithMetadata;
+
+/**
+ * Result of the useProjects hook.
+ */
+export interface UseProjectsResult {
+  /** List of projects */
+  projects: Project[];
+
+  /** Query loading state */
+  isLoading: boolean;
+
+  /** Query error */
+  error: Error | null;
+
+  /** Create project */
+  create: (params: CreateProjectParams) => Promise<{ uri: string; cid: string }>;
+
+  /** Create loading state */
+  isCreating: boolean;
+
+  /** Whether there are more pages */
+  hasNextPage: boolean;
+
+  /** Fetch next page */
+  fetchNextPage: () => Promise<void>;
+
+  /** Refetch projects */
+  refetch: () => Promise<void>;
+}
+
+/**
+ * Result of the useProject hook.
+ */
+export interface UseProjectResult {
+  /** Project data */
+  project: Project | null;
+
+  /** Query loading state */
+  isLoading: boolean;
+
+  /** Query error */
+  error: Error | null;
+
+  /** Update project */
+  update: (params: UpdateProjectParams) => Promise<{ uri: string; cid: string }>;
+
+  /** Delete project */
+  remove: () => Promise<void>;
+
+  /** Update loading state */
+  isUpdating: boolean;
+
+  /** Delete loading state */
+  isDeleting: boolean;
+
+  /** Refetch project */
+  refetch: () => Promise<void>;
+}
+
+// ─────────────────────────────────────────────
 // SSR Types
 // ─────────────────────────────────────────────
 
@@ -433,9 +495,14 @@ export type {
   CollaboratorPermissions,
   CreateHypercertParams,
   CreateHypercertResult,
+  CreateOrganizationParams,
+  CreateProjectParams,
   HypercertClaim,
+  HypercertProjectWithMetadata,
   OrganizationInfo,
+  OrgHypercertsDefs,
   Repository,
   RepositoryRole,
   Session,
+  UpdateProjectParams,
 };

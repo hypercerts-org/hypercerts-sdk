@@ -5,7 +5,7 @@
  */
 
 import { useCallback } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { OrganizationInfo } from "@hypercerts-org/sdk-core";
 import { atprotoKeys } from "../queries/keys.js";
 import { useATProtoAuth } from "./useATProtoAuth.js";
@@ -67,18 +67,26 @@ export function useOrganizations(): UseOrganizationsResult {
     server: "sds",
   });
 
-  // Organizations query
-  const orgsQuery = useQuery({
+  // Organizations query with infinite pagination
+  const orgsQuery = useInfiniteQuery({
     queryKey: atprotoKeys.organizations(),
-    queryFn: async (): Promise<OrganizationInfo[]> => {
-      if (!repository) return [];
+    queryFn: async ({ pageParam }): Promise<{ organizations: OrganizationInfo[]; cursor?: string }> => {
+      if (!repository) return { organizations: [] };
 
-      const { organizations: orgs } = await repository.organizations.list();
-      return orgs;
+      const result = await repository.organizations.list({
+        limit: 50,
+        cursor: pageParam,
+      });
+      return result;
     },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.cursor,
     enabled: authStatus === "authenticated" && repoStatus === "ready" && !!repository,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Flatten all pages into a single array
+  const displayOrganizations = orgsQuery.data?.pages.flatMap((page) => page.organizations) ?? [];
 
   // Create mutation
   const createMutation = useMutation({
@@ -111,16 +119,24 @@ export function useOrganizations(): UseOrganizationsResult {
     [createMutation],
   );
 
+  const fetchNextPage = useCallback(async () => {
+    if (orgsQuery.hasNextPage && !orgsQuery.isFetchingNextPage) {
+      await orgsQuery.fetchNextPage();
+    }
+  }, [orgsQuery]);
+
   const refetch = useCallback(async () => {
     await orgsQuery.refetch();
   }, [orgsQuery]);
 
   return {
-    organizations: orgsQuery.data ?? [],
+    organizations: displayOrganizations,
     isLoading: orgsQuery.isLoading || repoStatus === "loading",
     error: orgsQuery.error ?? null,
     create,
     isCreating: createMutation.isPending,
+    hasNextPage: orgsQuery.hasNextPage,
+    fetchNextPage,
     refetch,
   };
 }

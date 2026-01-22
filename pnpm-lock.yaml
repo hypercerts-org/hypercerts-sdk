@@ -63,8 +63,8 @@ importers:
         specifier: ^0.3.12
         version: 0.3.12
       '@hypercerts-org/lexicon':
-        specifier: ^0.10.0-beta.3
-        version: 0.10.0-beta.3(@atproto/xrpc@0.7.6)
+        specifier: 0.10.0-beta.10
+        version: 0.10.0-beta.10(@atproto/xrpc@0.7.6)
       eventemitter3:
         specifier: ^5.0.1
         version: 5.0.1
@@ -150,6 +150,9 @@ packages:
 
   '@atcute/atproto@3.1.10':
     resolution: {integrity: sha512-+GKZpOc0PJcdWMQEkTfg/rSNDAAHxmAUGBl60g2az15etqJn5WaUPNGFE2sB7hKpwi5Ue2h/L0OacINcE/JDDQ==}
+
+  '@atcute/bluesky@3.2.15':
+    resolution: {integrity: sha512-H4RW3WffjfdKvOZ9issEUQnuSR4KfuAwwJnYu0fclA9VDa99JTJ+pa8tTl9lFeBV9DINtWJAx7rdIbICoVCstQ==}
 
   '@atcute/leaflet@1.0.15':
     resolution: {integrity: sha512-soA4jGsY0UxTar8rhtfQNYFXPI+qoQGgjpeMKJaO8ZCBBMRoo4OU9gsFJpUm/BYSocOBvvWSq2GV9pYEgUehTw==}
@@ -578,8 +581,8 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
 
-  '@hypercerts-org/lexicon@0.10.0-beta.3':
-    resolution: {integrity: sha512-mQKDeRVwvWrR5mkwAdFHJUZyxNDwaHiFX1emykQ7G1RJPTCTGS2Tqi3C2iR/vzCU4oUkaweQ9zDWogG/ViZXbg==}
+  '@hypercerts-org/lexicon@0.10.0-beta.10':
+    resolution: {integrity: sha512-bha+8AYCx/ZA41O3pqYVFyZ9Yr+ipcIRtLqOChdhoLW/np3Qt857bggyRc2+goealGVKDU0jeQuazXZaZD2S6Q==}
     peerDependencies:
       '@atproto/xrpc': '*'
 
@@ -2205,6 +2208,11 @@ snapshots:
     dependencies:
       '@atcute/lexicons': 1.2.6
 
+  '@atcute/bluesky@3.2.15':
+    dependencies:
+      '@atcute/atproto': 3.1.10
+      '@atcute/lexicons': 1.2.6
+
   '@atcute/leaflet@1.0.15':
     dependencies:
       '@atcute/atproto': 3.1.10
@@ -2735,8 +2743,9 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@hypercerts-org/lexicon@0.10.0-beta.3(@atproto/xrpc@0.7.6)':
+  '@hypercerts-org/lexicon@0.10.0-beta.10(@atproto/xrpc@0.7.6)':
     dependencies:
+      '@atcute/bluesky': 3.2.15
       '@atcute/leaflet': 1.0.15
       '@atproto/lexicon': 0.6.0
       '@atproto/xrpc': 0.7.6

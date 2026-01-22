@@ -5,7 +5,7 @@
  */
 
 import { useCallback } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import type { Collaborator } from "@hypercerts-org/sdk-core";
 import { SDSRequiredError } from "@hypercerts-org/sdk-core";
 import { atprotoKeys } from "../queries/keys.js";
@@ -91,30 +91,43 @@ export function useCollaborators(repoDid: string): UseCollaboratorsResult {
     server: "sds",
   });
 
-  // Collaborators query
-  const collaboratorsQuery = useQuery({
+  // Collaborators query with infinite pagination
+  const collaboratorsQuery = useInfiniteQuery({
     queryKey: atprotoKeys.collaborators(repoDid),
-    queryFn: async (): Promise<Collaborator[]> => {
-      if (!repository) return [];
+    queryFn: async ({ pageParam }): Promise<{ collaborators: Collaborator[]; cursor?: string }> => {
+      if (!repository) return { collaborators: [] };
 
       if (!isSDS) {
         throw new SDSRequiredError("Collaborator management requires a Shared Data Server (SDS)");
       }
 
-      const { collaborators: grants } = await repository.collaborators.list();
+      const result = await repository.collaborators.list({
+        limit: 50,
+        cursor: pageParam,
+      });
 
       // Transform RepositoryAccessGrant[] to Collaborator[]
       // Use permissions directly from the grant (authoritative source)
-      return grants.map((grant) => ({
+      const collaborators = result.collaborators.map((grant) => ({
         userDid: grant.userDid,
         permissions: grant.permissions,
         grantedBy: grant.grantedBy,
         grantedAt: grant.grantedAt,
       }));
+
+      return {
+        collaborators,
+        cursor: result.cursor,
+      };
     },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.cursor,
     enabled: !!repoDid && authStatus === "authenticated" && repoStatus === "ready" && !!repository,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Flatten all pages into a single array
+  const displayCollaborators = collaboratorsQuery.data?.pages.flatMap((page) => page.collaborators) ?? [];
 
   // Grant mutation
   const grantMutation = useMutation({
@@ -174,18 +187,26 @@ export function useCollaborators(repoDid: string): UseCollaboratorsResult {
     [revokeMutation],
   );
 
+  const fetchNextPage = useCallback(async () => {
+    if (collaboratorsQuery.hasNextPage && !collaboratorsQuery.isFetchingNextPage) {
+      await collaboratorsQuery.fetchNextPage();
+    }
+  }, [collaboratorsQuery]);
+
   const refetch = useCallback(async () => {
     await collaboratorsQuery.refetch();
   }, [collaboratorsQuery]);
 
   return {
-    collaborators: collaboratorsQuery.data ?? [],
+    collaborators: displayCollaborators,
     isLoading: collaboratorsQuery.isLoading || repoStatus === "loading",
     error: collaboratorsQuery.error ?? null,
     grant,
     revoke,
     isGranting: grantMutation.isPending,
     isRevoking: revokeMutation.isPending,
+    hasNextPage: collaboratorsQuery.hasNextPage,
+    fetchNextPage,
     refetch,
   };
 }

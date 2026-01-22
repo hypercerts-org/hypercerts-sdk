@@ -88,6 +88,7 @@ export { useProfile } from "./hooks/useProfile.js";
 export { useOrganizations, useOrganization } from "./hooks/useOrganizations.js";
 export { useCollaborators } from "./hooks/useCollaborators.js";
 export { useHypercerts, useHypercert } from "./hooks/useHypercerts.js";
+export { useProjects, useProject } from "./hooks/useProjects.js";
 
 // Query keys (for manual cache management)
 export { atprotoKeys } from "./queries/keys.js";
@@ -133,6 +134,13 @@ export type {
   UseHypercertsResult,
   UseHypercertResult,
 
+  // Project types
+  Project,
+  CreateProjectParams,
+  UpdateProjectParams,
+  UseProjectsResult,
+  UseProjectResult,
+
   // SSR types
   SSRHelpers,
 
@@ -150,5 +158,6 @@ export type {
   CreateHypercertParams,
   CreateHypercertResult,
   OrganizationInfo,
+  OrgHypercertsDefs,
   RepositoryRole,
 } from "./types.js";

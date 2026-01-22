@@ -16,6 +16,7 @@ import { useProfile } from "../hooks/useProfile.js";
 import { useOrganizations, useOrganization } from "../hooks/useOrganizations.js";
 import { useCollaborators } from "../hooks/useCollaborators.js";
 import { useHypercerts, useHypercert } from "../hooks/useHypercerts.js";
+import { useProjects, useProject } from "../hooks/useProjects.js";
 import { atprotoKeys } from "../queries/keys.js";
 import type {
   CreateATProtoReactOptions,
@@ -28,6 +29,8 @@ import type {
   UseCollaboratorsResult,
   UseHypercertsResult,
   UseHypercertResult,
+  UseProjectsResult,
+  UseProjectResult,
 } from "../types.js";
 
 /**
@@ -97,6 +100,16 @@ export interface ATProtoReactInstance {
 
   /** Single hypercert with update/delete */
   useHypercert: (uri: string) => UseHypercertResult;
+
+  // ─────────────────────────────────────────────
+  // Projects
+  // ─────────────────────────────────────────────
+
+  /** Project list + create */
+  useProjects: (repoDid?: string) => UseProjectsResult;
+
+  /** Single project with update/delete */
+  useProject: (uri: string) => UseProjectResult;
 
   // ─────────────────────────────────────────────
   // Advanced
@@ -262,6 +275,8 @@ export function createATProtoReact(options: CreateATProtoReactOptions): ATProtoR
     useCollaborators,
     useHypercerts,
     useHypercert,
+    useProjects,
+    useProject,
 
     // Query keys for advanced usage
     queryKeys: atprotoKeys,

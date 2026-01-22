@@ -109,20 +109,37 @@ export type IdentityAttr = z.infer<typeof IdentityAttrSchema>;
 /**
  * Zod schema for MIME type patterns.
  *
- * Validates MIME type strings like "image/*" or "video/mp4".
+ * Validates MIME type strings used in blob permissions.
+ * Supports standard MIME types and wildcard patterns per ATProto spec.
+ *
+ * **References:**
+ * - ATProto Permission Spec: https://atproto.com/specs/permission (blob resource)
+ * - RFC 2045 (MIME): https://www.rfc-editor.org/rfc/rfc2045 (token definition)
+ * - IANA Media Types: https://www.iana.org/assignments/media-types/
+ *
+ * **Implementation:**
+ * This is a "good enough" validation that allows common real-world MIME types:
+ * - Type: letters, digits (e.g., "3gpp")
+ * - Subtype: letters, digits, hyphens, plus signs, dots, underscores, wildcards
+ * - Examples: "image/png", "application/vnd.api+json", "video/*", "clue_info+xml"
+ *
+ * Note: We use a simplified regex rather than full RFC 2045 token validation
+ * for practicality. Zod v4 has native MIME support (z.file().mime()) but would
+ * require a larger migration effort.
  *
  * @example
  * ```typescript
- * MimeTypeSchema.parse('image/*'); // Valid
- * MimeTypeSchema.parse('video/mp4'); // Valid
+ * MimeTypeSchema.parse('image/*'); // Valid - wildcard
+ * MimeTypeSchema.parse('video/mp4'); // Valid - standard
+ * MimeTypeSchema.parse('application/vnd.api+json'); // Valid - with dots/plus
  * MimeTypeSchema.parse('invalid'); // Throws ZodError
  * ```
  */
 export const MimeTypeSchema = z
   .string()
   .regex(
-    /^[a-z]+\/[a-z0-9*+-]+$/i,
-    'Invalid MIME type pattern. Expected format: type/subtype (e.g., "image/*" or "video/mp4")',
+    /^[a-z0-9]+\/[a-z0-9*+._-]+$/i,
+    'Invalid MIME type pattern. Expected format: type/subtype (e.g., "image/*", "video/mp4", "application/vnd.api+json")',
   );
 
 /**
@@ -130,6 +147,12 @@ export const MimeTypeSchema = z
  *
  * NSIDs are reverse-DNS style identifiers used throughout ATProto
  * (e.g., "app.bsky.feed.post" or "com.example.myrecord").
+ *
+ * Official ATProto NSID spec requires:
+ * - Each segment must be 1-63 characters
+ * - Authority segments (all but last) can contain hyphens, but not at boundaries
+ * - Name segment (last) must start with a letter and contain only alphanumerics
+ * - Hyphens only allowed in authority segments, not in the name segment
  *
  * @see https://atproto.com/specs/nsid
  *
@@ -143,7 +166,7 @@ export const MimeTypeSchema = z
 export const NsidSchema = z
   .string()
   .regex(
-    /^[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*)+$/,
+    /^[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(\.[a-zA-Z]([a-zA-Z0-9]{0,62})?)$/,
     'Invalid NSID format. Expected reverse-DNS format (e.g., "app.bsky.feed.post")',
   );
 
@@ -985,26 +1008,127 @@ export function parseScope(scope: string): string[] {
 }
 
 /**
+ * Helper function to match MIME type patterns with wildcard support.
+ *
+ * Implements MIME type matching for blob permissions per ATProto spec.
+ *
+ * **Reference:**
+ * - ATProto Permission Spec: https://atproto.com/specs/permission
+ *   Supports "MIME types or partial MIME type glob patterns"
+ *
+ * **Supported patterns:**
+ * - Exact matches: "image/png" matches "image/png"
+ * - Type wildcards: "image/*" matches "image/png", "image/jpeg", etc.
+ * - Full wildcards: `*` `/` `*` matches any MIME type
+ *
+ * @param pattern - The MIME type pattern (may contain wildcards)
+ * @param mimeType - The actual MIME type to check
+ * @returns True if the MIME type matches the pattern
+ *
+ * @example
+ * ```typescript
+ * matchMimePattern("image/*", "image/png"); // true
+ * matchMimePattern("*" + "/" + "*", "video/mp4"); // true - matches any MIME
+ * matchMimePattern("image/*", "video/mp4"); // false
+ * ```
+ */
+function matchMimePattern(pattern: string, mimeType: string): boolean {
+  if (pattern === "*/*") return true;
+  if (pattern === mimeType) return true;
+
+  const [patternType, patternSubtype] = pattern.split("/");
+  const [mimeTypeType] = mimeType.split("/");
+
+  if (patternSubtype === "*" && patternType === mimeTypeType) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Check if a scope string contains a specific permission.
  *
- * This function performs exact string matching. For more advanced
- * permission checking (e.g., wildcard matching), you'll need to
- * implement custom logic.
+ * Implements permission matching per ATProto OAuth spec with support for
+ * exact matching and limited wildcard patterns.
+ *
+ * **References:**
+ * - ATProto Permission Spec: https://atproto.com/specs/permission
+ * - ATProto OAuth Spec: https://atproto.com/specs/oauth
+ *
+ * **Supported wildcards (per spec):**
+ * - `repo:*` - Matches any repository collection (e.g., `repo:app.bsky.feed.post`)
+ * - `rpc:*` - Matches any RPC lexicon (but aud cannot also be wildcard)
+ * - `blob:image/*` - MIME type wildcards (e.g., matches `blob:image/png`, `blob:image/jpeg`)
+ * - `blob:` + wildcard MIME - Matches any MIME type (using `*` + `/` + `*` pattern)
+ * - `identity:*` - Full control of DID document and handle (spec allows `*` as attr value)
+ *
+ * **NOT supported (per spec):**
+ * - `account:*` - Account attr does not support wildcards (only `email` and `repo` allowed)
+ * - `include:*` - Include NSID does not support wildcards
+ * - Partial wildcards like `com.example.*` are not supported
  *
  * @param scope - Space-separated scope string
  * @param permission - The permission to check for
  * @returns True if the scope contains the permission
  *
- * @example
+ * @example Exact matching
  * ```typescript
- * const scope = "account:email?action=read repo:app.bsky.feed.post";
- * hasPermission(scope, "account:email?action=read"); // true
+ * const scope = "account:email repo:app.bsky.feed.post";
+ * hasPermission(scope, "account:email"); // true
  * hasPermission(scope, "account:repo"); // false
+ * ```
+ *
+ * @example Wildcard matching
+ * ```typescript
+ * const scope = "repo:* blob:image/* identity:*";
+ * hasPermission(scope, "repo:app.bsky.feed.post"); // true
+ * hasPermission(scope, "blob:image/png"); // true
+ * hasPermission(scope, "blob:video/mp4"); // false
+ * hasPermission(scope, "identity:handle"); // true
  * ```
  */
 export function hasPermission(scope: string, permission: string): boolean {
   const permissions = parseScope(scope);
-  return permissions.includes(permission);
+
+  // 1. Check exact match first
+  if (permissions.includes(permission)) {
+    return true;
+  }
+
+  // 2. Check wildcard matches (only those supported by ATProto spec)
+  for (const scopePermission of permissions) {
+    // repo:* - Wildcard for repository collections
+    // Spec: "Wildcard (*) is allowed in scope string syntax"
+    if (scopePermission.startsWith("repo:*") && permission.startsWith("repo:")) {
+      return true;
+    }
+
+    // rpc:* - Wildcard for RPC lexicons
+    // Spec: "Wildcard (*) is allowed in scope string syntax for lxm parameter"
+    if (scopePermission.startsWith("rpc:*") && permission.startsWith("rpc:")) {
+      return true;
+    }
+
+    // blob MIME wildcards - image/*, video/*, or full wildcard
+    // Spec: "MIME types or partial MIME type glob patterns"
+    if (scopePermission.startsWith("blob:") && permission.startsWith("blob:")) {
+      const scopeMime = scopePermission.substring(5).split("?")[0]; // Remove "blob:" prefix and query params
+      const permMime = permission.substring(5).split("?")[0];
+
+      if (matchMimePattern(scopeMime, permMime)) {
+        return true;
+      }
+    }
+
+    // identity:* - Full control of DID document and handle
+    // Spec: "* - Full control of DID document and handle" (as attr value)
+    if (scopePermission === "identity:*" && permission.startsWith("identity:")) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
