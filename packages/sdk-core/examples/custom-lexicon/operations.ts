@@ -51,8 +51,8 @@ export class EvaluationOperations extends BaseOperations<CreateEvaluationParams,
       $type: EVALUATION_NSID,
       subject: this.createStrongRef(params.subjectUri, params.subjectCid),
       score: params.score,
-      methodology: params.methodology,
       createdAt: new Date().toISOString(),
+      ...(params.methodology !== undefined ? { methodology: params.methodology } : {}),
     };
 
     // Add previous evaluation reference if provided
