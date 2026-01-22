@@ -138,10 +138,14 @@ export type LexiconField =
 
 /**
  * Record definition for a lexicon.
+ *
+ * Key types:
+ * - "tid" (default): Server-generated timestamp-based ID
+ * - "any": Client can specify any valid rkey
  */
 export interface LexiconRecordDef {
   type: "record";
-  key?: "tid" | "literal:{string}" | "any";
+  key?: "tid" | "any";
   record: {
     type: "object";
     required: string[];
