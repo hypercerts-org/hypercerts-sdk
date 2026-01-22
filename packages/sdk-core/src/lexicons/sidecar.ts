@@ -192,10 +192,27 @@ export async function updateWithSidecar(
   const rkey = extractRkey(uri);
   const currentRecord = await repo.records.get({ collection, rkey });
 
+  // Get existing sidecar refs from the field (default to empty array)
+  const recordValue = currentRecord.value as Record<string, unknown>;
+  const existingRefs = (Array.isArray(recordValue[fieldName]) ? recordValue[fieldName] : []) as Array<{
+    uri: string;
+    cid: string;
+  }>;
+
+  // Merge and deduplicate sidecar references by uri+cid
+  const refMap = new Map<string, { uri: string; cid: string }>();
+  for (const ref of existingRefs) {
+    refMap.set(`${ref.uri}:${ref.cid}`, ref);
+  }
+  for (const ref of sidecarRefs) {
+    refMap.set(`${ref.uri}:${ref.cid}`, ref);
+  }
+  const mergedRefs = Array.from(refMap.values());
+
   // Merge the new sidecar references
   const updatedRecord = {
-    ...currentRecord.value,
-    [fieldName]: sidecarRefs,
+    ...recordValue,
+    [fieldName]: mergedRefs,
   };
 
   // Update the record
