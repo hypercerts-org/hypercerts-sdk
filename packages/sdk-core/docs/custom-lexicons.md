@@ -229,7 +229,7 @@ The SDK will now validate records against your lexicon before creating them.
 
 ```typescript
 // Authenticate and get repository
-const session = await sdk.authorize({ identifier: "user.bsky.social" });
+const session = await sdk.authorize("user.bsky.social");
 const repo = sdk.repository(session);
 
 // Create a hypercert first
@@ -415,7 +415,7 @@ const sdk = createATProtoSDK({
 sdk.getLexiconRegistry().registerFromJSON(evaluationLexicon);
 
 // 3. Authenticate
-const session = await sdk.authorize({ identifier: "user.bsky.social" });
+const session = await sdk.authorize("user.bsky.social");
 const repo = sdk.repository(session);
 
 // 4. Create a hypercert

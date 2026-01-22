@@ -49,7 +49,7 @@ async function main() {
   console.log("3️⃣  Authenticating...");
   console.log("   ⚠️  Skipping authentication in this example");
   console.log("   💡 In a real app, you would call:");
-  console.log("      const session = await sdk.authorize({ identifier: 'user.bsky.social' });");
+  console.log("      const session = await sdk.authorize('user.bsky.social');");
   console.log("      const repo = sdk.repository(session);\n");
 
   // For demonstration, we'll show what the code would look like:
