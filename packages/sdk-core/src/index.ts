@@ -17,6 +17,7 @@ export { ConfigurableAgent } from "./agent/ConfigurableAgent.js";
 export { Repository } from "./repository/Repository.js";
 export { LexiconRegistry } from "./repository/LexiconRegistry.js";
 export type { ValidationResult } from "./repository/LexiconRegistry.js";
+export { BaseOperations } from "./repository/BaseOperations.js";
 export type {
   RepositoryOptions,
   CreateResult,
