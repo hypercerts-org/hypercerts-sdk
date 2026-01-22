@@ -862,7 +862,6 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
     avatar?: Blob;
     banner?: Blob;
     activities?: Array<{ uri: string; cid: string; weight: string }>;
-    location?: { uri: string; cid: string };
   }): Promise<CreateResult>;
 
   /**
@@ -898,10 +897,9 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
       title?: string;
       shortDescription?: string;
       description?: unknown;
-      avatar?: Blob;
-      banner?: Blob;
+      avatar?: Blob | null;
+      banner?: Blob | null;
       activities?: Array<{ uri: string; cid: string; weight: string }>;
-      location?: { uri: string; cid: string };
     },
   ): Promise<UpdateResult>;
 
