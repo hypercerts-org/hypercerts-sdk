@@ -276,4 +276,54 @@ describe("ATProtoSDK", () => {
       expect(sdk).toBeInstanceOf(ATProtoSDK);
     });
   });
+
+  describe("getLexiconRegistry", () => {
+    it("should return LexiconRegistry instance", () => {
+      const sdk = new ATProtoSDK(config);
+      const registry = sdk.getLexiconRegistry();
+      expect(registry).toBeDefined();
+      expect(typeof registry.isRegistered).toBe("function");
+      expect(typeof registry.validate).toBe("function");
+    });
+
+    it("should return registry initialized with hypercert lexicons", () => {
+      const sdk = new ATProtoSDK(config);
+      const registry = sdk.getLexiconRegistry();
+
+      // Verify at least some hypercert lexicons are registered
+      // (Some lexicons may not be exported from the lexicon package yet)
+      const registeredLexicons = registry.getAll();
+      expect(registeredLexicons.length).toBeGreaterThan(0);
+
+      // Check for known lexicons that should be available
+      expect(registry.isRegistered("org.hypercerts.claim.activity")).toBe(true);
+    });
+
+    it("should allow registering custom lexicons", () => {
+      const sdk = new ATProtoSDK(config);
+      const registry = sdk.getLexiconRegistry();
+
+      const customLexicon = {
+        lexicon: 1,
+        id: "org.test.custom",
+        defs: {
+          main: {
+            type: "record",
+            key: "tid",
+            record: {
+              type: "object",
+              required: ["$type", "title"],
+              properties: {
+                $type: { type: "string", const: "org.test.custom" },
+                title: { type: "string" },
+              },
+            },
+          },
+        },
+      };
+
+      registry.registerFromJSON(customLexicon);
+      expect(registry.isRegistered("org.test.custom")).toBe(true);
+    });
+  });
 });

@@ -11,6 +11,7 @@ import type { Agent } from "@atproto/api";
 import { NetworkError, ValidationError } from "../core/errors.js";
 import type { RecordOperations } from "./interfaces.js";
 import type { CreateResult, UpdateResult, PaginatedList } from "./types.js";
+import type { LexiconRegistry } from "./LexiconRegistry.js";
 
 /**
  * Implementation of low-level AT Protocol record operations.
@@ -58,12 +59,14 @@ export class RecordOperationsImpl implements RecordOperations {
    *
    * @param agent - AT Protocol Agent for making API calls
    * @param repoDid - DID of the repository to operate on
+   * @param lexiconRegistry - Optional registry for validating records against lexicon schemas
    *
    * @internal
    */
   constructor(
     private agent: Agent,
     private repoDid: string,
+    private lexiconRegistry?: LexiconRegistry,
   ) {}
 
   /**

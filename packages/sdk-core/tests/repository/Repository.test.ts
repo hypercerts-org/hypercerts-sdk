@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { SDSRequiredError } from "../../src/core/errors.js";
 import { Repository } from "../../src/repository/Repository.js";
+import { LexiconRegistry } from "../../src/repository/LexiconRegistry.js";
 import { createMockSession } from "../utils/repository-fixtures.js";
 
 describe("Repository", () => {
@@ -127,6 +128,92 @@ describe("Repository", () => {
       expect(typeof organizations.create).toBe("function");
       expect(typeof organizations.get).toBe("function");
       expect(typeof organizations.list).toBe("function");
+    });
+  });
+
+  describe("getLexiconRegistry", () => {
+    it("should return LexiconRegistry instance", () => {
+      const registry = repository.getLexiconRegistry();
+      expect(registry).toBeDefined();
+      expect(typeof registry.isRegistered).toBe("function");
+      expect(typeof registry.validate).toBe("function");
+    });
+
+    it("should use registry from constructor if provided", () => {
+      const customRegistry = new LexiconRegistry();
+
+      const customLexicon = {
+        lexicon: 1,
+        id: "org.test.custom",
+        defs: {
+          main: {
+            type: "record",
+            key: "tid",
+            record: {
+              type: "object",
+              required: ["$type", "title"],
+              properties: {
+                $type: { type: "string", const: "org.test.custom" },
+                title: { type: "string" },
+              },
+            },
+          },
+        },
+      };
+
+      customRegistry.registerFromJSON(customLexicon);
+
+      const repoWithCustomRegistry = new Repository(
+        mockSession,
+        "https://pds.example.com",
+        mockSession.did,
+        false,
+        undefined, // logger
+        customRegistry,
+      );
+
+      const registry = repoWithCustomRegistry.getLexiconRegistry();
+      expect(registry.isRegistered("org.test.custom")).toBe(true);
+    });
+
+    it("should pass registry to new repositories created with repo()", () => {
+      const customRegistry = new LexiconRegistry();
+
+      const customLexicon = {
+        lexicon: 1,
+        id: "org.test.custom",
+        defs: {
+          main: {
+            type: "record",
+            key: "tid",
+            record: {
+              type: "object",
+              required: ["$type", "title"],
+              properties: {
+                $type: { type: "string", const: "org.test.custom" },
+                title: { type: "string" },
+              },
+            },
+          },
+        },
+      };
+
+      customRegistry.registerFromJSON(customLexicon);
+
+      const repoWithCustomRegistry = new Repository(
+        mockSession,
+        "https://pds.example.com",
+        mockSession.did,
+        false,
+        undefined,
+        customRegistry,
+      );
+
+      const otherDid = "did:plc:otherdid123456789";
+      const otherRepo = repoWithCustomRegistry.repo(otherDid);
+
+      const otherRegistry = otherRepo.getLexiconRegistry();
+      expect(otherRegistry.isRegistered("org.test.custom")).toBe(true);
     });
   });
 });

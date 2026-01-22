@@ -1,8 +1,10 @@
 import { OAuthClient } from "../auth/OAuthClient.js";
 import { Repository } from "../repository/Repository.js";
+import { LexiconRegistry } from "../repository/LexiconRegistry.js";
 import type { RepositoryOptions } from "../repository/types.js";
 import { InMemorySessionStore } from "../storage/InMemorySessionStore.js";
 import { InMemoryStateStore } from "../storage/InMemoryStateStore.js";
+import { HYPERCERT_LEXICONS } from "../lexicons.js";
 import type { ATProtoSDKConfig } from "./config.js";
 import { ATProtoSDKConfigSchema } from "./config.js";
 import { ValidationError, NetworkError } from "./errors.js";
@@ -116,6 +118,7 @@ export class ATProtoSDK {
   private oauthClient: OAuthClient;
   private config: ATProtoSDKConfig;
   private logger?: ATProtoSDKConfig["logger"];
+  private lexiconRegistry: LexiconRegistry;
 
   /**
    * Creates a new ATProto SDK instance.
@@ -161,6 +164,11 @@ export class ATProtoSDK {
 
     this.config = configWithDefaults;
     this.logger = config.logger;
+
+    // Initialize lexicon registry with hypercert lexicons
+    // Filter out undefined lexicons (some may not be exported from lexicon package yet)
+    const validLexicons = HYPERCERT_LEXICONS.filter((lex) => lex !== undefined);
+    this.lexiconRegistry = new LexiconRegistry(validLexicons);
 
     // Initialize OAuth client
     this.oauthClient = new OAuthClient(configWithDefaults);
@@ -469,7 +477,36 @@ export class ATProtoSDK {
     // Get repository DID (default to session DID)
     const repoDid = session.did || session.sub;
 
-    return new Repository(session, serverUrl, repoDid, isSDS, this.logger);
+    return new Repository(session, serverUrl, repoDid, isSDS, this.logger, this.lexiconRegistry);
+  }
+
+  /**
+   * Gets the LexiconRegistry instance for managing custom lexicons.
+   *
+   * The registry allows you to register custom lexicon schemas and validate
+   * records against them. All registered lexicons will be automatically
+   * validated during record creation operations.
+   *
+   * @returns The {@link LexiconRegistry} instance
+   *
+   * @example
+   * ```typescript
+   * // Register a custom lexicon
+   * const registry = sdk.getLexiconRegistry();
+   * registry.register({
+   *   lexicon: 1,
+   *   id: "org.myapp.customRecord",
+   *   defs: { ... }
+   * });
+   *
+   * // Check if lexicon is registered
+   * if (registry.isRegistered("org.myapp.customRecord")) {
+   *   console.log("Custom lexicon is available");
+   * }
+   * ```
+   */
+  getLexiconRegistry(): LexiconRegistry {
+    return this.lexiconRegistry;
   }
 
   /**
