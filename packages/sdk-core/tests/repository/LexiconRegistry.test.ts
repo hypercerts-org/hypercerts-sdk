@@ -130,7 +130,23 @@ describe("LexiconRegistry", () => {
       expect(registry.isRegistered("org.test.sample")).toBe(true);
     });
 
-    it("should throw error for invalid JSON", () => {
+    it("should throw ValidationError for null", () => {
+      expect(() => registry.registerFromJSON(null)).toThrow("Lexicon JSON must be a valid object");
+    });
+
+    it("should throw ValidationError for undefined", () => {
+      expect(() => registry.registerFromJSON(undefined)).toThrow("Lexicon JSON must be a valid object");
+    });
+
+    it("should throw ValidationError for string", () => {
+      expect(() => registry.registerFromJSON("not an object")).toThrow("Lexicon JSON must be a valid object");
+    });
+
+    it("should throw ValidationError for number", () => {
+      expect(() => registry.registerFromJSON(123)).toThrow("Lexicon JSON must be a valid object");
+    });
+
+    it("should throw error for invalid lexicon object", () => {
       expect(() => registry.registerFromJSON({ invalid: true })).toThrow();
     });
   });
@@ -156,6 +172,27 @@ describe("LexiconRegistry", () => {
 
       registry.unregister("org.test.sample");
       expect(registry.isRegistered("org.test.another")).toBe(true);
+    });
+
+    it("should allow re-registration after unregister", () => {
+      // Register
+      registry.register(sampleLexicon);
+      expect(registry.isRegistered("org.test.sample")).toBe(true);
+
+      // Unregister
+      registry.unregister("org.test.sample");
+      expect(registry.isRegistered("org.test.sample")).toBe(false);
+
+      // Re-register should work without throwing
+      expect(() => registry.register(sampleLexicon)).not.toThrow();
+      expect(registry.isRegistered("org.test.sample")).toBe(true);
+
+      // Validation should still work
+      const result = registry.validate("org.test.sample", {
+        $type: "org.test.sample",
+        title: "Test",
+      });
+      expect(result.valid).toBe(true);
     });
   });
 

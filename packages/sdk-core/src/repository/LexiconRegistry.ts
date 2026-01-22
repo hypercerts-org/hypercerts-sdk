@@ -11,6 +11,7 @@
 import type { LexiconDoc } from "@atproto/lexicon";
 import { Lexicons } from "@atproto/lexicon";
 import type { Agent } from "@atproto/api";
+import { ValidationError } from "../errors.js";
 
 /**
  * Validation result from lexicon validation.
@@ -114,7 +115,16 @@ export class LexiconRegistry {
     }
 
     try {
-      this.lexicons.add(lexicon);
+      // Check if the lexicon already exists in the internal store
+      // (e.g., after unregister which only removes from registeredIds)
+      const existingLexicon = this.lexicons.get(lexicon.id);
+
+      if (!existingLexicon) {
+        // Lexicon is truly new, add it to the store
+        this.lexicons.add(lexicon);
+      }
+
+      // Always add to registeredIds (re-enable if previously unregistered)
       this.registeredIds.add(lexicon.id);
     } catch (error) {
       throw new Error(
@@ -146,6 +156,7 @@ export class LexiconRegistry {
    * This is a convenience method for registering lexicons loaded from JSON files.
    *
    * @param lexiconJson - The lexicon as a plain JavaScript object
+   * @throws {ValidationError} If the lexicon is not a valid object
    * @throws {Error} If the lexicon is invalid or already registered
    *
    * @example
@@ -155,6 +166,12 @@ export class LexiconRegistry {
    * ```
    */
   registerFromJSON(lexiconJson: unknown): void {
+    // Validate that input is an object and not null
+    if (typeof lexiconJson !== "object" || lexiconJson === null) {
+      throw new ValidationError("Lexicon JSON must be a valid object");
+    }
+
+    // Now we can safely cast to LexiconDoc and register
     this.register(lexiconJson as LexiconDoc);
   }
 
