@@ -368,10 +368,7 @@ describe("LexiconRegistry", () => {
                   items: { type: "string" },
                 },
                 metadata: {
-                  type: "object",
-                  properties: {
-                    version: { type: "integer" },
-                  },
+                  type: "unknown",
                 },
               },
             },

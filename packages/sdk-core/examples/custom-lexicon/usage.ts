@@ -28,6 +28,9 @@ async function main() {
     oauth: {
       clientId: "your-client-id",
       redirectUri: "http://localhost:3000/callback",
+      scope: "atproto transition:generic",
+      jwksUri: "https://example.com/.well-known/jwks.json",
+      jwkPrivate: "your-private-jwk",
     },
   });
 

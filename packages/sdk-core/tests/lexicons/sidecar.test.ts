@@ -46,7 +46,6 @@ describe("Sidecar Pattern Utilities", () => {
           score: 85,
         },
         rkey: undefined,
-        skipValidation: undefined,
       });
     });
 
@@ -69,30 +68,6 @@ describe("Sidecar Pattern Utilities", () => {
         collection: "org.myapp.evaluation",
         record: { $type: "org.myapp.evaluation" },
         rkey: "custom-key",
-        skipValidation: undefined,
-      });
-    });
-
-    it("should pass skipValidation option", async () => {
-      const mockResult: CreateResult = {
-        uri: "at://did:plc:abc123/org.myapp.evaluation/3km2vj4kfqp2a",
-        cid: "bafyreiabc123",
-      };
-
-      vi.mocked(mockRepo.records.create).mockResolvedValue(mockResult);
-
-      await createSidecarRecord(
-        mockRepo,
-        "org.myapp.evaluation",
-        { $type: "org.myapp.evaluation" },
-        { skipValidation: true },
-      );
-
-      expect(mockRepo.records.create).toHaveBeenCalledWith({
-        collection: "org.myapp.evaluation",
-        record: { $type: "org.myapp.evaluation" },
-        rkey: undefined,
-        skipValidation: true,
       });
     });
   });
@@ -133,7 +108,6 @@ describe("Sidecar Pattern Utilities", () => {
           score: 90,
         },
         rkey: undefined,
-        skipValidation: undefined,
       });
     });
   });
@@ -236,7 +210,6 @@ describe("Sidecar Pattern Utilities", () => {
           createdAt: "2024-01-01T00:00:00Z",
         },
         rkey: undefined,
-        skipValidation: undefined,
       });
 
       // Verify sidecars were created after
@@ -247,7 +220,6 @@ describe("Sidecar Pattern Utilities", () => {
           title: "Tree Planting",
         },
         rkey: undefined,
-        skipValidation: undefined,
       });
     });
 
@@ -288,7 +260,6 @@ describe("Sidecar Pattern Utilities", () => {
           collection: "org.hypercerts.project",
           record: { $type: "org.hypercerts.project", title: "Test" },
           rkey: "custom-key",
-          skipValidation: true,
         },
         sidecars: [],
       });
@@ -297,7 +268,6 @@ describe("Sidecar Pattern Utilities", () => {
         collection: "org.hypercerts.project",
         record: { $type: "org.hypercerts.project", title: "Test" },
         rkey: "custom-key",
-        skipValidation: true,
       });
     });
   });

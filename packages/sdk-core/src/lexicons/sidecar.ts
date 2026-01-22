@@ -37,8 +37,6 @@ export interface SidecarRecordParams {
   record: Record<string, unknown>;
   /** Optional custom rkey */
   rkey?: string;
-  /** Skip validation if true */
-  skipValidation?: boolean;
 }
 
 /**
@@ -113,13 +111,12 @@ export async function createSidecarRecord(
   repo: Repository,
   collection: string,
   record: Record<string, unknown>,
-  options: { rkey?: string; skipValidation?: boolean } = {},
+  options: { rkey?: string } = {},
 ): Promise<CreateResult> {
   return await repo.records.create({
     collection,
     record,
     rkey: options.rkey,
-    skipValidation: options.skipValidation,
   });
 }
 
@@ -157,7 +154,6 @@ export async function createSidecarRecord(
 export async function attachSidecar(repo: Repository, params: AttachSidecarParams): Promise<SidecarResult> {
   const sidecarRecord = await createSidecarRecord(repo, params.sidecar.collection, params.sidecar.record, {
     rkey: params.sidecar.rkey,
-    skipValidation: params.sidecar.skipValidation,
   });
 
   return {
@@ -225,7 +221,6 @@ export async function createWithSidecars(
     collection: params.main.collection,
     record: params.main.record,
     rkey: params.main.rkey,
-    skipValidation: params.main.skipValidation,
   });
 
   // Create all sidecar records
@@ -235,7 +230,6 @@ export async function createWithSidecars(
       collection: sidecar.collection,
       record: sidecar.record,
       rkey: sidecar.rkey,
-      skipValidation: sidecar.skipValidation,
     });
 
     sidecars.push(created);
@@ -289,7 +283,6 @@ export async function batchCreateSidecars(repo: Repository, sidecars: SidecarRec
   for (const sidecar of sidecars) {
     const result = await createSidecarRecord(repo, sidecar.collection, sidecar.record, {
       rkey: sidecar.rkey,
-      skipValidation: sidecar.skipValidation,
     });
     results.push(result);
   }
