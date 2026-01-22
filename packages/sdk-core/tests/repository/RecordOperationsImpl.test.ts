@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
 import { RecordOperationsImpl } from "../../src/repository/RecordOperationsImpl.js";
-import { NetworkError } from "../../src/core/errors.js";
+import { NetworkError, ValidationError } from "../../src/core/errors.js";
+import { LexiconRegistry } from "../../src/repository/LexiconRegistry.js";
 import { createMockAgent, TEST_REPO_DID } from "../utils/mocks.js";
 
 describe("RecordOperationsImpl", () => {
@@ -324,6 +325,200 @@ describe("RecordOperationsImpl", () => {
           rkey: "test-rkey",
         }),
       ).rejects.toThrow(NetworkError);
+    });
+  });
+
+  describe("validation", () => {
+    let registry: LexiconRegistry;
+    let recordOpsWithRegistry: RecordOperationsImpl;
+
+    beforeEach(() => {
+      registry = new LexiconRegistry();
+
+      // Register a test lexicon
+      registry.registerFromJSON({
+        lexicon: 1,
+        id: "org.test.record",
+        defs: {
+          main: {
+            type: "record",
+            key: "tid",
+            record: {
+              type: "object",
+              required: ["$type", "title", "createdAt"],
+              properties: {
+                $type: { type: "string", const: "org.test.record" },
+                title: { type: "string", minLength: 1 },
+                description: { type: "string" },
+                createdAt: { type: "string", format: "datetime" },
+              },
+            },
+          },
+        },
+      });
+
+      recordOpsWithRegistry = new RecordOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, registry);
+    });
+
+    describe("create with validation", () => {
+      it("should validate and create a valid record", async () => {
+        mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+          success: true,
+          data: { uri: "at://did:plc:test/org.test.record/abc", cid: "bafyrei123" },
+        });
+
+        const validRecord = {
+          $type: "org.test.record",
+          title: "Test Record",
+          description: "A test record",
+          createdAt: new Date().toISOString(),
+        };
+
+        const result = await recordOpsWithRegistry.create({
+          collection: "org.test.record",
+          record: validRecord,
+        });
+
+        expect(result.uri).toBe("at://did:plc:test/org.test.record/abc");
+        expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith({
+          repo: TEST_REPO_DID,
+          collection: "org.test.record",
+          record: validRecord,
+          rkey: undefined,
+        });
+      });
+
+      it("should throw ValidationError for invalid record", async () => {
+        const invalidRecord = {
+          $type: "org.test.record",
+          // Missing required 'title' field
+          createdAt: new Date().toISOString(),
+        };
+
+        await expect(
+          recordOpsWithRegistry.create({
+            collection: "org.test.record",
+            record: invalidRecord,
+          }),
+        ).rejects.toThrow(ValidationError);
+
+        // Should not call the API
+        expect(mockAgent.com.atproto.repo.createRecord).not.toHaveBeenCalled();
+      });
+
+      it("should skip validation for unregistered collections", async () => {
+        mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+          success: true,
+          data: { uri: "at://did:plc:test/custom.collection/xyz", cid: "bafyrei456" },
+        });
+
+        const customRecord = {
+          $type: "custom.collection",
+          anyField: "any value",
+        };
+
+        const result = await recordOpsWithRegistry.create({
+          collection: "custom.collection",
+          record: customRecord,
+        });
+
+        expect(result.uri).toBe("at://did:plc:test/custom.collection/xyz");
+        expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalled();
+      });
+
+      it("should skip validation when skipValidation is true", async () => {
+        mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+          success: true,
+          data: { uri: "at://did:plc:test/org.test.record/xyz", cid: "bafyrei789" },
+        });
+
+        const invalidRecord = {
+          $type: "org.test.record",
+          // Missing required 'title' field
+          createdAt: new Date().toISOString(),
+        };
+
+        const result = await recordOpsWithRegistry.create({
+          collection: "org.test.record",
+          record: invalidRecord,
+          skipValidation: true,
+        });
+
+        expect(result.uri).toBe("at://did:plc:test/org.test.record/xyz");
+        expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalled();
+      });
+    });
+
+    describe("update with validation", () => {
+      it("should validate and update a valid record", async () => {
+        mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+          success: true,
+          data: { uri: "at://did:plc:test/org.test.record/abc", cid: "bafyrei999" },
+        });
+
+        const validRecord = {
+          $type: "org.test.record",
+          title: "Updated Record",
+          description: "Updated description",
+          createdAt: new Date().toISOString(),
+        };
+
+        const result = await recordOpsWithRegistry.update({
+          collection: "org.test.record",
+          rkey: "abc",
+          record: validRecord,
+        });
+
+        expect(result.uri).toBe("at://did:plc:test/org.test.record/abc");
+        expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith({
+          repo: TEST_REPO_DID,
+          collection: "org.test.record",
+          rkey: "abc",
+          record: validRecord,
+        });
+      });
+
+      it("should throw ValidationError for invalid record on update", async () => {
+        const invalidRecord = {
+          $type: "org.test.record",
+          title: "", // Empty string violates minLength: 1
+          createdAt: new Date().toISOString(),
+        };
+
+        await expect(
+          recordOpsWithRegistry.update({
+            collection: "org.test.record",
+            rkey: "abc",
+            record: invalidRecord,
+          }),
+        ).rejects.toThrow(ValidationError);
+
+        // Should not call the API
+        expect(mockAgent.com.atproto.repo.putRecord).not.toHaveBeenCalled();
+      });
+
+      it("should skip validation on update when skipValidation is true", async () => {
+        mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+          success: true,
+          data: { uri: "at://did:plc:test/org.test.record/abc", cid: "bafyrei888" },
+        });
+
+        const invalidRecord = {
+          $type: "org.test.record",
+          // Missing required 'title' field
+          createdAt: new Date().toISOString(),
+        };
+
+        const result = await recordOpsWithRegistry.update({
+          collection: "org.test.record",
+          rkey: "abc",
+          record: invalidRecord,
+          skipValidation: true,
+        });
+
+        expect(result.uri).toBe("at://did:plc:test/org.test.record/abc");
+        expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalled();
+      });
     });
   });
 });
