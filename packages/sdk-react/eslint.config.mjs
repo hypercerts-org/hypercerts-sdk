@@ -19,4 +19,7 @@ export default [
       },
     },
   },
+  {
+    ignores: ["vitest.config.ts"],
+  },
 ];
