@@ -7,7 +7,9 @@
       "pnpm format*": "allow",
       "pnpm lint*": "allow",
       "pnpm test*": "allow",
-      "pnpm typecheck*": "allow"
+      "pnpm typecheck*": "allow",
+      "npm *": "deny",
+      "yarn *": "deny"
     }
   }
 }
