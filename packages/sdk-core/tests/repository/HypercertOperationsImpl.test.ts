@@ -810,7 +810,7 @@ describe("HypercertOperationsImpl", () => {
 
       const result = await hypercertOps.createCollection({
         title: "My Collection",
-        claims: [{ uri: "at://claim1", cid: "cid1", weight: "50" }],
+        items: [{ itemIdentifier: { uri: "at://claim1", cid: "cid1" }, itemWeight: "50" }],
       });
 
       expect(result.uri).toContain("collection");
@@ -827,10 +827,127 @@ describe("HypercertOperationsImpl", () => {
 
       await hypercertOps.createCollection({
         title: "Collection",
-        claims: [],
+        items: [],
       });
 
       expect(handler).toHaveBeenCalled();
+    });
+
+    it("should throw ValidationError for invalid collection data", async () => {
+      const { validate } = await import("@hypercerts-org/lexicon");
+      const mockValidate = validate as ReturnType<typeof vi.fn>;
+
+      // Mock validation failure
+      mockValidate.mockReturnValue({
+        success: false,
+        error: { message: "Missing required field: title" },
+      });
+
+      await expect(
+        hypercertOps.createCollection({
+          title: "", // Invalid: empty title
+          items: [],
+        }),
+      ).rejects.toThrow(ValidationError);
+
+      await expect(
+        hypercertOps.createCollection({
+          title: "",
+          items: [],
+        }),
+      ).rejects.toThrow("Invalid collection record");
+
+      // Reset mock to default success behavior for other tests
+      mockValidate.mockReturnValue({ success: true });
+    });
+
+    it("should create a collection with inline location (StrongRef)", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.collection/xyz", cid: "collection-cid" },
+      });
+
+      const result = await hypercertOps.createCollection({
+        title: "My Collection",
+        items: [],
+        location: { uri: "at://did:plc:test/app.certified.location/loc123", cid: "location-cid" },
+      });
+
+      expect(result.uri).toContain("collection");
+      expect(result.record.location?.uri).toEqual("at://did:plc:test/app.certified.location/loc123");
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            location: expect.objectContaining({
+              uri: "at://did:plc:test/app.certified.location/loc123",
+              cid: "location-cid",
+            }),
+          }),
+        }),
+      );
+    });
+
+    it("should create a collection with inline location (AT-URI string)", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/app.certified.location/existing",
+          cid: "existing-location-cid",
+        },
+      });
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.collection/xyz", cid: "collection-cid" },
+      });
+
+      const result = await hypercertOps.createCollection({
+        title: "My Collection",
+        items: [],
+        location: "at://did:plc:test/app.certified.location/existing",
+      });
+
+      expect(result.uri).toContain("collection");
+      expect(result.record.location?.uri).toBe("at://did:plc:test/app.certified.location/existing");
+      // Should have fetched the location to get CID
+      expect(mockAgent.com.atproto.repo.getRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: "app.certified.location",
+          rkey: "existing",
+        }),
+      );
+    });
+
+    it("should create a collection with inline location (location object)", async () => {
+      // Mock createRecord for location
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValueOnce({
+        success: true,
+        data: { uri: "at://did:plc:test/app.certified.location/loc123", cid: "location-cid" },
+      });
+      // Mock createRecord for collection
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValueOnce({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.collection/xyz", cid: "collection-cid" },
+      });
+
+      const result = await hypercertOps.createCollection({
+        title: "My Collection",
+        items: [],
+        location: {
+          lpVersion: "1.0",
+          srs: "EPSG:4326",
+          locationType: "coordinate-decimal",
+          location: "https://example.com/loc",
+        },
+      });
+
+      expect(result.uri).toContain("collection");
+      expect(result.record.location?.uri).toBe("at://did:plc:test/app.certified.location/loc123");
+      // Should have created location first
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: "app.certified.location",
+        }),
+      );
     });
   });
 
@@ -874,9 +991,11 @@ describe("HypercertOperationsImpl", () => {
   });
 
   describe("Project Operations", () => {
-    // Projects are now collections with type='project'
+    // Projects are collections with type='project'
+    // createProject now calls createCollection with type="project" in a single step
     describe("createProject", () => {
       beforeEach(() => {
+        // Mock createRecord for createCollection call
         mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
           success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123", cid: "project-cid" },
@@ -886,7 +1005,7 @@ describe("HypercertOperationsImpl", () => {
       it("should create a project with required fields only", async () => {
         const result = await hypercertOps.createProject({
           title: "Test Project",
-          shortDescription: "A test project for unit testing",
+          items: [],
         });
 
         expect(result.uri).toBe("at://did:plc:test/org.hypercerts.claim.collection/abc123");
@@ -898,8 +1017,6 @@ describe("HypercertOperationsImpl", () => {
               $type: "org.hypercerts.claim.collection",
               type: "project",
               title: "Test Project",
-              shortDescription: "A test project for unit testing",
-              items: [],
               createdAt: expect.any(String),
             }),
           }),
@@ -907,27 +1024,23 @@ describe("HypercertOperationsImpl", () => {
       });
 
       it("should create a project with all optional fields", async () => {
-        const description = { type: "linearDocument", content: "Rich text" };
-        const activities = [
-          { uri: "at://activity1", cid: "cid1", weight: "50" },
-          { uri: "at://activity2", cid: "cid2", weight: "50" },
+        const description = { blocks: [] };
+        const items = [
+          { itemIdentifier: { uri: "at://activity1", cid: "cid1" }, itemWeight: "50" },
+          { itemIdentifier: { uri: "at://activity2", cid: "cid2" }, itemWeight: "50" },
         ];
 
         const result = await hypercertOps.createProject({
           title: "Complete Project",
           shortDescription: "A complete project with all fields",
           description,
-          activities,
+          items,
         });
 
         expect(result.uri).toBeDefined();
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
         expect(createCall.record.description).toEqual(description);
-        // Activities are mapped to items in collection schema
-        expect(createCall.record.items).toEqual([
-          { itemIdentifier: { uri: "at://activity1", cid: "cid1" }, itemWeight: "50" },
-          { itemIdentifier: { uri: "at://activity2", cid: "cid2" }, itemWeight: "50" },
-        ]);
+        expect(createCall.record.items).toEqual(items);
       });
 
       it("should upload avatar blob when provided", async () => {
@@ -936,7 +1049,7 @@ describe("HypercertOperationsImpl", () => {
           success: true,
           data: {
             blob: {
-              ref: { toString: () => "avatar-cid" },
+              ref: { $link: "avatar-cid" },
               mimeType: "image/png",
               size: 100,
             },
@@ -945,17 +1058,15 @@ describe("HypercertOperationsImpl", () => {
 
         await hypercertOps.createProject({
           title: "Project with Avatar",
-          shortDescription: "Project with avatar",
+          items: [],
           avatar: avatarBlob,
         });
 
         expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalled();
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
         expect(createCall.record.avatar).toEqual({
-          $type: "blob",
-          ref: { $link: "avatar-cid" },
-          mimeType: "image/png",
-          size: 100,
+          $type: "org.hypercerts.defs#smallImage",
+          image: { ref: { $link: "avatar-cid" }, mimeType: "image/png", size: 100 },
         });
       });
 
@@ -965,7 +1076,7 @@ describe("HypercertOperationsImpl", () => {
           success: true,
           data: {
             blob: {
-              ref: { toString: () => "banner-cid" },
+              ref: { $link: "banner-cid" },
               mimeType: "image/jpeg",
               size: 200,
             },
@@ -974,17 +1085,15 @@ describe("HypercertOperationsImpl", () => {
 
         await hypercertOps.createProject({
           title: "Project with Banner",
-          shortDescription: "Project with banner image",
+          items: [],
           banner: bannerBlob,
         });
 
         expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalled();
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
         expect(createCall.record.banner).toEqual({
-          $type: "blob",
-          ref: { $link: "banner-cid" },
-          mimeType: "image/jpeg",
-          size: 200,
+          $type: "org.hypercerts.defs#largeImage",
+          image: { ref: { $link: "banner-cid" }, mimeType: "image/jpeg", size: 200 },
         });
       });
 
@@ -1008,7 +1117,7 @@ describe("HypercertOperationsImpl", () => {
 
         await hypercertOps.createProject({
           title: "Full Project",
-          shortDescription: "Project with both images",
+          items: [],
           avatar: avatarBlob,
           banner: bannerBlob,
         });
@@ -1019,22 +1128,19 @@ describe("HypercertOperationsImpl", () => {
         expect(createCall.record.banner).toBeDefined();
       });
 
-      it("should transform activities array to items format", async () => {
+      it("should pass items array to record", async () => {
+        const items = [
+          { itemIdentifier: { uri: "at://act1", cid: "cid1" }, itemWeight: "30" },
+          { itemIdentifier: { uri: "at://act2", cid: "cid2" }, itemWeight: "70" },
+        ];
+
         await hypercertOps.createProject({
-          title: "Project with Activities",
-          shortDescription: "Project with activities",
-          activities: [
-            { uri: "at://act1", cid: "cid1", weight: "30" },
-            { uri: "at://act2", cid: "cid2", weight: "70" },
-          ],
+          title: "Project with Items",
+          items,
         });
 
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-        // Activities are mapped to items in collection schema
-        expect(createCall.record.items).toEqual([
-          { itemIdentifier: { uri: "at://act1", cid: "cid1" }, itemWeight: "30" },
-          { itemIdentifier: { uri: "at://act2", cid: "cid2" }, itemWeight: "70" },
-        ]);
+        expect(createCall.record.items).toEqual(items);
       });
 
       it("should emit projectCreated event", async () => {
@@ -1043,7 +1149,7 @@ describe("HypercertOperationsImpl", () => {
 
         await hypercertOps.createProject({
           title: "Event Test",
-          shortDescription: "Testing event emission",
+          items: [],
         });
 
         expect(handler).toHaveBeenCalledWith({
@@ -1060,7 +1166,7 @@ describe("HypercertOperationsImpl", () => {
         await expect(
           hypercertOps.createProject({
             title: "Failing Project",
-            shortDescription: "This will fail",
+            items: [],
           }),
         ).rejects.toThrow(NetworkError);
       });
@@ -1075,7 +1181,7 @@ describe("HypercertOperationsImpl", () => {
         await expect(
           hypercertOps.createProject({
             title: "Project",
-            shortDescription: "Project",
+            items: [],
             avatar: avatarBlob,
           }),
         ).rejects.toThrow(NetworkError);
@@ -1507,10 +1613,8 @@ describe("HypercertOperationsImpl", () => {
         expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalled();
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
         expect(putCall.record.avatar).toEqual({
-          $type: "blob",
-          ref: mockRef,
-          mimeType: "image/png",
-          size: 150,
+          $type: "org.hypercerts.defs#smallImage",
+          image: { ref: mockRef, mimeType: "image/png", size: 150 },
         });
       });
 
@@ -1532,29 +1636,25 @@ describe("HypercertOperationsImpl", () => {
         expect(putCall.record.banner).toBeDefined();
       });
 
-      it("should update activities array", async () => {
-        const newActivities = [
-          { uri: "at://new-act1", cid: "new-cid1", weight: "40" },
-          { uri: "at://new-act2", cid: "new-cid2", weight: "60" },
+      it("should update items array", async () => {
+        const newItems = [
+          { itemIdentifier: { uri: "at://new-act1", cid: "new-cid1" }, itemWeight: "40" },
+          { itemIdentifier: { uri: "at://new-act2", cid: "new-cid2" }, itemWeight: "60" },
         ];
 
         await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
-          activities: newActivities,
+          items: newItems,
         });
 
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
-        // Activities are mapped to items in collection schema
-        expect(putCall.record.items).toEqual([
-          { itemIdentifier: { uri: "at://new-act1", cid: "new-cid1" }, itemWeight: "40" },
-          { itemIdentifier: { uri: "at://new-act2", cid: "new-cid2" }, itemWeight: "60" },
-        ]);
+        expect(putCall.record.items).toEqual(newItems);
       });
 
       it("should update multiple fields at once", async () => {
         await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           title: "Multi Update",
           shortDescription: "Updated multiple fields",
-          activities: [{ uri: "at://act", cid: "cid", weight: "100" }],
+          items: [{ itemIdentifier: { uri: "at://act", cid: "cid" }, itemWeight: "100" }],
         });
 
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
@@ -1622,6 +1722,46 @@ describe("HypercertOperationsImpl", () => {
         await expect(
           hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/fav", { title: "New" }),
         ).rejects.toThrow(ValidationError);
+      });
+
+      it("should throw ValidationError for invalid collection data", async () => {
+        const { validate } = await import("@hypercerts-org/lexicon");
+        const mockValidate = validate as ReturnType<typeof vi.fn>;
+
+        // Mock successful getRecord (already set in beforeEach, but let's be explicit)
+        mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123",
+            cid: "cid",
+            value: {
+              $type: "org.hypercerts.claim.collection",
+              type: "project",
+              title: "Old Title",
+              items: [],
+              createdAt: "2024-01-01T00:00:00Z",
+            },
+          },
+        });
+
+        // updateProject flow:
+        // 1. getRecord in updateProject (no validation)
+        // 2. updateCollection getRecord (no validation - reads directly)
+        // 3. validation before putRecord in updateCollection (line 1709) - should fail here
+        mockValidate.mockReturnValueOnce({
+          success: false,
+          error: { message: "Invalid title format" },
+        }); // Validation before putRecord - should fail
+
+        const result = hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
+          title: "", // Invalid: empty title
+        });
+
+        await expect(result).rejects.toThrow(ValidationError);
+        await expect(result).rejects.toThrow("Invalid collection record");
+
+        // Reset mock to default success behavior for other tests
+        mockValidate.mockReturnValue({ success: true });
       });
     });
 

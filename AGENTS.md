@@ -217,6 +217,38 @@ Use the error hierarchy in `sdk-core/src/core/errors.ts`:
 - Test files: `*.test.ts` in `tests/` directory
 - Use fixtures from `tests/utils/fixtures.ts`
 
+### SDK Type Design Principles
+
+- Types like `HypercertClaim` should always be used rather than underlying types like `OrgHypercertsClaimActivity.Main`
+  which are exported from the lexicons package
+
+- Whenever an SDK method creates a record, there should be a corresponding type like `CreateCollectionParams` defined,
+  which is derived from `HypercertCollection`, but with `$type` and `createdAt` made optional. Then the method should
+  ensure that those are auto-populated if missing.
+
+- For any methods which can refer to a _potentially_ existing record, e.g. update methods or attach methods like
+  `attachLocationToProject()`, then the user should be able to reference that object in three different ways:
+  1. provide an AT-URI pointing to an existing record
+  2. provide a StrongRef pointing to an existing record
+  3. provide an object of a type named like `Create*Params` where \* can be Collection / Activity etc. as appropriate
+
+  These possibilities should be a union type called something like `CollectionParams`.
+
+- There should also be types like `UpdateCollectionParams` which should be a `Partial` allowing the update methods to
+  perform selective updates on just some parts of the record.
+
+- So in summary, for each lexicon entity type, there should be five types, e.g. for the `org.hypercerts.claim.rights`
+  lexicon there should be:
+  1. `OrgHypercertsClaimRights.Main` (from the lexicon package)
+  2. `HypercertRights` - the same as 1, as syntactic sugar defined by the SDK. These should all be defined in the same
+     place in the same file.
+  3. `CreateRightsParams` - `SetOptional<HypercertRights, "$type" | "createdAt">` should be the basis for this
+     definition. However if the lexicon contains strongRefs to other lexicons, this should be further wrapped with
+     `OverrideProperties` from the `type-fest` package to replace any nested objects with the equivalent `Create*Params`
+     type, so that creation of multiple records can be achieved by calling a single create method for the main record.
+  4. `UpdateRightsParams` - `Partial<CreateRightsParams>`
+  5. `RightsParams` - union type `string | StrongRef | CreateRightsParams`
+
 ## Build Output
 
 ### sdk-core

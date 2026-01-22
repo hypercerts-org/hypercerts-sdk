@@ -393,7 +393,11 @@ export interface UseHypercertResult {
 // Project Types
 // ─────────────────────────────────────────────
 
-export type Project = HypercertProjectWithMetadata;
+export type Project = {
+  uri: string;
+  cid: string;
+  record: HypercertProjectWithMetadata;
+};
 
 /**
  * Result of the useProjects hook.

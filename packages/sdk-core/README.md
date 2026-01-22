@@ -411,7 +411,130 @@ const measurement = await repo.hypercerts.addMeasurement({
 });
 ```
 
-### 5. Blob Operations (Images & Files)
+### 5. Collections and Projects
+
+Collections organize multiple hypercerts into logical groupings. Projects are a special type of collection with
+`type="project"`.
+
+#### Creating a Collection
+
+```typescript
+// Create a collection with weighted items
+const collection = await repo.hypercerts.createCollection({
+  title: "Climate Projects 2024",
+  shortDescription: "Our climate impact portfolio",
+  description: "A curated collection of climate-related hypercerts",
+  items: [
+    {
+      itemIdentifier: { uri: hypercert1Uri, cid: hypercert1Cid },
+      itemWeight: "0.5",
+    },
+    {
+      itemIdentifier: { uri: hypercert2Uri, cid: hypercert2Cid },
+      itemWeight: "0.3",
+    },
+    {
+      itemIdentifier: { uri: hypercert3Uri, cid: hypercert3Cid },
+      itemWeight: "0.2",
+    },
+  ],
+  avatar: avatarBlob, // optional
+  banner: bannerBlob, // optional
+});
+
+console.log("Created collection:", collection.uri);
+```
+
+#### Creating a Project
+
+Projects are collections with automatic `type="project"`:
+
+```typescript
+const project = await repo.hypercerts.createProject({
+  title: "Rainforest Restoration",
+  shortDescription: "Multi-year restoration initiative",
+  description: "Comprehensive rainforest restoration project",
+  items: [
+    {
+      itemIdentifier: { uri: activity1Uri, cid: activity1Cid },
+      itemWeight: "0.6",
+    },
+    {
+      itemIdentifier: { uri: activity2Uri, cid: activity2Cid },
+      itemWeight: "0.4",
+    },
+  ],
+});
+```
+
+#### Attaching Locations
+
+Both collections and projects can have location data attached as a sidecar record:
+
+```typescript
+// Attach location to a project
+const locationResult = await repo.hypercerts.attachLocationToProject(projectUri, {
+  lpVersion: "1.0",
+  srs: "EPSG:4326",
+  locationType: "coordinate-decimal",
+  location: "https://example.com/location.geojson", // or use a Blob
+  name: "Project Site",
+  description: "Main restoration site coordinates",
+});
+
+// Also works for collections
+await repo.hypercerts.attachLocationToCollection(collectionUri, locationParams);
+```
+
+#### Listing and Retrieving
+
+```typescript
+// Get a specific collection
+const collection = await repo.hypercerts.getCollection(collectionUri);
+
+// List all collections
+const { records } = await repo.hypercerts.listCollections();
+
+// Get a specific project
+const project = await repo.hypercerts.getProject(projectUri);
+
+// List all projects
+const { records } = await repo.hypercerts.listProjects();
+```
+
+#### Updating Collections and Projects
+
+```typescript
+// Update collection
+await repo.hypercerts.updateCollection(collectionUri, {
+  title: "Updated Title",
+  items: [
+    /* updated items */
+  ],
+  avatar: newAvatarBlob, // or null to remove
+});
+
+// Update project (same API)
+await repo.hypercerts.updateProject(projectUri, {
+  shortDescription: "Updated description",
+  banner: null, // removes banner
+});
+```
+
+#### Deleting
+
+```typescript
+// Delete collection
+await repo.hypercerts.deleteCollection(collectionUri);
+
+// Delete project
+await repo.hypercerts.deleteProject(projectUri);
+
+// Remove location from project
+await repo.hypercerts.removeLocationFromProject(projectUri);
+```
+
+### 6. Blob Operations (Images & Files)
 
 ```typescript
 // Upload an image or file
@@ -422,7 +545,7 @@ console.log("Blob uploaded:", blobResult.ref.$link);
 const blobData = await repo.blobs.get("did:plc:user123", "bafyreiabc123...");
 ```
 
-### 6. Organizations (SDS only)
+### 7. Organizations (SDS only)
 
 Organizations allow multiple users to collaborate on shared repositories.
 
@@ -450,7 +573,7 @@ const org = await repo.organizations.get("did:plc:org123");
 console.log(`${org.name} - ${org.description}`);
 ```
 
-### 7. Collaborator Management (SDS only)
+### 8. Collaborator Management (SDS only)
 
 Manage who has access to your repository and what they can do.
 
@@ -519,7 +642,7 @@ await repo.collaborators.transferOwnership({
 });
 ```
 
-### 8. Generic Record Operations
+### 9. Generic Record Operations
 
 For working with any ATProto record type:
 
@@ -564,7 +687,7 @@ const { records, cursor } = await repo.records.list({
 });
 ```
 
-### 9. Profile Management (PDS only)
+### 10. Profile Management (PDS only)
 
 ```typescript
 // Get user profile
@@ -584,40 +707,56 @@ await repo.profile.update({
 
 ### Repository Operations
 
-| Operation          | Method                                   | PDS | SDS | Returns                      |
-| ------------------ | ---------------------------------------- | --- | --- | ---------------------------- |
-| **Records**        |                                          |     |     |                              |
-| Create record      | `repo.records.create()`                  | ✅  | ✅  | `{ uri, cid }`               |
-| Get record         | `repo.records.get()`                     | ✅  | ✅  | Record data                  |
-| Update record      | `repo.records.update()`                  | ✅  | ✅  | `{ uri, cid }`               |
-| Delete record      | `repo.records.delete()`                  | ✅  | ✅  | void                         |
-| List records       | `repo.records.list()`                    | ✅  | ✅  | `{ records, cursor? }`       |
-| **Hypercerts**     |                                          |     |     |                              |
-| Create hypercert   | `repo.hypercerts.create()`               | ✅  | ✅  | `{ uri, cid, value }`        |
-| Get hypercert      | `repo.hypercerts.get()`                  | ✅  | ✅  | Full hypercert               |
-| Update hypercert   | `repo.hypercerts.update()`               | ✅  | ✅  | `{ uri, cid }`               |
-| Delete hypercert   | `repo.hypercerts.delete()`               | ✅  | ✅  | void                         |
-| List hypercerts    | `repo.hypercerts.list()`                 | ✅  | ✅  | `{ records, cursor? }`       |
-| Add contribution   | `repo.hypercerts.addContribution()`      | ✅  | ✅  | Contribution                 |
-| Add measurement    | `repo.hypercerts.addMeasurement()`       | ✅  | ✅  | Measurement                  |
-| **Blobs**          |                                          |     |     |                              |
-| Upload blob        | `repo.blobs.upload()`                    | ✅  | ✅  | `{ ref, mimeType, size }`    |
-| Get blob           | `repo.blobs.get()`                       | ✅  | ✅  | Blob data                    |
-| **Profile**        |                                          |     |     |                              |
-| Get profile        | `repo.profile.get()`                     | ✅  | ❌  | Profile data                 |
-| Update profile     | `repo.profile.update()`                  | ✅  | ❌  | void                         |
-| **Organizations**  |                                          |     |     |                              |
-| Create org         | `repo.organizations.create()`            | ❌  | ✅  | `{ did, name, ... }`         |
-| Get org            | `repo.organizations.get()`               | ❌  | ✅  | Organization                 |
-| List orgs          | `repo.organizations.list()`              | ❌  | ✅  | `{ organizations, cursor? }` |
-| **Collaborators**  |                                          |     |     |                              |
-| Grant access       | `repo.collaborators.grant()`             | ❌  | ✅  | void                         |
-| Revoke access      | `repo.collaborators.revoke()`            | ❌  | ✅  | void                         |
-| List collaborators | `repo.collaborators.list()`              | ❌  | ✅  | `{ collaborators, cursor? }` |
-| Check access       | `repo.collaborators.hasAccess()`         | ❌  | ✅  | boolean                      |
-| Get role           | `repo.collaborators.getRole()`           | ❌  | ✅  | Role string                  |
-| Get permissions    | `repo.collaborators.getPermissions()`    | ❌  | ✅  | Permissions                  |
-| Transfer ownership | `repo.collaborators.transferOwnership()` | ❌  | ✅  | void                         |
+| Operation          | Method                                           | PDS | SDS | Returns                      |
+| ------------------ | ------------------------------------------------ | --- | --- | ---------------------------- |
+| **Records**        |                                                  |     |     |                              |
+| Create record      | `repo.records.create()`                          | ✅  | ✅  | `{ uri, cid }`               |
+| Get record         | `repo.records.get()`                             | ✅  | ✅  | Record data                  |
+| Update record      | `repo.records.update()`                          | ✅  | ✅  | `{ uri, cid }`               |
+| Delete record      | `repo.records.delete()`                          | ✅  | ✅  | void                         |
+| List records       | `repo.records.list()`                            | ✅  | ✅  | `{ records, cursor? }`       |
+| **Hypercerts**     |                                                  |     |     |                              |
+| Create hypercert   | `repo.hypercerts.create()`                       | ✅  | ✅  | `{ uri, cid, value }`        |
+| Get hypercert      | `repo.hypercerts.get()`                          | ✅  | ✅  | Full hypercert               |
+| Update hypercert   | `repo.hypercerts.update()`                       | ✅  | ✅  | `{ uri, cid }`               |
+| Delete hypercert   | `repo.hypercerts.delete()`                       | ✅  | ✅  | void                         |
+| List hypercerts    | `repo.hypercerts.list()`                         | ✅  | ✅  | `{ records, cursor? }`       |
+| Add contribution   | `repo.hypercerts.addContribution()`              | ✅  | ✅  | Contribution                 |
+| Add measurement    | `repo.hypercerts.addMeasurement()`               | ✅  | ✅  | Measurement                  |
+| **Collections**    |                                                  |     |     |                              |
+| Create collection  | `repo.hypercerts.createCollection()`             | ✅  | ✅  | `{ uri, cid, record }`       |
+| Get collection     | `repo.hypercerts.getCollection()`                | ✅  | ✅  | Collection data              |
+| List collections   | `repo.hypercerts.listCollections()`              | ✅  | ✅  | `{ records, cursor? }`       |
+| Update collection  | `repo.hypercerts.updateCollection()`             | ✅  | ✅  | `{ uri, cid }`               |
+| Delete collection  | `repo.hypercerts.deleteCollection()`             | ✅  | ✅  | void                         |
+| Attach location    | `repo.hypercerts.attachLocationToCollection()`   | ✅  | ✅  | `{ uri, cid }`               |
+| Remove location    | `repo.hypercerts.removeLocationFromCollection()` | ✅  | ✅  | void                         |
+| **Projects**       |                                                  |     |     |                              |
+| Create project     | `repo.hypercerts.createProject()`                | ✅  | ✅  | `{ uri, cid, record }`       |
+| Get project        | `repo.hypercerts.getProject()`                   | ✅  | ✅  | Project data                 |
+| List projects      | `repo.hypercerts.listProjects()`                 | ✅  | ✅  | `{ records, cursor? }`       |
+| Update project     | `repo.hypercerts.updateProject()`                | ✅  | ✅  | `{ uri, cid }`               |
+| Delete project     | `repo.hypercerts.deleteProject()`                | ✅  | ✅  | void                         |
+| Attach location    | `repo.hypercerts.attachLocationToProject()`      | ✅  | ✅  | `{ uri, cid }`               |
+| Remove location    | `repo.hypercerts.removeLocationFromProject()`    | ✅  | ✅  | void                         |
+| **Blobs**          |                                                  |     |     |                              |
+| Upload blob        | `repo.blobs.upload()`                            | ✅  | ✅  | `{ ref, mimeType, size }`    |
+| Get blob           | `repo.blobs.get()`                               | ✅  | ✅  | Blob data                    |
+| **Profile**        |                                                  |     |     |                              |
+| Get profile        | `repo.profile.get()`                             | ✅  | ❌  | Profile data                 |
+| Update profile     | `repo.profile.update()`                          | ✅  | ❌  | void                         |
+| **Organizations**  |                                                  |     |     |                              |
+| Create org         | `repo.organizations.create()`                    | ❌  | ✅  | `{ did, name, ... }`         |
+| Get org            | `repo.organizations.get()`                       | ❌  | ✅  | Organization                 |
+| List orgs          | `repo.organizations.list()`                      | ❌  | ✅  | `{ organizations, cursor? }` |
+| **Collaborators**  |                                                  |     |     |                              |
+| Grant access       | `repo.collaborators.grant()`                     | ❌  | ✅  | void                         |
+| Revoke access      | `repo.collaborators.revoke()`                    | ❌  | ✅  | void                         |
+| List collaborators | `repo.collaborators.list()`                      | ❌  | ✅  | `{ collaborators, cursor? }` |
+| Check access       | `repo.collaborators.hasAccess()`                 | ❌  | ✅  | boolean                      |
+| Get role           | `repo.collaborators.getRole()`                   | ❌  | ✅  | Role string                  |
+| Get permissions    | `repo.collaborators.getPermissions()`            | ❌  | ✅  | Permissions                  |
+| Transfer ownership | `repo.collaborators.transferOwnership()`         | ❌  | ✅  | void                         |
 
 ## Type System
 
