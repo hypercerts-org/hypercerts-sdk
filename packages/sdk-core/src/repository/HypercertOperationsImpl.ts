@@ -11,7 +11,7 @@
 import type { Agent } from "@atproto/api";
 import { validate } from "@hypercerts-org/lexicon";
 import { EventEmitter } from "eventemitter3";
-import { NetworkError, ValidationError } from "../core/errors.js";
+import { NetworkError, ValidationError } from "../errors.js";
 import type { LoggerInterface } from "../core/interfaces.js";
 import {
   HYPERCERT_COLLECTIONS,

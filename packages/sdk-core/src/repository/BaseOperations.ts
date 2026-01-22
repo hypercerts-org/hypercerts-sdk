@@ -9,7 +9,7 @@
  */
 
 import type { Agent } from "@atproto/api";
-import { ValidationError, NetworkError } from "../core/errors.js";
+import { ValidationError, NetworkError } from "../errors.js";
 import type { LexiconRegistry } from "./LexiconRegistry.js";
 import type { CreateResult, UpdateResult } from "./types.js";
 import type { LoggerInterface } from "../core/interfaces.js";

@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 
-import { NetworkError, ValidationError } from "../core/errors.js";
+import { NetworkError, ValidationError } from "../errors.js";
 import type { CollaboratorPermissions, Session } from "../core/types.js";
 import type { LoggerInterface } from "../core/interfaces.js";
 import type { CreateOrganizationParams, OrganizationOperations } from "./interfaces.js";
