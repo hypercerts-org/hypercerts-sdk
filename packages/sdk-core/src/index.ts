@@ -29,6 +29,64 @@ export type {
   OrganizationInfo,
   ProgressStep,
 } from "./repository/types.js";
+
+// Lexicon Development Utilities
+export {
+  parseAtUri,
+  buildAtUri,
+  extractRkeyFromUri,
+  isValidAtUri,
+  createStrongRef,
+  createStrongRefFromResult,
+  validateStrongRef,
+  isStrongRef,
+} from "./lexicons/utils.js";
+export type { AtUriComponents } from "./lexicons/utils.js";
+
+export {
+  createStringField,
+  createIntegerField,
+  createNumberField,
+  createBooleanField,
+  createStrongRefField,
+  createArrayField,
+  createObjectField,
+  createBlobField,
+  createDatetimeField,
+  createRecordDef,
+  createLexiconDoc,
+  validateLexiconStructure,
+} from "./lexicons/builders.js";
+export type {
+  LexiconFieldType,
+  LexiconField,
+  LexiconStringField,
+  LexiconIntegerField,
+  LexiconNumberField,
+  LexiconBooleanField,
+  LexiconRefField,
+  LexiconArrayField,
+  LexiconObjectField,
+  LexiconBlobField,
+  LexiconUnknownField,
+  LexiconRecordDef,
+  LexiconDoc,
+} from "./lexicons/builders.js";
+
+export {
+  createSidecarRecord,
+  attachSidecar,
+  updateWithSidecar,
+  createWithSidecars,
+  batchCreateSidecars,
+} from "./lexicons/sidecar.js";
+export type {
+  SidecarRecordParams,
+  SidecarResult,
+  AttachSidecarParams,
+  MultiSidecarResult,
+  CreateWithSidecarsParams,
+} from "./lexicons/sidecar.js";
 export type {
   RecordOperations,
   BlobOperations,
