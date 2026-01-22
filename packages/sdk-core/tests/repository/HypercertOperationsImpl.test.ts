@@ -1211,7 +1211,7 @@ describe("HypercertOperationsImpl", () => {
                 },
               },
             ],
-            cursor: "next-cursor",
+            cursor: undefined,
           },
         });
 
@@ -1220,7 +1220,7 @@ describe("HypercertOperationsImpl", () => {
         expect(result.records).toHaveLength(2);
         expect(result.records[0].record.title).toBe("Project 1");
         expect(result.records[1].record.title).toBe("Project 2");
-        expect(result.cursor).toBe("next-cursor");
+        expect(result.cursor).toBeUndefined();
         expect(mockAgent.com.atproto.repo.listRecords).toHaveBeenCalledWith({
           repo: TEST_REPO_DID,
           collection: "org.hypercerts.claim.collection",
@@ -1301,6 +1301,124 @@ describe("HypercertOperationsImpl", () => {
         });
 
         await expect(hypercertOps.listProjects()).rejects.toThrow(NetworkError);
+      });
+
+      it("should loop-fetch when cursor is returned and limit is specified", async () => {
+        // First page: 2 projects with cursor
+        mockAgent.com.atproto.repo.listRecords.mockResolvedValueOnce({
+          success: true,
+          data: {
+            records: [
+              {
+                uri: "at://did:plc:test/org.hypercerts.claim.collection/1",
+                cid: "cid1",
+                value: {
+                  $type: "org.hypercerts.claim.collection",
+                  type: "project",
+                  title: "Project 1",
+                  items: [],
+                  createdAt: "2024-01-01T00:00:00Z",
+                },
+              },
+              {
+                uri: "at://did:plc:test/org.hypercerts.claim.collection/2",
+                cid: "cid2",
+                value: {
+                  $type: "org.hypercerts.claim.collection",
+                  type: "project",
+                  title: "Project 2",
+                  items: [],
+                  createdAt: "2024-01-02T00:00:00Z",
+                },
+              },
+            ],
+            cursor: "page2",
+          },
+        });
+
+        // Second page: 2 more projects with no cursor
+        mockAgent.com.atproto.repo.listRecords.mockResolvedValueOnce({
+          success: true,
+          data: {
+            records: [
+              {
+                uri: "at://did:plc:test/org.hypercerts.claim.collection/3",
+                cid: "cid3",
+                value: {
+                  $type: "org.hypercerts.claim.collection",
+                  type: "project",
+                  title: "Project 3",
+                  items: [],
+                  createdAt: "2024-01-03T00:00:00Z",
+                },
+              },
+              {
+                uri: "at://did:plc:test/org.hypercerts.claim.collection/4",
+                cid: "cid4",
+                value: {
+                  $type: "org.hypercerts.claim.collection",
+                  type: "project",
+                  title: "Project 4",
+                  items: [],
+                  createdAt: "2024-01-04T00:00:00Z",
+                },
+              },
+            ],
+            cursor: undefined,
+          },
+        });
+
+        const result = await hypercertOps.listProjects({ limit: 10 });
+
+        // Should have fetched both pages
+        expect(result.records).toHaveLength(4);
+        expect(result.records[0].record.title).toBe("Project 1");
+        expect(result.records[3].record.title).toBe("Project 4");
+        expect(result.cursor).toBeUndefined();
+        expect(mockAgent.com.atproto.repo.listRecords).toHaveBeenCalledTimes(2);
+      });
+
+      it("should stop fetching when limit is reached", async () => {
+        // First page: 2 projects with cursor
+        mockAgent.com.atproto.repo.listRecords.mockResolvedValueOnce({
+          success: true,
+          data: {
+            records: [
+              {
+                uri: "at://did:plc:test/org.hypercerts.claim.collection/1",
+                cid: "cid1",
+                value: {
+                  $type: "org.hypercerts.claim.collection",
+                  type: "project",
+                  title: "Project 1",
+                  items: [],
+                  createdAt: "2024-01-01T00:00:00Z",
+                },
+              },
+              {
+                uri: "at://did:plc:test/org.hypercerts.claim.collection/2",
+                cid: "cid2",
+                value: {
+                  $type: "org.hypercerts.claim.collection",
+                  type: "project",
+                  title: "Project 2",
+                  items: [],
+                  createdAt: "2024-01-02T00:00:00Z",
+                },
+              },
+            ],
+            cursor: "page2",
+          },
+        });
+
+        const result = await hypercertOps.listProjects({ limit: 2 });
+
+        // Should only return first 2 projects
+        expect(result.records).toHaveLength(2);
+        expect(result.records[0].record.title).toBe("Project 1");
+        expect(result.records[1].record.title).toBe("Project 2");
+        expect(result.cursor).toBe("page2");
+        expect(mockAgent.com.atproto.repo.listRecords).toHaveBeenCalledTimes(1);
       });
     });
 

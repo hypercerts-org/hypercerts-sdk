@@ -1578,33 +1578,39 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     params?: ListParams,
   ): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertCollection }>> {
     try {
-      // List all collections and filter for type='project'
-      const result = await this.agent.com.atproto.repo.listRecords({
-        repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.COLLECTION,
-        limit: params?.limit,
-        cursor: params?.cursor,
-      });
+      const limit = params?.limit;
+      let cursor = params?.cursor;
+      const allRecords: Array<{ uri: string; cid: string; record: HypercertCollection }> = [];
 
-      if (!result.success) {
-        throw new NetworkError("Failed to list projects");
+      // Loop-fetch until we have enough projects or no more cursor
+      while (!cursor || allRecords.length < (limit ?? Infinity)) {
+        const result = await this.agent.com.atproto.repo.listRecords({
+          repo: this.repoDid,
+          collection: HYPERCERT_COLLECTIONS.COLLECTION,
+          limit: limit ?? 50,
+          cursor,
+        });
+
+        if (!result.success) {
+          throw new NetworkError("Failed to list projects");
+        }
+
+        // Filter and collect project records
+        for (const r of result.data.records ?? []) {
+          const record = r.value as HypercertCollection;
+          if (record.type === "project") {
+            allRecords.push({ uri: r.uri, cid: r.cid, record });
+          }
+          // Stop if we've collected enough
+          if (limit && allRecords.length >= limit) break;
+        }
+
+        // Update cursor; break if no more pages
+        cursor = result.data.cursor;
+        if (!cursor) break;
       }
 
-      // Filter to only projects (collections with type='project')
-      const projectRecords =
-        result.data.records?.filter((r) => {
-          const record = r.value as HypercertCollection;
-          return record.type === "project";
-        }) || [];
-
-      return {
-        records: projectRecords.map((r) => ({
-          uri: r.uri,
-          cid: r.cid,
-          record: r.value as HypercertCollection,
-        })),
-        cursor: result.data.cursor ?? undefined,
-      };
+      return { records: allRecords, cursor };
     } catch (error) {
       if (error instanceof NetworkError) throw error;
       throw new NetworkError(`Failed to list projects: ${error instanceof Error ? error.message : "Unknown"}`, error);
