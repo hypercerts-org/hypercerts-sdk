@@ -58,6 +58,12 @@ jobs:
       - run: npm install -g npm@latest
 
       - run: pnpm install
+
+      # Work around Turbo failing to allow cross-package task
+      # dependencies - we need sdk-core built before sdk-react
+      # can even typecheck successfully
+      - run: pnpm --filter @hypercerts-org/sdk-core build
+
       # Run checks early to fail fast before any versioning/git operations.
       # Note: checks run again in `pnpm release` - this is intentional to also
       # guard local releases and catch any issues after version bumps.
