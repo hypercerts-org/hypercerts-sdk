@@ -67,7 +67,14 @@ jobs:
       # Run checks early to fail fast before any versioning/git operations.
       # Note: checks run again in `pnpm release` - this is intentional to also
       # guard local releases and catch any issues after version bumps.
-      - run: pnpm check
+      #
+      # FIXME: We can't run pnpm check because it currently hangs
+      # forever for unknown reasons.
+      - run: pnpm build
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
 
       # Stable release: Verify prerelease mode has been exited
       # The exit intent should already be set on develop before merging to main
