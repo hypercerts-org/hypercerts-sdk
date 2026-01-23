@@ -6,8 +6,12 @@
     "@hypercerts-org/sdk-react": "0.10.0"
   },
   "changesets": [
+    "add-project-support",
+    "base-operations",
     "configurable-agent-routing",
+    "custom-lexicon-docs",
     "five-seas-do",
+    "fix-add-evidence",
     "fix-collaborator-permissions-format",
     "fix-create-org-params",
     "fix-errant-changelog-versions",
@@ -22,8 +26,15 @@
     "ignore-local-npmrc",
     "initial-sdk-core-release",
     "initial-sdk-react-release",
+    "lexicon-registry-support",
+    "lexicon-utilities",
+    "loopback-url-support",
     "migrate-to-lexicon-package",
     "oauth-permissions-and-email",
-    "pagination-and-react-hooks-fix"
+    "pagination-and-react-hooks-fix",
+    "react-lexicon-registry",
+    "record-validation",
+    "refactor-location-attachment",
+    "sdk-lexicon-integration"
   ]
 }

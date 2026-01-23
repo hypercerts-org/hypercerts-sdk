@@ -1,5 +1,158 @@
 # @hypercerts-org/sdk-core
 
+## 0.10.0-beta.5
+
+### Minor Changes
+
+- [#87](https://github.com/hypercerts-org/hypercerts-sdk/pull/87)
+  [`85b1350`](https://github.com/hypercerts-org/hypercerts-sdk/commit/85b13502791e49966dae3d0dd0e833905c59abe3) Thanks
+  [@bitbeckers](https://github.com/bitbeckers)! - Add comprehensive project support to SDK
+
+  **Core SDK (`@hypercerts-org/sdk-core`):**
+  - Add project CRUD operations (createProject, getProject, listProjects, updateProject, deleteProject)
+  - Add project events (projectCreated, projectUpdated, projectDeleted)
+  - Support for avatar and coverPhoto blob uploads
+  - Activities array with weight values
+  - Location reference support
+  - 34 comprehensive tests with full coverage
+
+  **React SDK (`@hypercerts-org/sdk-react`):**
+  - Add useProjects and useProject hooks
+  - Project query keys for cache management
+  - TypeScript types for projects (Project, CreateProjectParams, UpdateProjectParams)
+  - Test factory support for project hooks
+  - Full pagination and optimistic updates support
+
+  Projects organize multiple hypercert activities with metadata including title, shortDescription, description (Leaflet
+  documents), avatar, cover photo, activities with weights, and location references.
+
+- [#98](https://github.com/hypercerts-org/hypercerts-sdk/pull/98)
+  [`f9dd27f`](https://github.com/hypercerts-org/hypercerts-sdk/commit/f9dd27f78de0ee49aab9079e76566f272b161cd0) Thanks
+  [@bitbeckers](https://github.com/bitbeckers)! - Add BaseOperations abstract class for building custom lexicon
+  operations. Developers can now extend BaseOperations to create type-safe, validated operation classes for their custom
+  lexicons, with built-in helpers for record creation, validation, and strongRef management.
+
+- [#98](https://github.com/hypercerts-org/hypercerts-sdk/pull/98)
+  [`e850310`](https://github.com/hypercerts-org/hypercerts-sdk/commit/e850310d26e0561bdcfb778a6ef3bedbb7453eed) Thanks
+  [@bitbeckers](https://github.com/bitbeckers)! - Add comprehensive documentation and examples for custom lexicons.
+  Includes custom-lexicons.md guide, sidecar-pattern.md guide, and a complete working example with tests demonstrating
+  how to create and use custom lexicons for evaluating hypercerts.
+
+- [#84](https://github.com/hypercerts-org/hypercerts-sdk/pull/84)
+  [`3157c18`](https://github.com/hypercerts-org/hypercerts-sdk/commit/3157c188c70e2f9473ee14eddaf635e3fbd346a1) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Evidence records are now created separately instead of being embedded inline
+  in hypercerts
+  - `create()` now calls `addEvidence()` for each evidence item using `Promise.all()` for parallel creation
+  - Remove inline evidence embedding from hypercert records
+  - Add `evidenceUris?: string[]` to `CreateHypercertResult` interface
+  - Add `createEvidenceWithProgress()` helper method with "addEvidence" progress tracking
+  - `addEvidence()` SDK constructs `$type`, `createdAt`, and `subject` fields internally
+
+  **Breaking Changes:**
+  - Evidence is no longer embedded in the hypercert record - use `result.evidenceUris` to access evidence record URIs
+  - `addEvidence()` now accepts a single `CreateHypercertEvidenceParams` object instead of
+    `(uri: string, evidence: HypercertEvidence[])`
+
+- [#98](https://github.com/hypercerts-org/hypercerts-sdk/pull/98)
+  [`0cd3b26`](https://github.com/hypercerts-org/hypercerts-sdk/commit/0cd3b26eb779246e9ef094f614f2f77807926f1b) Thanks
+  [@bitbeckers](https://github.com/bitbeckers)! - Add LexiconRegistry for custom lexicon management. Developers can now
+  register custom lexicon schemas at runtime and validate records against registered schemas before creation. The
+  registry supports:
+  - Registering custom lexicon definitions from JSON
+  - Validating records against registered schemas
+  - Querying registered lexicons
+  - Managing lexicon lifecycle (register/unregister)
+
+  This enables developers to extend the SDK with custom record types that can reference hypercerts and other records
+  using strongRefs.
+
+- [#98](https://github.com/hypercerts-org/hypercerts-sdk/pull/98)
+  [`b87cb22`](https://github.com/hypercerts-org/hypercerts-sdk/commit/b87cb2265d924b531eef8d58c669dc931b61e561) Thanks
+  [@bitbeckers](https://github.com/bitbeckers)! - Add lexicon development utilities for custom lexicons. Developers can
+  now use helper functions for AT-URI parsing, strongRef creation, lexicon schema building, and sidecar pattern
+  implementation. This includes:
+  - AT-URI utilities: parseAtUri, buildAtUri, extractRkeyFromUri, isValidAtUri
+  - StrongRef utilities: createStrongRef, createStrongRefFromResult, validateStrongRef
+  - Lexicon builders: createStringField, createIntegerField, createStrongRefField, createRecordDef, createLexiconDoc,
+    and more
+  - Sidecar pattern: createSidecarRecord, attachSidecar, createWithSidecars, batchCreateSidecars
+
+- [#88](https://github.com/hypercerts-org/hypercerts-sdk/pull/88)
+  [`19c78df`](https://github.com/hypercerts-org/hypercerts-sdk/commit/19c78dfef448fb43d353d95721c13f3a35618fb3) Thanks
+  [@bitbeckers](https://github.com/bitbeckers)! - feat: add HTTP loopback URL support for local development
+
+  Enable local development and testing with HTTP loopback URLs (`http://localhost`, `http://127.0.0.1`, `http://[::1]`)
+  while maintaining security for production deployments.
+
+  **Configuration Updates**
+  - Custom URL validator accepting HTTPS URLs or HTTP loopback addresses
+  - Update `OAuthConfigSchema` to allow loopback URLs for `clientId`, `redirectUri`, `jwksUri`
+  - Add optional `developmentMode` boolean flag to suppress warnings
+  - Update `ServerConfigSchema` to allow loopback URLs for PDS/SDS servers
+  - Export `isLoopbackUrl()` helper function and TypeScript types (`LoopbackUrl`, `HttpsUrl`,
+    `DevelopmentOrProductionUrl`)
+
+  **Development Mode Features**
+  - Automatic loopback detection with informative logging
+  - Warning when using loopback URLs without explicit `developmentMode` flag
+  - Info logs indicating development mode is active
+  - Clear guidance about authorization server requirements
+
+  **Testing**
+  - 28 new unit tests for loopback URL validation
+  - Tests cover localhost, 127.0.0.1, and [::1] (IPv6) loopback addresses
+  - Tests verify rejection of non-loopback HTTP URLs
+  - Tests ensure HTTPS URLs always accepted
+
+  **Documentation**
+  - Comprehensive local development guide in Core SDK README
+  - NextJS App Router example with loopback configuration
+  - API route setup examples (OAuth callback, JWKS endpoint)
+  - Important notes about authorization server support and production safety
+  - Local development example added to React SDK factory JSDoc
+
+  **Breaking Changes**: None - fully backward compatible
+
+  **Migration**: No migration needed for existing configurations. Existing HTTPS URLs continue to work without changes.
+
+  This feature enables developers to test the SDK locally without requiring HTTPS certificates, while the underlying
+  `@atproto/oauth-client-node` library handles loopback OAuth flows per the AT Protocol specification.
+
+- [#98](https://github.com/hypercerts-org/hypercerts-sdk/pull/98)
+  [`3554580`](https://github.com/hypercerts-org/hypercerts-sdk/commit/3554580d77d9467c88c779e75a96a08d3e17bfd7) Thanks
+  [@bitbeckers](https://github.com/bitbeckers)! - Add automatic lexicon validation to RecordOperations. Records are now
+  validated against registered lexicon schemas before being sent to the server, catching schema violations early.
+  Validation can be bypassed using the `skipValidation` parameter for advanced use cases.
+
+- [#96](https://github.com/hypercerts-org/hypercerts-sdk/pull/96)
+  [`eea06a7`](https://github.com/hypercerts-org/hypercerts-sdk/commit/eea06a7f5e4f655ccac635fa8842ea32a6dfde64) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Refactor location attachment to match lexicon specifications
+
+  **New Features:**
+  - Add `AttachLocationParams` interface exported from SDK for type-safe location attachment
+  - Location data now properly uses `org.hypercerts.defs#uri` (for string URIs) or `org.hypercerts.defs#smallBlob` (for
+    GeoJSON blobs) to match lexicon spec
+  - Add `lpVersion` and `locationType` fields to location parameters for better protocol compliance
+
+  **Improvements:**
+  - Centralized blob upload logic with new `handleBlobUpload()` helper method
+  - Simplified location type detection - now based on content type (string vs Blob) instead of separate `geojson`
+    parameter
+  - Improved type safety with structured `AttachLocationParams` interface
+
+  **Breaking Changes:**
+  - `attachLocation()` signature changed from `(uri, { value, name?, description?, srs, geojson? })` to
+    `(uri, AttachLocationParams)`
+  - `AttachLocationParams` now requires: `lpVersion`, `srs`, `locationType`, and `location` (string | Blob)
+  - The `location` field in `CreateHypercertParams` now uses `AttachLocationParams` type instead of inline object
+  - Removed separate `value` and `geojson` fields - use single `location` field with either string or Blob
+
+- [#98](https://github.com/hypercerts-org/hypercerts-sdk/pull/98)
+  [`e0ef6e9`](https://github.com/hypercerts-org/hypercerts-sdk/commit/e0ef6e9cb9138590e81b4a2929ca27ae557d2f39) Thanks
+  [@bitbeckers](https://github.com/bitbeckers)! - Integrate LexiconRegistry into SDK and Repository. The SDK now
+  initializes a LexiconRegistry with hypercert lexicons by default and exposes it via `getLexiconRegistry()`. Repository
+  instances receive the registry and pass it to RecordOperations for future validation support.
+
 ## 0.10.0-beta.4
 
 ### Minor Changes
