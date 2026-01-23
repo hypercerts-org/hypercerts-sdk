@@ -267,6 +267,7 @@ export function createMockATProtoReact(options: MockATProtoReactOptions = {}): A
     useHypercert: () => defaultHypercert,
     useProjects: () => defaultProjects,
     useProject: () => defaultProject,
+    useLexiconRegistry: () => mockSDK.getLexiconRegistry(),
     queryKeys: atprotoKeys,
   };
 }

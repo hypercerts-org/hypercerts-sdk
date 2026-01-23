@@ -11,6 +11,7 @@ import { SDSRequiredError } from "../core/errors.js";
 import type { LoggerInterface } from "../core/interfaces.js";
 import type { Session } from "../core/types.js";
 import { ConfigurableAgent } from "../agent/ConfigurableAgent.js";
+import { LexiconRegistry } from "./LexiconRegistry.js";
 import type { Agent } from "@atproto/api";
 
 // Types
@@ -137,6 +138,7 @@ export class Repository {
   private logger?: LoggerInterface;
   private agent: Agent;
   private _isSDS: boolean;
+  private lexiconRegistry: LexiconRegistry;
 
   // Lazily initialized operations
   private _records?: RecordOperationsImpl;
@@ -154,6 +156,7 @@ export class Repository {
    * @param repoDid - DID of the repository to operate on
    * @param isSDS - Whether this is a Shared Data Server
    * @param logger - Optional logger for debugging
+   * @param lexiconRegistry - Registry for custom lexicon management
    *
    * @remarks
    * This constructor is typically not called directly. Use
@@ -161,12 +164,20 @@ export class Repository {
    *
    * @internal
    */
-  constructor(session: Session, serverUrl: string, repoDid: string, isSDS: boolean, logger?: LoggerInterface) {
+  constructor(
+    session: Session,
+    serverUrl: string,
+    repoDid: string,
+    isSDS: boolean,
+    logger?: LoggerInterface,
+    lexiconRegistry?: LexiconRegistry,
+  ) {
     this.session = session;
     this.serverUrl = serverUrl;
     this.repoDid = repoDid;
     this._isSDS = isSDS;
     this.logger = logger;
+    this.lexiconRegistry = lexiconRegistry || new LexiconRegistry();
 
     // Create a ConfigurableAgent that routes requests to the specified server URL
     // This allows routing to PDS, SDS, or any custom server while maintaining
@@ -246,7 +257,54 @@ export class Repository {
    * ```
    */
   repo(did: string): Repository {
-    return new Repository(this.session, this.serverUrl, did, this._isSDS, this.logger);
+    return new Repository(this.session, this.serverUrl, did, this._isSDS, this.logger, this.lexiconRegistry);
+  }
+
+  /**
+   * Gets the LexiconRegistry instance for managing custom lexicons.
+   *
+   * The registry is shared across all operations in this repository and
+   * enables validation of custom record types.
+   *
+   * @returns The {@link LexiconRegistry} instance
+   *
+   * @example
+   * ```typescript
+   * // Access the registry
+   * const registry = repo.getLexiconRegistry();
+   *
+   * // Register a custom lexicon
+   * registry.register({
+   *   lexicon: 1,
+   *   id: "org.myapp.evaluation",
+   *   defs: {
+   *     main: {
+   *       type: "record",
+   *       key: "tid",
+   *       record: {
+   *         type: "object",
+   *         required: ["$type", "score"],
+   *         properties: {
+   *           "$type": { type: "string", const: "org.myapp.evaluation" },
+   *           score: { type: "integer", minimum: 0, maximum: 100 }
+   *         }
+   *       }
+   *     }
+   *   }
+   * });
+   *
+   * // Now create records using the custom lexicon
+   * await repo.records.create({
+   *   collection: "org.myapp.evaluation",
+   *   record: {
+   *     $type: "org.myapp.evaluation",
+   *     score: 85
+   *   }
+   * });
+   * ```
+   */
+  getLexiconRegistry(): LexiconRegistry {
+    return this.lexiconRegistry;
   }
 
   /**
@@ -280,7 +338,7 @@ export class Repository {
    */
   get records(): RecordOperations {
     if (!this._records) {
-      this._records = new RecordOperationsImpl(this.agent, this.repoDid);
+      this._records = new RecordOperationsImpl(this.agent, this.repoDid, this.lexiconRegistry);
     }
     return this._records;
   }

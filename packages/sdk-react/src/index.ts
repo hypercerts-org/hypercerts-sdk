@@ -89,6 +89,7 @@ export { useOrganizations, useOrganization } from "./hooks/useOrganizations.js";
 export { useCollaborators } from "./hooks/useCollaborators.js";
 export { useHypercerts, useHypercert } from "./hooks/useHypercerts.js";
 export { useProjects, useProject } from "./hooks/useProjects.js";
+export { useLexiconRegistry } from "./hooks/useLexiconRegistry.js";
 
 // Query keys (for manual cache management)
 export { atprotoKeys } from "./queries/keys.js";

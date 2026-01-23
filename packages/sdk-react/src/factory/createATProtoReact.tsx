@@ -4,7 +4,7 @@
  * @packageDocumentation
  */
 
-import { createATProtoSDK, type ATProtoSDK } from "@hypercerts-org/sdk-core";
+import { createATProtoSDK, type ATProtoSDK, type LexiconRegistry } from "@hypercerts-org/sdk-core";
 import { QueryClient, type DehydratedState } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { ATProtoProvider } from "../context/ATProtoProvider.js";
@@ -17,6 +17,7 @@ import { useOrganizations, useOrganization } from "../hooks/useOrganizations.js"
 import { useCollaborators } from "../hooks/useCollaborators.js";
 import { useHypercerts, useHypercert } from "../hooks/useHypercerts.js";
 import { useProjects, useProject } from "../hooks/useProjects.js";
+import { useLexiconRegistry } from "../hooks/useLexiconRegistry.js";
 import { atprotoKeys } from "../queries/keys.js";
 import type {
   CreateATProtoReactOptions,
@@ -110,6 +111,11 @@ export interface ATProtoReactInstance {
 
   /** Single project with update/delete */
   useProject: (uri: string) => UseProjectResult;
+  // Custom Lexicons
+  // ─────────────────────────────────────────────
+
+  /** Access the LexiconRegistry for custom lexicons */
+  useLexiconRegistry: () => LexiconRegistry;
 
   // ─────────────────────────────────────────────
   // Advanced
@@ -277,6 +283,7 @@ export function createATProtoReact(options: CreateATProtoReactOptions): ATProtoR
     useHypercert,
     useProjects,
     useProject,
+    useLexiconRegistry,
 
     // Query keys for advanced usage
     queryKeys: atprotoKeys,

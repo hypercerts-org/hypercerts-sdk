@@ -806,20 +806,52 @@ const validationResult = OrgHypercertsClaim.validateMain(claim);
 
 #### Using LexiconRegistry
 
-For repository-level validation:
+The SDK automatically initializes a LexiconRegistry with all hypercert lexicons. You can access it to validate records
+or register custom lexicons:
 
 ```typescript
-import { LexiconRegistry, HYPERCERT_LEXICONS, HYPERCERT_COLLECTIONS } from "@hypercerts-org/sdk-core";
-
-const registry = new LexiconRegistry();
-registry.registerLexicons(HYPERCERT_LEXICONS);
+// Access the registry from the SDK
+const registry = sdk.getLexiconRegistry();
 
 // Validate a record
-const result = registry.validate(HYPERCERT_COLLECTIONS.CLAIM, claimData);
+const result = registry.validate("org.hypercerts.claim.activity", claimData);
 
 if (!result.valid) {
   console.error("Invalid record:", result.error);
 }
+
+// Register a custom lexicon
+registry.registerFromJSON({
+  lexicon: 1,
+  id: "org.myapp.customRecord",
+  defs: {
+    main: {
+      type: "record",
+      key: "tid",
+      record: {
+        type: "object",
+        required: ["$type", "title"],
+        properties: {
+          $type: { type: "string", const: "org.myapp.customRecord" },
+          title: { type: "string" },
+          createdAt: { type: "string", format: "datetime" },
+        },
+      },
+    },
+  },
+});
+
+// Check if a lexicon is registered
+if (registry.isRegistered("org.myapp.customRecord")) {
+  console.log("Custom lexicon is ready to use");
+}
+```
+
+You can also access the registry from a Repository instance:
+
+```typescript
+const repo = sdk.repository(session);
+const registry = repo.getLexiconRegistry();
 ```
 
 #### Creating Records with Proper Types
