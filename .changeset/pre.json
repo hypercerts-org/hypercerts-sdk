@@ -7,6 +7,7 @@
   },
   "changesets": [
     "add-project-support",
+    "align-collection-project-types",
     "base-operations",
     "configurable-agent-routing",
     "custom-lexicon-docs",
