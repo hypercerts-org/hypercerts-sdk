@@ -9,6 +9,7 @@
 // Re-export BlobRef from ATProto lexicon
 export { BlobRef } from "@atproto/lexicon";
 export type { JsonBlobRef } from "@atproto/lexicon";
+import type { OverrideProperties, SetOptional } from "type-fest";
 
 // Re-export everything from lexicon package
 export {
@@ -105,68 +106,137 @@ export type FundingReceipt = OrgHypercertsFundingReceipt.Main;
 /**
  * Image input for SDK operations.
  *
- * Can be either:
- * - A URI reference (for external images)
- * - A Blob to be uploaded
+ * Accepts either:
+ * - A string URI reference (for external images)
+ * - A Blob to be uploaded (will be converted to SmallImage or LargeImage)
  *
- * The SDK will convert these to the appropriate lexicon types:
- * - OrgHypercertsDefs.Uri
- * - OrgHypercertsDefs.SmallImage
- * - OrgHypercertsDefs.LargeImage
+ * The SDK will convert these inputs to the appropriate lexicon types.
  */
-export type HypercertImage = { type: "uri"; uri: string } | { type: "blob"; blob: Blob };
+export type HypercertImage = string | Blob;
 
 /**
  * Lexicon-defined image types (union of Uri and image blob types).
- * Use this when working with stored records.
+ *
+ * Used when working with stored records. Can be:
+ * - OrgHypercertsDefs.Uri - External image reference
+ * - OrgHypercertsDefs.SmallImage - Uploaded blob for avatars/thumbnails
+ * - OrgHypercertsDefs.LargeImage - Uploaded blob for banners/covers
  */
 export type HypercertImageRecord = OrgHypercertsDefs.Uri | OrgHypercertsDefs.SmallImage | OrgHypercertsDefs.LargeImage;
+/** Hypercert with resolved metadata */
+export type HypercertWithMetadata = HypercertClaim & {
+  resolvedRights?: HypercertRights;
+  resolvedLocation?: HypercertLocation;
+};
 
-/** Hypercert with AT Protocol metadata */
-export interface HypercertWithMetadata {
+/** Project type alias (collection with type="project") */
+export type HypercertProject = HypercertCollection & { type: "project" };
+
+/** Project with resolved metadata */
+export type HypercertProjectWithMetadata = HypercertCollection & {
+  resolvedLocation?: HypercertLocation;
+  resolvedActivities?: HypercertClaim[];
+};
+
+export type { OrgHypercertsClaimCollection as CollectionLexicon } from "@hypercerts-org/lexicon";
+
+// ============================================================================
+// SDK Input Helper Types (Derived from Lexicon)
+// ============================================================================
+
+export type CollectionItemInput = SetOptional<OrgHypercertsClaimCollection.Item, "$type">;
+
+/**
+ * Parameters for specifying a location in collection/project operations.
+ * Supports three ways to specify location:
+ *
+ * 1. **StrongRef** - Direct reference with uri and cid (no record creation)
+ * 2. **AT-URI string** - Reference to existing location record
+ * 3. **Location object** - Full location data (lpVersion, srs, locationType, location, etc.)
+ *    with optional `$type` and `createdAt` fields
+ *    where-as location field can be a Blob (e.g., GeoJSON) that will be uploaded
+ *
+ * @example Using a StrongRef (no record creation)
+ * ```typescript
+ * const location: AttachLocationParams = { uri: "at://did:plc:test/app.certified.location/abc", cid: "bafyrei..." };
+ * ```
+ *
+ * @example Using an AT-URI (fetches existing record)
+ * ```typescript
+ * const location: AttachLocationParams = "at://did:plc:test/app.certified.location/xyz";
+ * ```
+ *
+ * @example Using a location object
+ * ```typescript
+ * const location: AttachLocationParams = {
+ *   lpVersion: "1.0.0",
+ *   srs: "EPSG:4326",
+ *   locationType: "coordinate-decimal",
+ *   location: "https://locationuri.com",
+ *   name: "San Francisco",
+ * };
+ * ```
+ */
+
+export type CreateLocationParams = OverrideProperties<
+  SetOptional<HypercertLocation, "$type" | "createdAt">,
+  {
+    location: string | Blob | HypercertLocation["location"];
+  }
+>;
+
+export type LocationParams = StrongRef | string | CreateLocationParams;
+
+/**
+ * SDK input parameters for creating a collection.
+ * Derived from lexicon type with $type and createdAt removed.
+ * avatar/banner accept HypercertImage (string URI or Blob) for user convenience.
+ * Location can be provided inline or via attachLocationToCollection().
+ */
+export type CreateCollectionParams = OverrideProperties<
+  SetOptional<OrgHypercertsClaimCollection.Main, "$type" | "createdAt">,
+  {
+    avatar?: HypercertImage;
+    banner?: HypercertImage;
+    items: CollectionItemInput[];
+    /**
+     * Optional location to attach to the collection.
+     * Can be:
+     * - StrongRef to reference existing location (uri + cid)
+     * - string (AT-URI) to reference existing location (CID will be fetched)
+     * - Location object to create a new location record
+     */
+    location?: LocationParams;
+  }
+>;
+
+/**
+ * SDK input parameters for updating a collection.
+ * All fields are optional.
+ * avatar/banner accept HypercertImage (string URI or Blob), or null to remove.
+ * Location can be updated inline or removed with null.
+ */
+export type UpdateCollectionParams = Omit<Partial<CreateCollectionParams>, "avatar" | "banner" | "location"> & {
+  avatar?: HypercertImage | null;
+  banner?: HypercertImage | null;
+  location?: LocationParams | null;
+};
+
+export type CreateCollectionResult = {
   uri: string;
   cid: string;
-  record: HypercertClaim;
-}
+  record: HypercertCollection;
+};
 
 /**
- * Project type - a HypercertCollection with type='project'.
+ * SDK input parameters for creating a project.
+ * Projects are collections with type="project" (set automatically).
  */
-export interface HypercertProject extends HypercertCollection {
-  type: "project";
-}
+export type CreateProjectParams = CreateCollectionParams;
 
 /**
- * HypercertProject with AT Protocol metadata.
+ * SDK input parameters for updating a project.
  */
-export interface HypercertProjectWithMetadata {
-  uri: string;
-  cid: string;
-  record: HypercertProject;
-}
+export type UpdateProjectParams = UpdateCollectionParams;
 
-/**
- * Parameters for creating a project.
- */
-export interface CreateProjectParams {
-  title: string;
-  shortDescription: string;
-  description?: unknown;
-  avatar?: Blob;
-  banner?: Blob;
-  activities?: Array<{ uri: string; cid: string; weight: string }>;
-  location?: { uri: string; cid: string };
-}
-
-/**
- * Parameters for updating a project.
- */
-export interface UpdateProjectParams {
-  title?: string;
-  shortDescription?: string;
-  description?: unknown;
-  avatar?: Blob;
-  banner?: Blob;
-  activities?: Array<{ uri: string; cid: string; weight: string }>;
-  location?: { uri: string; cid: string };
-}
+export type CreateProjectResult = CreateCollectionResult;

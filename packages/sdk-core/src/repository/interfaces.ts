@@ -9,7 +9,18 @@
  */
 
 import type { EventEmitter } from "eventemitter3";
-import type { HypercertCollection, HypercertClaim, OrgHypercertsDefs } from "../services/hypercerts/types.js";
+import type {
+  LocationParams,
+  CreateCollectionParams,
+  CreateCollectionResult,
+  CreateProjectParams,
+  CreateProjectResult,
+  HypercertCollection,
+  HypercertClaim,
+  OrgHypercertsDefs,
+  UpdateCollectionParams,
+  UpdateProjectParams,
+} from "../services/hypercerts/types.js";
 import type {
   CreateResult,
   ListParams,
@@ -20,6 +31,9 @@ import type {
   RepositoryRole,
   UpdateResult,
 } from "./types.js";
+
+// Re-export AttachLocationParams for convenience
+export type { LocationParams };
 
 // ============================================================================
 // Hypercert Operation Types
@@ -176,7 +190,7 @@ export interface CreateHypercertParams {
   /**
    * Optional geographic location of the impact.
    */
-  location?: AttachLocationParams;
+  location?: LocationParams;
 
   /**
    * Optional list of contributions to the impact.
@@ -276,50 +290,6 @@ export interface CreateHypercertEvidenceParams {
    * Any additional custom fields supported by the record.
    */
   [k: string]: unknown;
-}
-
-/**
- * Parameters for attaching a location to a hypercert.
- *
- * @example Using a string location
- * ```typescript
- * const params: AttachLocationParams = {
- *   lpVersion: "1.0.0",
- *   srs: "EPSG:4326",
- *   locationType: "coordinate-decimal",
- *   location: "https://locationuri.com",
- *   name: "San Francisco",
- *   description: "Project location in SF Bay Area",
- * };
- * ```
- *
- * @example Using a GeoJSON Blob
- * ```typescript
- * const geojsonBlob = new Blob(
- *   [JSON.stringify({ type: "Point", coordinates: [-122.4194, 37.7749] })],
- *   { type: "application/geo+json" }
- * );
- * const params: AttachLocationParams = {
- *   lpVersion: "1.0.0",
- *   srs: "EPSG:4326",
- *   locationType: "geojson-point",
- *   location: geojsonBlob,
- * };
- * ```
- */
-export interface AttachLocationParams {
-  /** The version of the Location Protocol */
-  lpVersion: string;
-  /** The Spatial Reference System URI (e.g., http://www.opengis.net/def/crs/OGC/1.3/CRS84) that defines the coordinate system. */
-  srs: string;
-  /** An identifier for the format of the location data (e.g., coordinate-decimal, geojson-point) */
-  locationType: "coordinate-decimal" | "geojson-point" | (string & {});
-  /** Location data as either a URL string or a GeoJSON Blob */
-  location: string | Blob;
-  /** Optional name for this location */
-  name?: string;
-  /** Optional description for this location */
-  description?: string;
 }
 
 /**
@@ -660,6 +630,26 @@ export interface HypercertEvents {
   collectionCreated: { uri: string; cid: string };
 
   /**
+   * Emitted when a collection is updated.
+   */
+  collectionUpdated: { uri: string; cid: string };
+
+  /**
+   * Emitted when a collection is deleted.
+   */
+  collectionDeleted: { uri: string };
+
+  /**
+   * Emitted when a location is attached to a collection.
+   */
+  locationAttachedToCollection: { uri: string; cid: string; collectionUri: string };
+
+  /**
+   * Emitted when a location is removed from a collection.
+   */
+  locationRemovedFromCollection: { collectionUri: string };
+
+  /**
    * Emitted when a project is created.
    */
   projectCreated: { uri: string; cid: string };
@@ -673,6 +663,16 @@ export interface HypercertEvents {
    * Emitted when a project is deleted.
    */
   projectDeleted: { uri: string };
+
+  /**
+   * Emitted when a location is attached to a project.
+   */
+  locationAttachedToProject: { uri: string; cid: string; projectUri: string };
+
+  /**
+   * Emitted when a location is removed from a project.
+   */
+  locationRemovedFromProject: { projectUri: string };
 }
 
 /**
@@ -728,11 +728,7 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    * @param params.image - New image, or `null` to remove
    * @returns Promise resolving to update result
    */
-  update(params: {
-    uri: string;
-    updates: Partial<Omit<HypercertClaim, "$type" | "createdAt" | "rights">>;
-    image?: Blob | null;
-  }): Promise<UpdateResult>;
+  update(params: { uri: string; updates: Partial<CreateHypercertParams>; image?: Blob | null }): Promise<UpdateResult>;
 
   /**
    * Gets a hypercert by URI.
@@ -772,7 +768,7 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    * @param location.geojson - Optional GeoJSON blob for precise boundaries
    * @returns Promise resolving to location record result
    */
-  attachLocation(uri: string, location: AttachLocationParams): Promise<CreateResult>;
+  attachLocation(uri: string, location: LocationParams): Promise<CreateResult>;
 
   /**
    * Adds evidence to an existing hypercert.
@@ -822,14 +818,9 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    * Creates a collection of hypercerts.
    *
    * @param params - Collection parameters
-   * @returns Promise resolving to collection record result
+   * @returns Promise resolving to collection record result with optional location URI
    */
-  createCollection(params: {
-    title: string;
-    claims: Array<{ uri: string; cid: string; weight: string }>;
-    shortDescription?: string;
-    banner?: Blob;
-  }): Promise<CreateResult>;
+  createCollection(params: CreateCollectionParams): Promise<CreateCollectionResult>;
 
   /**
    * Gets a collection by URI.
@@ -850,19 +841,48 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
   ): Promise<PaginatedList<{ uri: string; cid: string; record: HypercertCollection }>>;
 
   /**
+   * Updates a collection.
+   *
+   * @param uri - AT-URI of the collection
+   * @param updates - Fields to update
+   * @returns Promise resolving to update result
+   */
+  updateCollection(uri: string, updates: UpdateCollectionParams): Promise<UpdateResult>;
+
+  /**
+   * Deletes a collection.
+   *
+   * @param uri - AT-URI of the collection
+   * @returns Promise resolving when deleted
+   */
+  deleteCollection(uri: string): Promise<void>;
+
+  /**
+   * Attaches a location to a collection.
+   *
+   * @param uri - AT-URI of the collection
+   * @param location - Location data
+   * @returns Promise resolving to location record result
+   */
+  attachLocationToCollection(uri: string, location: LocationParams): Promise<CreateResult>;
+
+  /**
+   * Removes a location from a collection.
+   *
+   * @param uri - AT-URI of the collection
+   * @returns Promise resolving when location is removed
+   */
+  removeLocationFromCollection(uri: string): Promise<void>;
+
+  /**
    * Creates a project.
    *
+   * A project is a collection with type='project' and optional location sidecar.
+   *
    * @param params - Project parameters
-   * @returns Promise resolving to project record result
+   * @returns Promise resolving to project record result with optional location URI
    */
-  createProject(params: {
-    title: string;
-    shortDescription: string;
-    description?: unknown;
-    avatar?: Blob;
-    banner?: Blob;
-    activities?: Array<{ uri: string; cid: string; weight: string }>;
-  }): Promise<CreateResult>;
+  createProject(params: CreateProjectParams): Promise<CreateProjectResult>;
 
   /**
    * Gets a project by URI.
@@ -891,17 +911,7 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    * @param updates - Fields to update
    * @returns Promise resolving to update result
    */
-  updateProject(
-    uri: string,
-    updates: {
-      title?: string;
-      shortDescription?: string;
-      description?: unknown;
-      avatar?: Blob | null;
-      banner?: Blob | null;
-      activities?: Array<{ uri: string; cid: string; weight: string }>;
-    },
-  ): Promise<UpdateResult>;
+  updateProject(uri: string, updates: UpdateProjectParams): Promise<UpdateResult>;
 
   /**
    * Deletes a project.
@@ -910,6 +920,23 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    * @returns Promise resolving when deleted
    */
   deleteProject(uri: string): Promise<void>;
+
+  /**
+   * Attaches a location to a project.
+   *
+   * @param uri - AT-URI of the project
+   * @param location - Location data
+   * @returns Promise resolving to location record result
+   */
+  attachLocationToProject(uri: string, location: LocationParams): Promise<CreateResult>;
+
+  /**
+   * Removes a location from a project.
+   *
+   * @param uri - AT-URI of the project
+   * @returns Promise resolving when location is removed
+   */
+  removeLocationFromProject(uri: string): Promise<void>;
 }
 
 /**

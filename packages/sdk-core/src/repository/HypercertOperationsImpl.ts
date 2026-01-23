@@ -15,25 +15,35 @@ import { NetworkError, ValidationError } from "../errors.js";
 import type { LoggerInterface } from "../core/interfaces.js";
 import {
   HYPERCERT_COLLECTIONS,
+  type CreateCollectionParams,
+  type CreateCollectionResult,
+  type CreateProjectParams,
+  type CreateProjectResult,
   type HypercertClaim,
   type HypercertCollection,
   type HypercertContributionDetails,
   type HypercertEvaluation,
   type HypercertEvidence,
   type HypercertLocation,
+  type CreateLocationParams,
   type HypercertMeasurement,
   type HypercertRights,
   type JsonBlobRef,
+  type OrgHypercertsDefs,
+  type StrongRef,
+  type UpdateCollectionParams,
+  type UpdateProjectParams,
 } from "../services/hypercerts/types.js";
 import type {
   CreateHypercertEvidenceParams,
-  AttachLocationParams,
+  LocationParams,
   CreateHypercertParams,
   CreateHypercertResult,
   HypercertEvents,
   HypercertOperations,
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
+import { $Typed } from "@atproto/api";
 
 /**
  * Implementation of high-level hypercert operations.
@@ -311,7 +321,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   private async attachLocationWithProgress(
     hypercertUri: string,
-    location: AttachLocationParams,
+    location: LocationParams,
     onProgress?: (step: ProgressStep) => void,
   ): Promise<string> {
     this.emitProgress(onProgress, { name: "attachLocation", status: "start" });
@@ -594,7 +604,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async update(params: {
     uri: string;
-    updates: Partial<Omit<HypercertClaim, "$type" | "createdAt" | "rights">>;
+    updates: Partial<CreateHypercertParams>;
     image?: Blob | null;
   }): Promise<UpdateResult> {
     try {
@@ -840,59 +850,29 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * });
    * ```
    */
-  async attachLocation(hypercertUri: string, location: AttachLocationParams): Promise<CreateResult> {
+  async attachLocation(hypercertUri: string, location: LocationParams): Promise<CreateResult> {
     try {
-      if (!location.srs) {
-        throw new ValidationError(
-          "srs (Spatial Reference System) is required. Example: 'EPSG:4326' for WGS84 coordinates, or 'http://www.opengis.net/def/crs/OGC/1.3/CRS84' for CRS84.",
-        );
-      }
-
       // Validate that hypercert exists (unused but confirms hypercert is valid)
       await this.get(hypercertUri);
-      const createdAt = new Date().toISOString();
-
-      const locationData = await this.resolveUriOrBlob(location.location, "application/geo+json");
-
-      const locationRecord: HypercertLocation = {
-        $type: HYPERCERT_COLLECTIONS.LOCATION,
-        lpVersion: location.lpVersion || "1.0",
-        srs: location.srs,
-        locationType: location.locationType,
-        location: locationData,
-        createdAt,
-        name: location.name,
-        description: location.description,
-      };
-
-      const validation = validate(locationRecord, HYPERCERT_COLLECTIONS.LOCATION, "main", false);
-      if (!validation.success) {
-        throw new ValidationError(`Invalid location record: ${validation.error?.message}`);
-      }
-
-      const result = await this.agent.com.atproto.repo.createRecord({
-        repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.LOCATION,
-        record: locationRecord,
-      });
-
-      if (!result.success) {
-        throw new NetworkError("Failed to attach location");
-      }
+      const resolvedLocation = await this.resolveLocation(location);
 
       await this.update({
         uri: hypercertUri,
         updates: {
           location: {
             $type: "com.atproto.repo.strongRef",
-            uri: result.data.uri,
-            cid: result.data.cid,
+            uri: resolvedLocation.uri,
+            cid: resolvedLocation.cid,
           },
         },
       });
 
-      this.emit("locationAttached", { uri: result.data.uri, cid: result.data.cid, hypercertUri });
-      return { uri: result.data.uri, cid: result.data.cid };
+      this.emit("locationAttached", {
+        uri: resolvedLocation.uri,
+        cid: resolvedLocation.cid,
+        hypercertUri,
+      });
+      return { uri: resolvedLocation.uri, cid: resolvedLocation.cid };
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(`Failed to attach location: ${error instanceof Error ? error.message : "Unknown"}`, error);
@@ -904,22 +884,111 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *
    * @param content - Either a URI string or a Blob to upload
    * @param fallbackMimeType - MIME type to use if Blob.type is empty
-   * @returns Promise resolving to either a URI ref or blob ref union type
+   * @returns Promise resolving to either a URI ref or blob ref
    * @internal
    */
   private async resolveUriOrBlob(content: string | Blob, fallbackMimeType: string) {
     if (typeof content === "string") {
-      return {
-        $type: "org.hypercerts.defs#uri" as const,
+      const uriRef = {
+        $type: "org.hypercerts.defs#uri",
         uri: content,
-      };
-    } else {
-      const uploadedBlob = await this.handleBlobUpload(content, fallbackMimeType);
-      return {
-        $type: "org.hypercerts.defs#smallBlob" as const,
-        blob: uploadedBlob,
-      };
+      } satisfies $Typed<OrgHypercertsDefs.Uri>;
+      return uriRef;
     }
+
+    const uploadedBlob = await this.handleBlobUpload(content, fallbackMimeType);
+    const blobRef = {
+      $type: "org.hypercerts.defs#smallBlob",
+      blob: uploadedBlob,
+    } satisfies $Typed<OrgHypercertsDefs.SmallBlob>;
+    return blobRef;
+  }
+
+  private async resolveCollectionImageInput(input: string | Blob): Promise<NonNullable<HypercertCollection["avatar"]>>;
+  private async resolveCollectionImageInput(
+    input: string | Blob,
+    isBanner: true,
+  ): Promise<NonNullable<HypercertCollection["banner"]>>;
+  private async resolveCollectionImageInput(input: string | Blob, isBanner: boolean = false) {
+    if (typeof input === "string") {
+      return { $type: "org.hypercerts.defs#uri" as const, uri: input };
+    }
+
+    const blob = await this.handleBlobUpload(input, "image/jpeg");
+    if (isBanner) {
+      return { $type: "org.hypercerts.defs#largeImage" as const, image: blob };
+    }
+
+    return { $type: "org.hypercerts.defs#smallImage" as const, image: blob };
+  }
+
+  private async resolveLocationValue(location: string | Blob | HypercertLocation["location"]) {
+    if (typeof location === "string" || location instanceof Blob) {
+      return this.resolveUriOrBlob(location, "application/geo+json");
+    }
+
+    return location;
+  }
+
+  /**
+   * Check if an AttachLocationParams is the object form (not a StrongRef or string).
+   * @internal
+   */
+  private isLocationObject(location: LocationParams): location is CreateLocationParams {
+    return (
+      typeof location === "object" &&
+      !("uri" in location) &&
+      !("cid" in location) &&
+      location !== null &&
+      !Array.isArray(location)
+    );
+  }
+
+  /**
+   * Helper to resolve a location reference to a StrongRef.
+   *
+   * @param location - Location parameter (StrongRef, string URI, or location object)
+   * @returns Promise resolving to a StrongRef
+   * @throws {ValidationError} When string input doesn't match AT-URI pattern
+   * @throws {NetworkError} When getRecord fails or returns no CID
+   * @internal
+   */
+  private async resolveLocation(location: LocationParams): Promise<StrongRef> {
+    if (typeof location === "string") {
+      return this.resolveStrongRefFromUri(location);
+    }
+
+    if (this.isLocationObject(location)) {
+      return this.createLocationRecord(location);
+    }
+
+    if ("uri" in location && "cid" in location) {
+      return { $type: "com.atproto.repo.strongRef" as const, uri: location.uri, cid: location.cid };
+    }
+
+    throw new ValidationError("resolveLocation: Unsupported location input.");
+  }
+
+  private async resolveStrongRefFromUri(uri: string): Promise<StrongRef> {
+    const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
+    if (!uriMatch) {
+      throw new ValidationError(`resolveLocation: Invalid location AT-URI: "${uri}"`);
+    }
+
+    const [, repo, collection, rkey] = uriMatch;
+    const record = await this.agent.com.atproto.repo.getRecord({ repo, collection, rkey });
+    if (!record.success) {
+      throw new NetworkError(
+        `resolveLocation: getRecord failed for repo=${repo}, collection=${collection}, rkey=${rkey}`,
+      );
+    }
+    if (!record.data.cid) {
+      throw new NetworkError(
+        `resolveLocation: getRecord returned no CID for repo=${repo}, collection=${collection}, rkey=${rkey}`,
+      );
+    }
+
+    return { $type: "com.atproto.repo.strongRef" as const, uri, cid: record.data.cid };
   }
 
   /**
@@ -1185,7 +1254,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *
    * @param params - Collection parameters
    * @param params.title - Collection title
-   * @param params.claims - Array of hypercert references with weights
+   * @param params.items - Array of hypercert references with weights
    * @param params.shortDescription - Optional short description
    * @param params.banner - Optional cover image blob
    * @returns Promise resolving to collection record URI and CID
@@ -1197,80 +1266,76 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * const collection = await repo.hypercerts.createCollection({
    *   title: "Climate Projects 2024",
    *   shortDescription: "Our climate impact portfolio",
-   *   claims: [
-   *     { uri: hypercert1Uri, cid: hypercert1Cid, weight: "0.5" },
-   *     { uri: hypercert2Uri, cid: hypercert2Cid, weight: "0.3" },
-   *     { uri: hypercert3Uri, cid: hypercert3Cid, weight: "0.2" },
+   *   items: [
+   *     { itemIdentifier: { uri: hypercert1Uri, cid: hypercert1Cid }, itemWeight: "0.5" },
+   *     { itemIdentifier: { uri: hypercert2Uri, cid: hypercert2Cid }, itemWeight: "0.3" },
+   *     { itemIdentifier: { uri: hypercert3Uri, cid: hypercert3Cid }, itemWeight: "0.2" },
    *   ],
    *   banner: coverImageBlob,
    * });
    * ```
    */
-  async createCollection(params: {
-    title: string;
-    claims: Array<{ uri: string; cid: string; weight: string }>;
-    shortDescription?: string;
-    banner?: Blob;
-  }): Promise<CreateResult> {
-    try {
-      const createdAt = new Date().toISOString();
+  async createCollection(params: CreateCollectionParams): Promise<CreateCollectionResult> {
+    const createdAt = new Date().toISOString();
 
-      let bannerRef: JsonBlobRef | undefined;
-      if (params.banner) {
-        const arrayBuffer = await params.banner.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-          encoding: params.banner.type || "image/jpeg",
-        });
-        if (uploadResult.success) {
-          bannerRef = {
-            $type: "blob",
-            ref: { $link: uploadResult.data.blob.ref.toString() },
-            mimeType: uploadResult.data.blob.mimeType,
-            size: uploadResult.data.blob.size,
-          };
-        }
-      }
+    const collectionRecord: HypercertCollection = {
+      $type: HYPERCERT_COLLECTIONS.COLLECTION,
+      title: params.title,
+      items: [],
+      createdAt,
+    };
 
-      const collectionRecord: Record<string, unknown> = {
-        $type: HYPERCERT_COLLECTIONS.COLLECTION,
-        title: params.title,
-        claims: params.claims.map((c) => ({ claim: { uri: c.uri, cid: c.cid }, weight: c.weight })),
-        createdAt,
-      };
-
-      if (params.shortDescription) {
-        collectionRecord.shortDescription = params.shortDescription;
-      }
-
-      if (bannerRef) {
-        collectionRecord.banner = bannerRef;
-      }
-
-      const validation = validate(collectionRecord, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
-      if (!validation.success) {
-        throw new ValidationError(`Invalid collection record: ${validation.error?.message}`);
-      }
-
-      const result = await this.agent.com.atproto.repo.createRecord({
-        repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.COLLECTION,
-        record: collectionRecord,
-      });
-
-      if (!result.success) {
-        throw new NetworkError("Failed to create collection");
-      }
-
-      this.emit("collectionCreated", { uri: result.data.uri, cid: result.data.cid });
-      return { uri: result.data.uri, cid: result.data.cid };
-    } catch (error) {
-      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
-      throw new NetworkError(
-        `Failed to create collection: ${error instanceof Error ? error.message : "Unknown"}`,
-        error,
-      );
+    if (params.type) {
+      collectionRecord.type = params.type;
     }
+
+    if (params.shortDescription) {
+      collectionRecord.shortDescription = params.shortDescription;
+    }
+
+    if (params.description) {
+      collectionRecord.description = params.description;
+    }
+
+    if (params.avatar) {
+      collectionRecord.avatar = await this.resolveCollectionImageInput(params.avatar);
+    }
+
+    if (params.banner) {
+      collectionRecord.banner = await this.resolveCollectionImageInput(params.banner, true);
+    }
+
+    if (params.items !== undefined) {
+      collectionRecord.items = params.items;
+    }
+
+    if (params.location) {
+      const locationResult = await this.resolveLocation(params.location);
+      collectionRecord.location = locationResult;
+    }
+
+    const validation = validate(collectionRecord, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
+    if (!validation.success) {
+      throw new ValidationError(`Invalid collection record: ${validation.error?.message}`);
+    }
+
+    const result = await this.agent.com.atproto.repo.createRecord({
+      repo: this.repoDid,
+      collection: HYPERCERT_COLLECTIONS.COLLECTION,
+      record: collectionRecord,
+    });
+
+    if (!result.success) {
+      throw new NetworkError("Failed to create collection");
+    }
+
+    const createCollectionResult: CreateCollectionResult = {
+      uri: result.data.uri,
+      cid: result.data.cid,
+      record: collectionRecord,
+    };
+    this.emit("collectionCreated", createCollectionResult);
+    return createCollectionResult;
   }
 
   /**
@@ -1374,129 +1439,33 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   /**
    * Creates a new project that organizes multiple hypercert activities.
    *
-   * Projects are now implemented as collections with `type='project'`.
+   * A project is a collection with type='project' and optional location sidecar.
+   * This method delegates to createCollection and adds the type field.
    *
    * @param params - Project creation parameters
-   * @returns Promise resolving to created project URI and CID
+   * @returns Promise resolving to created project URI and CID with optional location URI
    *
    * @example
    * ```typescript
    * const result = await repo.hypercerts.createProject({
    *   title: "Climate Impact 2024",
    *   shortDescription: "Year-long climate initiative",
-   *   activities: [
-   *     { uri: activity1Uri, cid: activity1Cid, weight: "0.6" },
-   *     { uri: activity2Uri, cid: activity2Cid, weight: "0.4" }
+   *   items: [
+   *     { itemIdentifier: { uri: activity1Uri, cid: activity1Cid }, itemWeight: "0.6" },
+   *     { itemIdentifier: { uri: activity2Uri, cid: activity2Cid }, itemWeight: "0.4" }
    *   ]
    * });
    * console.log(`Created project: ${result.uri}`);
    * ```
    */
-  async createProject(params: {
-    title: string;
-    shortDescription: string;
-    description?: unknown;
-    avatar?: Blob;
-    banner?: Blob;
-    activities?: Array<{ uri: string; cid: string; weight: string }>;
-  }): Promise<CreateResult> {
-    try {
-      const createdAt = new Date().toISOString();
+  async createProject(params: CreateProjectParams): Promise<CreateProjectResult> {
+    const result = await this.createCollection({
+      ...params,
+      type: "project",
+    });
 
-      // Upload avatar blob if provided
-      let avatarRef: JsonBlobRef | undefined;
-      if (params.avatar) {
-        const arrayBuffer = await params.avatar.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-          encoding: params.avatar.type || "image/jpeg",
-        });
-        if (uploadResult.success) {
-          avatarRef = {
-            $type: "blob",
-            ref: { $link: uploadResult.data.blob.ref.toString() },
-            mimeType: uploadResult.data.blob.mimeType,
-            size: uploadResult.data.blob.size,
-          };
-        } else {
-          throw new NetworkError("Failed to upload avatar image");
-        }
-      }
-
-      // Upload banner blob if provided
-      let bannerRef: JsonBlobRef | undefined;
-      if (params.banner) {
-        const arrayBuffer = await params.banner.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-          encoding: params.banner.type || "image/jpeg",
-        });
-        if (uploadResult.success) {
-          bannerRef = {
-            $type: "blob",
-            ref: { $link: uploadResult.data.blob.ref.toString() },
-            mimeType: uploadResult.data.blob.mimeType,
-            size: uploadResult.data.blob.size,
-          };
-        } else {
-          throw new NetworkError("Failed to upload banner image");
-        }
-      }
-
-      // Build project record as a collection with type='project'
-      // Collections require 'items' array, so we map activities to items
-      const items =
-        params.activities?.map((a) => ({
-          itemIdentifier: { uri: a.uri, cid: a.cid },
-          itemWeight: a.weight,
-        })) || [];
-
-      const projectRecord: Record<string, unknown> = {
-        $type: HYPERCERT_COLLECTIONS.COLLECTION,
-        type: "project",
-        title: params.title,
-        shortDescription: params.shortDescription,
-        items,
-        createdAt,
-      };
-
-      // Add optional fields
-      if (params.description) {
-        projectRecord.description = params.description;
-      }
-
-      if (avatarRef) {
-        projectRecord.avatar = avatarRef;
-      }
-
-      if (bannerRef) {
-        projectRecord.banner = bannerRef;
-      }
-
-      // Validate against collection lexicon
-      const validation = validate(projectRecord, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
-      if (!validation.success) {
-        throw new ValidationError(`Invalid project record: ${validation.error?.message}`);
-      }
-
-      // Create record
-      const result = await this.agent.com.atproto.repo.createRecord({
-        repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.COLLECTION,
-        record: projectRecord,
-      });
-
-      if (!result.success) {
-        throw new NetworkError("Failed to create project");
-      }
-
-      // Emit event
-      this.emit("projectCreated", { uri: result.data.uri, cid: result.data.cid });
-      return { uri: result.data.uri, cid: result.data.cid };
-    } catch (error) {
-      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
-      throw new NetworkError(`Failed to create project: ${error instanceof Error ? error.message : "Unknown"}`, error);
-    }
+    this.emit("projectCreated", { uri: result.uri, cid: result.cid });
+    return result;
   }
 
   /**
@@ -1619,7 +1588,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   /**
    * Updates an existing project.
    *
-   * Projects are collections with `type='project'`.
+   * A project is a collection with type='project'. This method delegates to
+   * updateCollection and handles the avatar field.
    *
    * @param uri - AT-URI of the project to update
    * @param updates - Fields to update
@@ -1633,19 +1603,85 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * });
    * ```
    */
-  async updateProject(
-    uri: string,
-    updates: {
-      title?: string;
-      shortDescription?: string;
-      description?: unknown;
-      avatar?: Blob | null;
-      banner?: Blob | null;
-      activities?: Array<{ uri: string; cid: string; weight: string }>;
-    },
-  ): Promise<UpdateResult> {
+  async updateProject(uri: string, updates: UpdateProjectParams): Promise<UpdateResult> {
+    // Verify it's a project before updating
+    const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
+    if (!uriMatch) {
+      throw new ValidationError(`Invalid URI format: ${uri}`);
+    }
+    const [, , collection, rkey] = uriMatch;
+
+    const existing = await this.agent.com.atproto.repo.getRecord({
+      repo: this.repoDid,
+      collection,
+      rkey,
+    });
+
+    if (!existing.success) {
+      throw new NetworkError(`Project not found: ${uri}`);
+    }
+
+    const record = existing.data.value as HypercertCollection;
+    if (record.type !== "project") {
+      throw new ValidationError(`Record is not a project (type='${record.type}')`);
+    }
+
+    // Delegate to updateCollection
+    const result = await this.updateCollection(uri, updates);
+
+    this.emit("projectUpdated", { uri: result.uri, cid: result.cid });
+    return result;
+  }
+
+  /**
+   * Deletes a project.
+   *
+   * A project is a collection with type='project'. This method delegates to
+   * deleteCollection after verifying the record is a project.
+   *
+   * @param uri - AT-URI of the project to delete
+   *
+   * @example
+   * ```typescript
+   * await repo.hypercerts.deleteProject(projectUri);
+   * console.log("Project deleted");
+   * ```
+   */
+  async deleteProject(uri: string): Promise<void> {
+    const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
+    if (!uriMatch) {
+      throw new ValidationError(`Invalid URI format: ${uri}`);
+    }
+    const [, , collection, rkey] = uriMatch;
+
+    const existing = await this.agent.com.atproto.repo.getRecord({
+      repo: this.repoDid,
+      collection,
+      rkey,
+    });
+
+    if (!existing.success) {
+      throw new NetworkError(`Project not found: ${uri}`);
+    }
+
+    const record = existing.data.value as HypercertCollection;
+    if (record.type !== "project") {
+      throw new ValidationError(`Record is not a project (type='${record.type}')`);
+    }
+
+    await this.deleteCollection(uri);
+    this.emit("projectDeleted", { uri });
+  }
+
+  /**
+   * Updates a collection.
+   *
+   * @param uri - AT-URI of the collection to update
+   * @param updates - Fields to update
+   * @returns Promise resolving to updated collection URI and CID
+   */
+  async updateCollection(uri: string, updates: UpdateCollectionParams): Promise<UpdateResult> {
     try {
-      // Parse URI and fetch existing record
       const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
       if (!uriMatch) {
         throw new ValidationError(`Invalid URI format: ${uri}`);
@@ -1659,99 +1695,74 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       });
 
       if (!existing.success) {
-        throw new NetworkError(`Project not found: ${uri}`);
+        throw new NetworkError(`Collection not found: ${uri}`);
       }
 
       const existingRecord = existing.data.value as HypercertCollection;
 
-      // Verify it's actually a project
-      if (existingRecord.type !== "project") {
-        throw new ValidationError(`Record is not a project (type='${existingRecord.type}')`);
-      }
-
-      // Merge updates with existing record
       const recordForUpdate: Record<string, unknown> = {
         ...existingRecord,
-        // MUST preserve type, createdAt, and items structure
-        type: "project",
         createdAt: existingRecord.createdAt,
+        type: existingRecord.type,
       };
 
-      // Apply simple field updates
       if (updates.title !== undefined) recordForUpdate.title = updates.title;
       if (updates.shortDescription !== undefined) recordForUpdate.shortDescription = updates.shortDescription;
       if (updates.description !== undefined) recordForUpdate.description = updates.description;
 
-      // Handle avatar update with three-way logic
+      // Explicitly reject type changes
+      if (updates.type !== undefined && updates.type !== existingRecord.type) {
+        throw new ValidationError(`Cannot change collection type from '${existingRecord.type}' to '${updates.type}'`);
+      }
+
       delete (recordForUpdate as { avatar?: unknown }).avatar;
       if (updates.avatar !== undefined) {
         if (updates.avatar === null) {
           // Remove avatar
         } else {
-          const arrayBuffer = await updates.avatar.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-            encoding: updates.avatar.type || "image/jpeg",
-          });
-          if (uploadResult.success) {
-            recordForUpdate.avatar = {
-              $type: "blob",
-              ref: uploadResult.data.blob.ref,
-              mimeType: uploadResult.data.blob.mimeType,
-              size: uploadResult.data.blob.size,
-            };
-          } else {
-            throw new NetworkError("Failed to upload avatar image");
-          }
+          recordForUpdate.avatar = await this.resolveCollectionImageInput(updates.avatar);
         }
       } else if (existingRecord.avatar) {
         recordForUpdate.avatar = existingRecord.avatar;
       }
 
-      // Handle banner update
       delete (recordForUpdate as { banner?: unknown }).banner;
       if (updates.banner !== undefined) {
         if (updates.banner === null) {
           // Remove banner
         } else {
-          const arrayBuffer = await updates.banner.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-            encoding: updates.banner.type || "image/jpeg",
-          });
-          if (uploadResult.success) {
-            recordForUpdate.banner = {
-              $type: "blob",
-              ref: uploadResult.data.blob.ref,
-              mimeType: uploadResult.data.blob.mimeType,
-              size: uploadResult.data.blob.size,
-            };
-          } else {
-            throw new NetworkError("Failed to upload banner image");
-          }
+          recordForUpdate.banner = await this.resolveCollectionImageInput(updates.banner, true);
         }
       } else if (existingRecord.banner) {
         recordForUpdate.banner = existingRecord.banner;
       }
 
-      // Transform activities to items array
-      if (updates.activities) {
-        recordForUpdate.items = updates.activities.map((a) => ({
-          itemIdentifier: { uri: a.uri, cid: a.cid },
-          itemWeight: a.weight,
-        }));
-      } else {
-        // Preserve existing items
+      delete (recordForUpdate as { location?: unknown }).location;
+      if (updates.location !== undefined) {
+        if (updates.location === null) {
+          // Remove location
+        } else {
+          const resolvedLocation = await this.resolveLocation(updates.location);
+          if (!resolvedLocation) {
+            throw new ValidationError("resolveLocation: failed to resolve location");
+          }
+          recordForUpdate.location = resolvedLocation;
+        }
+      } else if (existingRecord.location) {
+        recordForUpdate.location = existingRecord.location;
+      }
+
+      if (updates.items) {
+        recordForUpdate.items = updates.items;
+      } else if (existingRecord.items) {
         recordForUpdate.items = existingRecord.items;
       }
 
-      // Validate merged record
       const validation = validate(recordForUpdate, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
       if (!validation.success) {
-        throw new ValidationError(`Invalid project record: ${validation.error?.message}`);
+        throw new ValidationError(`Invalid collection record: ${validation.error?.message}`);
       }
 
-      // Update record
       const result = await this.agent.com.atproto.repo.putRecord({
         repo: this.repoDid,
         collection,
@@ -1760,55 +1771,33 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       });
 
       if (!result.success) {
-        throw new NetworkError("Failed to update project");
+        throw new NetworkError("Failed to update collection");
       }
 
-      // Emit event
-      this.emit("projectUpdated", { uri: result.data.uri, cid: result.data.cid });
+      this.emit("collectionUpdated", { uri: result.data.uri, cid: result.data.cid });
       return { uri: result.data.uri, cid: result.data.cid };
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
-      throw new NetworkError(`Failed to update project: ${error instanceof Error ? error.message : "Unknown"}`, error);
+      throw new NetworkError(
+        `Failed to update collection: ${error instanceof Error ? error.message : "Unknown"}`,
+        error,
+      );
     }
   }
 
   /**
-   * Deletes a project.
+   * Deletes a collection.
    *
-   * Projects are collections with `type='project'`.
-   *
-   * @param uri - AT-URI of the project to delete
-   *
-   * @example
-   * ```typescript
-   * await repo.hypercerts.deleteProject(projectUri);
-   * console.log("Project deleted");
-   * ```
+   * @param uri - AT-URI of the collection to delete
    */
-  async deleteProject(uri: string): Promise<void> {
+  async deleteCollection(uri: string): Promise<void> {
     try {
-      // Parse URI
       const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
       if (!uriMatch) {
         throw new ValidationError(`Invalid URI format: ${uri}`);
       }
       const [, , collection, rkey] = uriMatch;
 
-      // Verify it's actually a project before deleting
-      const existing = await this.agent.com.atproto.repo.getRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-      });
-
-      if (existing.success) {
-        const record = existing.data.value as HypercertCollection;
-        if (record.type !== "project") {
-          throw new ValidationError(`Record is not a project (type='${record.type}')`);
-        }
-      }
-
-      // Delete record
       const result = await this.agent.com.atproto.repo.deleteRecord({
         repo: this.repoDid,
         collection,
@@ -1816,14 +1805,190 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       });
 
       if (!result.success) {
-        throw new NetworkError("Failed to delete project");
+        throw new NetworkError("Failed to delete collection");
       }
 
-      // Emit event
-      this.emit("projectDeleted", { uri });
+      this.emit("collectionDeleted", { uri });
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
-      throw new NetworkError(`Failed to delete project: ${error instanceof Error ? error.message : "Unknown"}`, error);
+      throw new NetworkError(
+        `Failed to delete collection: ${error instanceof Error ? error.message : "Unknown"}`,
+        error,
+      );
     }
+  }
+
+  /**
+   * Attaches a location to a collection.
+   *
+   * @param uri - AT-URI of the collection
+   * @param location - Location data
+   * @returns Promise resolving to location record result
+   */
+  async attachLocationToCollection(uri: string, location: LocationParams): Promise<CreateResult> {
+    try {
+      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
+      if (!uriMatch) {
+        throw new ValidationError(`Invalid URI format: ${uri}`);
+      }
+      const [, , collection, rkey] = uriMatch;
+
+      const existing = await this.agent.com.atproto.repo.getRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+      });
+
+      if (!existing.success) {
+        throw new NetworkError(`Collection not found: ${uri}`);
+      }
+
+      const resolvedLocation = await this.resolveLocation(location);
+      if (!resolvedLocation) {
+        throw new ValidationError("attachLocationToCollection: failed to resolve location");
+      }
+
+      const recordForUpdate: Record<string, unknown> = {
+        ...existing.data.value,
+        location: resolvedLocation,
+      };
+
+      const updateResult = await this.agent.com.atproto.repo.putRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+        record: recordForUpdate,
+      });
+
+      if (!updateResult.success) {
+        throw new NetworkError("Failed to update collection with location");
+      }
+
+      this.emit("locationAttachedToCollection", {
+        uri: resolvedLocation.uri,
+        cid: resolvedLocation.cid,
+        collectionUri: uri,
+      });
+      return { uri: resolvedLocation.uri, cid: resolvedLocation.cid };
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
+      throw new NetworkError(`Failed to attach location: ${error instanceof Error ? error.message : "Unknown"}`, error);
+    }
+  }
+
+  /**
+   * Removes a location from a collection.
+   *
+   * @param uri - AT-URI of the collection
+   */
+  async removeLocationFromCollection(uri: string): Promise<void> {
+    try {
+      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
+      if (!uriMatch) {
+        throw new ValidationError(`Invalid URI format: ${uri}`);
+      }
+      const [, , collection, rkey] = uriMatch;
+
+      const existing = await this.agent.com.atproto.repo.getRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+      });
+
+      if (!existing.success) {
+        throw new NetworkError(`Collection not found: ${uri}`);
+      }
+
+      const recordForUpdate = { ...existing.data.value };
+      delete (recordForUpdate as { location?: unknown }).location;
+
+      const result = await this.agent.com.atproto.repo.putRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+        record: recordForUpdate,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to remove location from collection");
+      }
+
+      this.emit("locationRemovedFromCollection", { collectionUri: uri });
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
+      throw new NetworkError(`Failed to remove location: ${error instanceof Error ? error.message : "Unknown"}`, error);
+    }
+  }
+
+  /**
+   * Attaches a location to a project.
+   *
+   * @param uri - AT-URI of the project
+   * @param location - Location data
+   * @returns Promise resolving to location record result
+   */
+  async attachLocationToProject(uri: string, location: LocationParams): Promise<CreateResult> {
+    const result = await this.attachLocationToCollection(uri, location);
+    this.emit("locationAttachedToProject", {
+      uri: result.uri,
+      cid: result.cid,
+      projectUri: uri,
+    });
+    return result;
+  }
+
+  /**
+   * Removes a location from a project.
+   *
+   * @param uri - AT-URI of the project
+   */
+  async removeLocationFromProject(uri: string): Promise<void> {
+    await this.removeLocationFromCollection(uri);
+    this.emit("locationRemovedFromProject", { projectUri: uri });
+  }
+
+  /**
+   * Creates an app.certified.location record.
+   *
+   * @param location - Location parameters
+   * @returns Promise resolving to location record URI and CID
+   */
+  private async createLocationRecord(location: CreateLocationParams): Promise<StrongRef> {
+    if (!location.srs) {
+      throw new ValidationError(
+        "srs (Spatial Reference System) is required. Example: 'EPSG:4326' for WGS84 coordinates, or 'http://www.opengis.net/def/crs/OGC/1.3/CRS84' for CRS84.",
+      );
+    }
+
+    const { $type, createdAt, location: locationValue, lpVersion, ...rest } = location;
+    if (locationValue === undefined) {
+      throw new ValidationError("location is required to create a location record.");
+    }
+    const resolvedLocationValue = await this.resolveLocationValue(locationValue);
+
+    const locationRecord: HypercertLocation = {
+      ...rest,
+      lpVersion: lpVersion ?? "1.0",
+      $type: $type ?? HYPERCERT_COLLECTIONS.LOCATION,
+      createdAt: createdAt ?? new Date().toISOString(),
+      location: resolvedLocationValue,
+    };
+
+    const validation = validate(locationRecord, HYPERCERT_COLLECTIONS.LOCATION, "main", false);
+    if (!validation.success) {
+      throw new ValidationError(`Invalid location record: ${validation.error?.message}`);
+    }
+
+    const result = await this.agent.com.atproto.repo.createRecord({
+      repo: this.repoDid,
+      collection: HYPERCERT_COLLECTIONS.LOCATION,
+      record: locationRecord as Record<string, unknown>,
+    });
+
+    if (!result.success) {
+      throw new NetworkError("Failed to create location record");
+    }
+
+    return { uri: result.data.uri, cid: result.data.cid };
   }
 }
