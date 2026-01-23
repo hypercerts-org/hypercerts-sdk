@@ -22,7 +22,7 @@
       "dependsOn": ["^format:check"]
     },
     "check": {
-      "dependsOn": ["format:check", "lint", "typecheck", "build", "test"]
+      "dependsOn": ["format:check", "lint", "build", "typecheck", "test"]
     },
     "dev": {
       "persistent": true,

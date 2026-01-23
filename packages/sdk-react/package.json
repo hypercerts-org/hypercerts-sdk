@@ -18,7 +18,7 @@
     "README.md",
     "CHANGELOG.md"
   ],
-  "prepublishOnly": "pnpm run check",
+  "prepublishOnly": "npm run lint && pnpm run typecheck && pnpm run build && pnpm run test",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
