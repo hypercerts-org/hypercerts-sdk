@@ -317,9 +317,8 @@ Hypercert
 
 ### Discovering Sidecars
 
-In AT Protocol, the sidecar pattern uses **unidirectional references** - sidecars reference the main record, 
-but the main record does NOT maintain back-references. To discover sidecars, you query records that 
-reference your main record:
+In AT Protocol, the sidecar pattern uses **unidirectional references** - sidecars reference the main record, but the
+main record does NOT maintain back-references. To discover sidecars, you query records that reference your main record:
 
 ```typescript
 // Create main hypercert

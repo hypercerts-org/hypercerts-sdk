@@ -72,20 +72,24 @@ Evaluations use strongRefs to reference the exact version of a hypercert.
 
 ### Numeric Types: Integer vs String
 
-This example uses `integer` type for the score field to demonstrate that feature. However, **in production**, consider these guidelines:
+This example uses `integer` type for the score field to demonstrate that feature. However, **in production**, consider
+these guidelines:
 
 **Use String for numeric values when:**
+
 - Values may include decimals or fractions
 - Precision is critical (financial calculations, scientific measurements)
 - Values might be very large
 - Following the hypercerts lexicon pattern (see `org.hypercerts.claim.measurement`)
 
 **Use Integer only when:**
+
 - Values are always whole numbers (counts, ratings, votes)
 - The range is well-defined and small
 - Integer semantics are important to your domain model
 
-The hypercerts lexicon uses strings for numeric values (like `value` in measurements) to avoid JavaScript float precision issues. This is the recommended approach for most numeric data.
+The hypercerts lexicon uses strings for numeric values (like `value` in measurements) to avoid JavaScript float
+precision issues. This is the recommended approach for most numeric data.
 
 ## Learn More
 

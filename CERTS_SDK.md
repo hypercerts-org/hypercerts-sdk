@@ -369,7 +369,9 @@ export function Projects() {
     await create({
       title: "Clean Water Initiative",
       shortDescription: "Providing clean water access to rural communities",
-      description: { /* Leaflet linear document */ },
+      description: {
+        /* Leaflet linear document */
+      },
       activities: [
         { uri: "at://did:plc:xyz/org.hypercerts.claim/abc", cid: "bafyreiabc", weight: "60" },
         { uri: "at://did:plc:xyz/org.hypercerts.claim/def", cid: "bafyreidef", weight: "40" },
@@ -391,9 +393,7 @@ export function Projects() {
           <li key={project.uri}>
             <h3>{project.title}</h3>
             <p>{project.shortDescription}</p>
-            {project.activities && (
-              <small>{project.activities.length} activities</small>
-            )}
+            {project.activities && <small>{project.activities.length} activities</small>}
           </li>
         ))}
       </ul>
@@ -417,7 +417,12 @@ export function ProjectDetail({ uri }: { uri: string }) {
   if (!project) return <div>Project not found</div>;
 
   const handleAddAvatar = async () => {
-    const avatarBlob = new Blob([/* image data */], { type: "image/png" });
+    const avatarBlob = new Blob(
+      [
+        /* image data */
+      ],
+      { type: "image/png" },
+    );
     await update({ avatar: avatarBlob });
   };
 
@@ -426,18 +431,13 @@ export function ProjectDetail({ uri }: { uri: string }) {
       <h1>{project.title}</h1>
       <p>{project.shortDescription}</p>
 
-      {project.avatar && (
-        <img src={/* blob URL */} alt="Project avatar" />
-      )}
+      {project.avatar && <img src={/* blob URL */} alt="Project avatar" />}
 
       <button onClick={handleAddAvatar} disabled={isUpdating}>
         Add Avatar
       </button>
 
-      <button
-        onClick={() => update({ title: "Updated Title" })}
-        disabled={isUpdating}
-      >
+      <button onClick={() => update({ title: "Updated Title" })} disabled={isUpdating}>
         Update
       </button>
 
