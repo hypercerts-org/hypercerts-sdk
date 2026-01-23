@@ -13,11 +13,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "turbo typecheck",
-    "check": "turbo check",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm run build && pnpm run test",
     "clean": "turbo clean",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "turbo check && changeset publish",
+    "release": "pnpm check && changeset publish",
     "prepare": "husky"
   },
   "devDependencies": {
