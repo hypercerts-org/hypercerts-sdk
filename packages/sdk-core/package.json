@@ -15,7 +15,7 @@
     "README.md",
     "CHANGELOG.md"
   ],
-  "prepublishOnly": "pnpm run check",
+  "prepublishOnly": "npm run lint && pnpm run typecheck && pnpm run build && pnpm run test",
   "scripts": {
     "test": "vitest run",
     "build": "rollup -c",
