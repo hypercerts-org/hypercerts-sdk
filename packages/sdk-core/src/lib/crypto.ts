@@ -8,7 +8,7 @@ import { NetworkError } from "../core/errors.js";
  * Deterministically stringifies an object by sorting keys recursively.
  * Handles deeply nested objects and null values correctly.
  */
-function stableStringify(obj: unknown): string | undefined {
+export function stableStringify(obj: unknown): string | undefined {
     if (obj === undefined || typeof obj === "function" || typeof obj === "symbol") {
         return undefined;
     }
@@ -58,7 +58,7 @@ export async function sha256Hash(content: unknown): Promise<string> {
         // Fallback for older environments or specific setups if global crypto isn't available
         try {
             // Dynamic import to avoid breaking browser builds if bundler doesn't handle it
-             
+
             const { createHash } = await import("node:crypto");
             const hash = createHash("sha256").update(jsonString).digest("hex");
             return hash;
