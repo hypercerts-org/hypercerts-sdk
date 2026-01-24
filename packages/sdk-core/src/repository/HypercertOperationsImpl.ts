@@ -537,6 +537,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const imageBlobRef = params.image ? await this.uploadImageBlob(params.image, params.onProgress) : undefined;
 
       // Step 2: Create location record if provided (must be before hypercert)
+      // If location is provided, it must succeed - failing silently would change the rKey on retries
       let locationRef: { uri: string; cid: string } | undefined;
       if (params.location) {
         try {
@@ -551,7 +552,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         } catch (error) {
           this.emitProgress(params.onProgress, { name: "createLocation", status: "error", error: error as Error });
           this.logger?.warn(`Failed to create location: ${error instanceof Error ? error.message : "Unknown"}`);
-          // Don't throw - continue without location
+          // Re-throw to fail the operation - swallowing would change rKey on retry
+          throw error;
         }
       }
 
