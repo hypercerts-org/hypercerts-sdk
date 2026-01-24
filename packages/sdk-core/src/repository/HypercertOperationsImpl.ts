@@ -548,24 +548,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
       // Step 2: Create location record if provided (must be before hypercert)
       // If location is provided, it must succeed - failing silently would change the rKey on retries
-      let locationRef: { uri: string; cid: string } | undefined;
-      if (params.location) {
-        try {
-          this.emitProgress(params.onProgress, { name: "createLocation", status: "start" });
-          locationRef = await this.resolveLocation(params.location);
-          result.locationUri = locationRef.uri;
-          result.locationCid = locationRef.cid;
-          this.emitProgress(params.onProgress, {
-            name: "createLocation",
-            status: "success",
-            data: { uri: locationRef.uri },
-          });
-        } catch (error) {
-          this.emitProgress(params.onProgress, { name: "createLocation", status: "error", error: error as Error });
-          this.logger?.warn(`Failed to create location: ${error instanceof Error ? error.message : "Unknown"}`);
-          // Re-throw to fail the operation - swallowing would change rKey on retry
-          throw error;
-        }
+      const locationRef = await this.processLocation(params.location, params.onProgress);
+      if (locationRef) {
+        result.locationUri = locationRef.uri;
+        result.locationCid = locationRef.cid;
       }
 
       // Step 3: Create rights record
@@ -578,50 +564,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       result.rightsCid = rightsCid;
 
       // Step 4: Build contributors data for embedding (if provided)
-      let contributorsData:
-        | Array<{ contributorIdentity: string; contributionDetails?: string | { uri: string; cid: string } }>
-        | undefined;
-      if (params.contributions && params.contributions.length > 0) {
-        // Transform SDK contributions format to lexicon format
-        // Handle async creation of contributionDetails records if description is provided
-        const contributorsPromises = params.contributions.map(async (contrib) => {
-          let detailsRef: string | { uri: string; cid: string } = contrib.role;
-
-          // If description is provided, create a detailed record
-          if (contrib.description) {
-            try {
-              this.emitProgress(params.onProgress, { name: "createContribution", status: "start" });
-              const result = await this.addContribution({
-                contributors: contrib.contributors, // Passed for legacy reasons/completeness
-                role: contrib.role,
-                description: contrib.description,
-              });
-              detailsRef = { uri: result.uri, cid: result.cid };
-              this.emitProgress(params.onProgress, {
-                name: "createContribution",
-                status: "success",
-                data: result,
-              });
-            } catch (error) {
-              this.emitProgress(params.onProgress, {
-                name: "createContribution",
-                status: "error",
-                error: error as Error,
-              });
-              throw error;
-            }
-          }
-
-          // Expand to one entry per contributor DID
-          return contrib.contributors.map((did) => ({
-            contributorIdentity: did,
-            contributionDetails: detailsRef,
-          }));
-        });
-
-        const nestedContributors = await Promise.all(contributorsPromises);
-        contributorsData = nestedContributors.flat();
-      }
+      const contributorsData = await this.processContributors(params.contributions, params.onProgress);
 
       // Step 5: Create hypercert record (with embedded location, rights, and contributors)
       const { uri: hypercertUri, cid: hypercertCid } = await this.createHypercertRecord(
@@ -1141,6 +1084,94 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(`Failed to add evidence: ${error instanceof Error ? error.message : "Unknown"}`, error);
     }
+  }
+
+  /**
+   * Processes location parameters, creating a location record if necessary.
+   *
+   * @param locationParams - Location parameters from create request
+   * @param onProgress - Optional progress callback
+   * @returns Promise resolving to location StrongRef or undefined
+   * @internal
+   */
+  private async processLocation(
+    locationParams: LocationParams | undefined,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<{ uri: string; cid: string } | undefined> {
+    if (!locationParams) return undefined;
+
+    try {
+      this.emitProgress(onProgress, { name: "createLocation", status: "start" });
+      const locationRef = await this.resolveLocation(locationParams);
+      this.emitProgress(onProgress, {
+        name: "createLocation",
+        status: "success",
+        data: { uri: locationRef.uri },
+      });
+      return locationRef;
+    } catch (error) {
+      this.emitProgress(onProgress, { name: "createLocation", status: "error", error: error as Error });
+      this.logger?.warn(`Failed to create location: ${error instanceof Error ? error.message : "Unknown"}`);
+      // Re-throw to fail the operation - swallowing would change rKey on retry
+      throw error;
+    }
+  }
+
+  /**
+   * Processes contribution parameters, creating detailed contribution records if necessary.
+   *
+   * @param contributions - Array of contribution parameters
+   * @param onProgress - Optional progress callback
+   * @returns Promise resolving to flattened array of contributor data for embedding
+   * @internal
+   */
+  private async processContributors(
+    contributions:
+      | Array<{ contributors: string[]; role: string; description?: string; props?: Record<string, unknown> }>
+      | undefined,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<
+    Array<{ contributorIdentity: string; contributionDetails?: string | { uri: string; cid: string } }> | undefined
+  > {
+    if (!contributions || contributions.length === 0) return undefined;
+
+    const contributorsPromises = contributions.map(async (contrib) => {
+      let detailsRef: string | { uri: string; cid: string } = contrib.role;
+
+      // If description is provided, create a detailed record
+      if (contrib.description) {
+        try {
+          this.emitProgress(onProgress, { name: "createContribution", status: "start" });
+          const result = await this.addContribution({
+            contributors: contrib.contributors, // Passed for legacy reasons/completeness
+            role: contrib.role,
+            description: contrib.description,
+          });
+          detailsRef = { uri: result.uri, cid: result.cid };
+          this.emitProgress(onProgress, {
+            name: "createContribution",
+            status: "success",
+            data: result,
+          });
+        } catch (error) {
+          this.emitProgress(onProgress, {
+            name: "createContribution",
+            status: "error",
+            error: error as Error,
+          });
+          throw error;
+        }
+      }
+
+      // Expand to one entry per contributor DID
+      return contrib.contributors.map((did) => ({
+        contributorIdentity: did,
+        contributionDetails: detailsRef,
+      }));
+    });
+
+    const nestedContributors = await Promise.all(contributorsPromises);
+    return nestedContributors.flat();
   }
 
   /**
