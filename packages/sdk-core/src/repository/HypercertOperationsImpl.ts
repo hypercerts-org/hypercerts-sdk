@@ -584,7 +584,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       result.rightsCid = rightsCid;
 
       // Step 4: Build contributors data for embedding (if provided)
-      // Step 4: Build contributors data for embedding (if provided)
       let contributorsData:
         | Array<{ contributorIdentity: string; contributionDetails?: string | { uri: string; cid: string } }>
         | undefined;
