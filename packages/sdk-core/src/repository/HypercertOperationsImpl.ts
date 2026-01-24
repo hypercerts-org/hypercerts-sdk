@@ -264,6 +264,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     rightsUri: string,
     rightsCid: string,
     imageBlobRef: JsonBlobRef | undefined,
+    locationRef: { uri: string; cid: string } | undefined,
     createdAt: string,
     onProgress?: (step: ProgressStep) => void,
   ): Promise<{ uri: string; cid: string }> {
@@ -284,14 +285,19 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       hypercertRecord.image = imageBlobRef;
     }
 
+    // Add location as embedded StrongRef if provided
+    if (locationRef) {
+      hypercertRecord.locations = [{ uri: locationRef.uri, cid: locationRef.cid }];
+    }
+
     const hypercertValidation = validate(hypercertRecord, HYPERCERT_COLLECTIONS.CLAIM, "main", false);
     if (!hypercertValidation.success) {
       throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error?.message}`);
     }
 
     // Generate rKey from stable content hash (idempotency)
-    // Hash only the fields that end up in the claim record itself, plus image blob ref and rights data.
-    // Excludes sidecar data (location, contributions, evidence) to keep rKeys stable.
+    // Hash the complete claim record including all StrongRefs (rights, location)
+    // These define the claim's identity per the lexicon.
     const hashInput = {
       title: params.title,
       description: params.description,
@@ -299,10 +305,12 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       workScope: params.workScope,
       startDate: params.startDate,
       endDate: params.endDate,
-      // Use the full image blob reference for identity (handled by stable stringify)
+      // Image blob reference (CID-based, stable)
       imageRecord: imageBlobRef,
-      // Ensure rights definition is part of identity, but not the new CID
+      // Rights definition (what the user specified, not the generated CID)
       rightsData: typeof params.rights === "object" ? params.rights : undefined,
+      // Location StrongRef - part of claim identity per lexicon
+      locationRef: locationRef,
     };
 
     const contentHash = await sha256Hash(hashInput);
@@ -517,7 +525,26 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // Step 1: Upload image if provided
       const imageBlobRef = params.image ? await this.uploadImageBlob(params.image, params.onProgress) : undefined;
 
-      // Step 2: Create rights record
+      // Step 2: Create location record if provided (must be before hypercert)
+      let locationRef: { uri: string; cid: string } | undefined;
+      if (params.location) {
+        try {
+          this.emitProgress(params.onProgress, { name: "createLocation", status: "start" });
+          locationRef = await this.resolveLocation(params.location);
+          result.locationUri = locationRef.uri;
+          this.emitProgress(params.onProgress, {
+            name: "createLocation",
+            status: "success",
+            data: { uri: locationRef.uri },
+          });
+        } catch (error) {
+          this.emitProgress(params.onProgress, { name: "createLocation", status: "error", error: error as Error });
+          this.logger?.warn(`Failed to create location: ${error instanceof Error ? error.message : "Unknown"}`);
+          // Don't throw - continue without location
+        }
+      }
+
+      // Step 3: Create rights record
       const { uri: rightsUri, cid: rightsCid } = await this.createRightsRecord(
         params.rights,
         createdAt,
@@ -526,26 +553,18 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       result.rightsUri = rightsUri;
       result.rightsCid = rightsCid;
 
-      // Step 3: Create hypercert record
+      // Step 4: Create hypercert record (with embedded location and rights StrongRefs)
       const { uri: hypercertUri, cid: hypercertCid } = await this.createHypercertRecord(
         params,
         rightsUri,
         rightsCid,
         imageBlobRef,
+        locationRef,
         createdAt,
         params.onProgress,
       );
       result.hypercertUri = hypercertUri;
       result.hypercertCid = hypercertCid;
-
-      // Step 4: Attach location if provided
-      if (params.location) {
-        try {
-          result.locationUri = await this.attachLocationWithProgress(hypercertUri, params.location, params.onProgress);
-        } catch {
-          // Error already logged and progress emitted
-        }
-      }
 
       // Step 5: Create contributions if provided
       if (params.contributions && params.contributions.length > 0) {
