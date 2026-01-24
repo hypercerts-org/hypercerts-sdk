@@ -252,6 +252,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param rightsUri - URI of the associated rights record
    * @param rightsCid - CID of the associated rights record
    * @param imageBlobRef - Optional image blob reference
+   * @param locationRef - Optional strong reference to the associated location record
+   * @param contributorsData - Optional array of contributor data (inline or StrongRef) to embed in the claim
    * @param createdAt - ISO timestamp for creation
    * @param onProgress - Optional progress callback
    * @returns Promise resolving to hypercert URI and CID
