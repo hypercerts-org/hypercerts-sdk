@@ -221,6 +221,45 @@ describe("HypercertOperationsImpl", () => {
       expect(createCall.record.contributors[0].contributionDetails).toBe("Developer");
     });
 
+    it("should create detailed contributions (StrongRef) when description is provided", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockReset();
+      mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+        });
+
+      const result = await hypercertOps.create({
+        ...validParams,
+        contributions: [{ contributors: ["did:plc:contrib1"], role: "Developer", description: "Backend work" }],
+      });
+
+      expect(result.hypercertUri).toBeDefined();
+
+      // Verify contribution details record was created
+      const contributionCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(contributionCall.collection).toBe("org.hypercerts.claim.contributionDetails");
+      expect(contributionCall.record.role).toBe("Developer");
+      expect(contributionCall.record.contributionDescription).toBe("Backend work");
+
+      // Verify contributors use StrongRef in the claim record
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
+      expect(createCall.record.contributors).toBeDefined();
+      expect(createCall.record.contributors[0].contributorIdentity).toBe("did:plc:contrib1");
+      expect(createCall.record.contributors[0].contributionDetails).toEqual({
+        uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz",
+        cid: "details-cid",
+      });
+    });
+
     it("should call onProgress callback", async () => {
       const onProgress = vi.fn();
 
