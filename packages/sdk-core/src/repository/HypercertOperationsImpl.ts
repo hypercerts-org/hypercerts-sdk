@@ -1933,6 +1933,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @returns Promise resolving to location record result
    */
   async attachLocationToProject(uri: string, location: LocationParams): Promise<CreateResult> {
+    // Validate it's actually a project
+    await this.getProject(uri);
+
     const result = await this.attachLocationToCollection(uri, location);
     this.emit("locationAttachedToProject", {
       uri: result.uri,
@@ -1948,6 +1951,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param uri - AT-URI of the project
    */
   async removeLocationFromProject(uri: string): Promise<void> {
+    // Validate it's actually a project
+    await this.getProject(uri);
+
     await this.removeLocationFromCollection(uri);
     this.emit("locationRemovedFromProject", { projectUri: uri });
   }

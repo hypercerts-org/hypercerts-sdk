@@ -2074,5 +2074,173 @@ describe("HypercertOperationsImpl", () => {
         ).rejects.toThrow(ValidationError);
       });
     });
+
+    describe("attachLocationToProject", () => {
+      beforeEach(() => {
+        mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123",
+            cid: "project-cid",
+            value: {
+              $type: "org.hypercerts.claim.collection",
+              type: "project",
+              title: "Test Project",
+              items: [],
+              createdAt: "2024-01-01T00:00:00Z",
+            },
+          },
+        });
+
+        mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123", cid: "updated-cid" },
+        });
+      });
+
+      it("should attach location successfully", async () => {
+        const result = await hypercertOps.attachLocationToProject(
+          `at://${TEST_REPO_DID}/org.hypercerts.claim.collection/abc123`,
+          { uri: `at://${TEST_REPO_DID}/app.certified.location/loc123`, cid: "location-cid" },
+        );
+
+        expect(result.uri).toBe(`at://${TEST_REPO_DID}/app.certified.location/loc123`);
+        expect(result.cid).toBe("location-cid");
+        expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+          expect.objectContaining({
+            record: expect.objectContaining({
+              location: {
+                $type: "com.atproto.repo.strongRef",
+                uri: `at://${TEST_REPO_DID}/app.certified.location/loc123`,
+                cid: "location-cid",
+              },
+            }),
+          }),
+        );
+      });
+
+      it("should throw ValidationError for invalid URI format", async () => {
+        await expect(
+          hypercertOps.attachLocationToProject("invalid-uri", {
+            uri: "at://location",
+            cid: "cid",
+          }),
+        ).rejects.toThrow(ValidationError);
+      });
+
+      it("should throw NetworkError when project not found", async () => {
+        mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+          success: false,
+          error: { message: "Not found" },
+        });
+
+        await expect(
+          hypercertOps.attachLocationToProject("at://did:plc:test/org.hypercerts.claim.collection/missing", {
+            uri: "at://location",
+            cid: "cid",
+          }),
+        ).rejects.toThrow(NetworkError);
+      });
+
+      it("should throw ValidationError when record is not a project", async () => {
+        mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.collection/fav",
+            cid: "cid",
+            value: {
+              $type: "org.hypercerts.claim.collection",
+              type: "favorites",
+              title: "My Favorites",
+              items: [],
+              createdAt: "2024-01-01T00:00:00Z",
+            },
+          },
+        });
+
+        await expect(
+          hypercertOps.attachLocationToProject("at://did:plc:test/org.hypercerts.claim.collection/fav", {
+            uri: "at://location",
+            cid: "cid",
+          }),
+        ).rejects.toThrow(ValidationError);
+      });
+    });
+
+    describe("removeLocationFromProject", () => {
+      beforeEach(() => {
+        mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123",
+            cid: "project-cid",
+            value: {
+              $type: "org.hypercerts.claim.collection",
+              type: "project",
+              title: "Test Project",
+              items: [],
+              createdAt: "2024-01-01T00:00:00Z",
+              location: { uri: "at://location", cid: "location-cid" },
+            },
+          },
+        });
+
+        mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123", cid: "updated-cid" },
+        });
+      });
+
+      it("should remove location successfully", async () => {
+        await expect(
+          hypercertOps.removeLocationFromProject("at://did:plc:test/org.hypercerts.claim.collection/abc123"),
+        ).resolves.toBeUndefined();
+
+        expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+          expect.objectContaining({
+            record: expect.not.objectContaining({
+              location: expect.anything(),
+            }),
+          }),
+        );
+      });
+
+      it("should throw ValidationError for invalid URI format", async () => {
+        await expect(hypercertOps.removeLocationFromProject("invalid-uri")).rejects.toThrow(ValidationError);
+      });
+
+      it("should throw NetworkError when project not found", async () => {
+        mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+          success: false,
+          error: { message: "Not found" },
+        });
+
+        await expect(
+          hypercertOps.removeLocationFromProject("at://did:plc:test/org.hypercerts.claim.collection/missing"),
+        ).rejects.toThrow(NetworkError);
+      });
+
+      it("should throw ValidationError when record is not a project", async () => {
+        mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.collection/fav",
+            cid: "cid",
+            value: {
+              $type: "org.hypercerts.claim.collection",
+              type: "favorites",
+              title: "My Favorites",
+              items: [],
+              createdAt: "2024-01-01T00:00:00Z",
+              location: { uri: "at://location", cid: "location-cid" },
+            },
+          },
+        });
+
+        await expect(
+          hypercertOps.removeLocationFromProject("at://did:plc:test/org.hypercerts.claim.collection/fav"),
+        ).rejects.toThrow(ValidationError);
+      });
+    });
   });
 });
