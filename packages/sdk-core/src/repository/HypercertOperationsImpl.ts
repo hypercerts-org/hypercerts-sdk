@@ -265,7 +265,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     rightsCid: string,
     imageBlobRef: JsonBlobRef | undefined,
     locationRef: { uri: string; cid: string } | undefined,
-    contributorsData: Array<{ contributorIdentity: string; contributionDetails?: string }> | undefined,
+    contributorsData:
+      | Array<{ contributorIdentity: string; contributionDetails?: string | { uri: string; cid: string } }>
+      | undefined,
     createdAt: string,
     onProgress?: (step: ProgressStep) => void,
   ): Promise<{ uri: string; cid: string }> {
@@ -299,12 +301,18 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       hypercertRecord.descriptionFacets = params.descriptionFacets;
     }
 
-    // Add contributors if provided (embedded inline per lexicon)
+    // Add contributors if provided (inline role string or StrongRef per lexicon)
     if (contributorsData && contributorsData.length > 0) {
-      hypercertRecord.contributors = contributorsData.map((c) => ({
-        contributorIdentity: c.contributorIdentity,
-        contributionDetails: c.contributionDetails,
-      }));
+      hypercertRecord.contributors = contributorsData.map((c) => {
+        const contributor: Record<string, unknown> = {
+          contributorIdentity: c.contributorIdentity,
+        };
+        if (c.contributionDetails) {
+          // StrongRef has uri/cid, string is inline role
+          contributor.contributionDetails = c.contributionDetails;
+        }
+        return contributor;
+      });
     }
 
     const hypercertValidation = validate(hypercertRecord, HYPERCERT_COLLECTIONS.CLAIM, "main", false);
@@ -576,16 +584,50 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       result.rightsCid = rightsCid;
 
       // Step 4: Build contributors data for embedding (if provided)
-      let contributorsData: Array<{ contributorIdentity: string; contributionDetails?: string }> | undefined;
+      // Step 4: Build contributors data for embedding (if provided)
+      let contributorsData:
+        | Array<{ contributorIdentity: string; contributionDetails?: string | { uri: string; cid: string } }>
+        | undefined;
       if (params.contributions && params.contributions.length > 0) {
         // Transform SDK contributions format to lexicon format
-        // Each contribution has multiple contributors, so we expand them
-        contributorsData = params.contributions.flatMap((contrib) =>
-          contrib.contributors.map((did) => ({
+        // Handle async creation of contributionDetails records if description is provided
+        const contributorsPromises = params.contributions.map(async (contrib) => {
+          let detailsRef: string | { uri: string; cid: string } = contrib.role;
+
+          // If description is provided, create a detailed record
+          if (contrib.description) {
+            try {
+              this.emitProgress(params.onProgress, { name: "createContribution", status: "start" });
+              const result = await this.addContribution({
+                contributors: contrib.contributors, // Passed for legacy reasons/completeness
+                role: contrib.role,
+                description: contrib.description,
+              });
+              detailsRef = { uri: result.uri, cid: result.cid };
+              this.emitProgress(params.onProgress, {
+                name: "createContribution",
+                status: "success",
+                data: result,
+              });
+            } catch (error) {
+              this.emitProgress(params.onProgress, {
+                name: "createContribution",
+                status: "error",
+                error: error as Error,
+              });
+              throw error;
+            }
+          }
+
+          // Expand to one entry per contributor DID
+          return contrib.contributors.map((did) => ({
             contributorIdentity: did,
-            contributionDetails: contrib.role,
-          })),
-        );
+            contributionDetails: detailsRef,
+          }));
+        });
+
+        const nestedContributors = await Promise.all(contributorsPromises);
+        contributorsData = nestedContributors.flat();
       }
 
       // Step 5: Create hypercert record (with embedded location, rights, and contributors)
