@@ -248,7 +248,7 @@ For the current change (e.g., "Change 1: Collection Item Weights"):
    pnpm changeset
    ```
 
-   - Follow guidance from `writing-changesets` skill
+   - Use the process in the `writing-changesets` skill
    - Reference the specific feature being added
    - Use appropriate bump type
 
@@ -305,19 +305,14 @@ After ALL changes are implemented:
 
 ### Don't Hardcode Lexicon Names
 
-- ❌ `if (lexicon === "HYPERCERTS_LEXICONS") ...`
+- ❌ `if (lexicon === "HYPERCERTS_LEXICON") ...`
 - ✅ Read dynamically from the lexicons package exports
 
-### Don't Skip the CHANGELOG
+### Don't Skip Review of the CHANGELOG.md review or diffs
 
 - ❌ Immediately update without reviewing changes
 - ✅ Always check `CHANGELOG.md` first to see exactly what changed between versions
 - ✅ Then run `git diff` for additional context
-
-### Don't Skip the Diff Step
-
-- ❌ Immediately update without reviewing changes
-- ✅ Always run `git diff` to see what actually changed
 
 ### Don't Forget to Rebuild
 
