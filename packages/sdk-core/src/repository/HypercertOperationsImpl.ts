@@ -265,6 +265,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     rightsCid: string,
     imageBlobRef: JsonBlobRef | undefined,
     locationRef: { uri: string; cid: string } | undefined,
+    contributorsData: Array<{ contributorIdentity: string; contributionDetails?: string }> | undefined,
     createdAt: string,
     onProgress?: (step: ProgressStep) => void,
   ): Promise<{ uri: string; cid: string }> {
@@ -298,13 +299,21 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       hypercertRecord.descriptionFacets = params.descriptionFacets;
     }
 
+    // Add contributors if provided (embedded inline per lexicon)
+    if (contributorsData && contributorsData.length > 0) {
+      hypercertRecord.contributors = contributorsData.map((c) => ({
+        contributorIdentity: c.contributorIdentity,
+        contributionDetails: c.contributionDetails,
+      }));
+    }
+
     const hypercertValidation = validate(hypercertRecord, HYPERCERT_COLLECTIONS.CLAIM, "main", false);
     if (!hypercertValidation.success) {
       throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error?.message}`);
     }
 
     // Generate rKey from stable content hash (idempotency)
-    // Hash the complete claim record including all StrongRefs (rights, location)
+    // Hash the complete claim record including all StrongRefs and embedded data
     // These define the claim's identity per the lexicon.
     const hashInput = {
       title: params.title,
@@ -319,6 +328,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       rightsData: typeof params.rights === "object" ? params.rights : undefined,
       // Location StrongRef - part of claim identity per lexicon
       locationRef: locationRef,
+      // Contributors - part of claim identity per lexicon
+      contributors: contributorsData,
     };
 
     const contentHash = await sha256Hash(hashInput);
@@ -562,31 +573,32 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       result.rightsUri = rightsUri;
       result.rightsCid = rightsCid;
 
-      // Step 4: Create hypercert record (with embedded location and rights StrongRefs)
+      // Step 4: Build contributors data for embedding (if provided)
+      let contributorsData: Array<{ contributorIdentity: string; contributionDetails?: string }> | undefined;
+      if (params.contributions && params.contributions.length > 0) {
+        // Transform SDK contributions format to lexicon format
+        // Each contribution has multiple contributors, so we expand them
+        contributorsData = params.contributions.flatMap((contrib) =>
+          contrib.contributors.map((did) => ({
+            contributorIdentity: did,
+            contributionDetails: contrib.role,
+          })),
+        );
+      }
+
+      // Step 5: Create hypercert record (with embedded location, rights, and contributors)
       const { uri: hypercertUri, cid: hypercertCid } = await this.createHypercertRecord(
         params,
         rightsUri,
         rightsCid,
         imageBlobRef,
         locationRef,
+        contributorsData,
         createdAt,
         params.onProgress,
       );
       result.hypercertUri = hypercertUri;
       result.hypercertCid = hypercertCid;
-
-      // Step 5: Create contributions if provided
-      if (params.contributions && params.contributions.length > 0) {
-        try {
-          result.contributionUris = await this.createContributionsWithProgress(
-            hypercertUri,
-            params.contributions,
-            params.onProgress,
-          );
-        } catch {
-          // Error already logged and progress emitted
-        }
-      }
 
       // Step 6: Add evidence records if provided
       if (params.evidence && params.evidence.length > 0) {

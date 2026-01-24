@@ -230,6 +230,7 @@ describe("HypercertOperationsImpl", () => {
     });
 
     it("should create contributions when provided", async () => {
+      // Contributors are now embedded in the claim record, not created as separate records
       mockAgent.com.atproto.repo.createRecord.mockReset();
       mockAgent.com.atproto.repo.createRecord
         .mockResolvedValueOnce({
@@ -239,34 +240,21 @@ describe("HypercertOperationsImpl", () => {
         .mockResolvedValueOnce({
           success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: { uri: "at://did:plc:test/org.hypercerts.claim.contribution/contrib1", cid: "contrib-cid" },
         });
-
-      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
-        success: true,
-        data: {
-          uri: "at://did:plc:test/org.hypercerts.claim.record/def",
-          cid: "hypercert-cid",
-          value: {
-            title: "Test",
-            description: "Test",
-            workScope: createWorkScopeAll(["Climate"]),
-            startDate: "2024-01-01",
-            endDate: "2024-12-31",
-            createdAt: "2024-01-01",
-          },
-        },
-      });
 
       const result = await hypercertOps.create({
         ...validParams,
         contributions: [{ contributors: ["did:plc:contrib1"], role: "Developer" }],
       });
 
-      expect(result.contributionUris).toHaveLength(1);
+      expect(result.hypercertUri).toBeDefined();
+
+      // Verify contributors are embedded in the claim record
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(createCall.record.contributors).toBeDefined();
+      expect(createCall.record.contributors).toHaveLength(1);
+      expect(createCall.record.contributors[0].contributorIdentity).toBe("did:plc:contrib1");
+      expect(createCall.record.contributors[0].contributionDetails).toBe("Developer");
     });
 
     it("should call onProgress callback", async () => {
