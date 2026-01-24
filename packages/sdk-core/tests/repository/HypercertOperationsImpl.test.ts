@@ -197,9 +197,13 @@ describe("HypercertOperationsImpl", () => {
     });
 
     it("should attach location when provided", async () => {
-      // Reset mocks and set up for location
+      // Reset mocks and set up for location (new order: location → rights → hypercert)
       mockAgent.com.atproto.repo.createRecord.mockReset();
       mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/app.certified.location/ghi", cid: "location-cid" },
+        })
         .mockResolvedValueOnce({
           success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
@@ -207,34 +211,7 @@ describe("HypercertOperationsImpl", () => {
         .mockResolvedValueOnce({
           success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: { uri: "at://did:plc:test/app.certified.location/ghi", cid: "location-cid" },
         });
-
-      // Mock getRecord for attachLocation's internal get call
-      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
-        success: true,
-        data: {
-          uri: "at://did:plc:test/org.hypercerts.claim.record/def",
-          cid: "hypercert-cid",
-          value: {
-            title: "Test",
-            description: "Test",
-            workScope: createWorkScopeAll(["Climate"]),
-            startDate: "2024-01-01",
-            endDate: "2024-12-31",
-            createdAt: "2024-01-01",
-          },
-        },
-      });
-
-      // Mock putRecord for the update call
-      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
-        success: true,
-        data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "updated-cid" },
-      });
 
       const result = await hypercertOps.create({
         ...validParams,
