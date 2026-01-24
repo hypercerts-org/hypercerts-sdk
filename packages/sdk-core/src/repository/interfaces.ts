@@ -324,6 +324,11 @@ export interface CreateHypercertResult {
   locationUri?: string;
 
   /**
+   * CID of the location record
+   */
+  locationCid?: string;
+
+  /**
    * AT-URIs of contribution records, if contributions were provided.
    */
   contributionUris?: string[];

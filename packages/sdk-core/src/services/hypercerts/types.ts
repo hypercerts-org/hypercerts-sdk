@@ -226,6 +226,7 @@ export type CreateCollectionResult = {
   uri: string;
   cid: string;
   record: HypercertCollection;
+  locationUri?: string;
 };
 
 /**

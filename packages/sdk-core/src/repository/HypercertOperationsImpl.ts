@@ -316,14 +316,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param hypercertUri - URI of the hypercert
    * @param location - Location data
    * @param onProgress - Optional progress callback
-   * @returns Promise resolving to location URI
+   * @returns Promise resolving to location URI and CID
    * @internal
    */
   private async attachLocationWithProgress(
     hypercertUri: string,
     location: LocationParams,
     onProgress?: (step: ProgressStep) => void,
-  ): Promise<string> {
+  ): Promise<CreateResult> {
     this.emitProgress(onProgress, { name: "attachLocation", status: "start" });
     try {
       const locationResult = await this.attachLocation(hypercertUri, location);
@@ -332,7 +332,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         status: "success",
         data: { uri: locationResult.uri },
       });
-      return locationResult.uri;
+      return locationResult;
     } catch (error) {
       this.emitProgress(onProgress, { name: "attachLocation", status: "error", error: error as Error });
       this.logger?.warn(`Failed to attach location: ${error instanceof Error ? error.message : "Unknown"}`);
@@ -435,8 +435,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *
    * @remarks
    * The operation is not atomic - if a later step fails, earlier records
-   * will still exist. The result object will contain URIs for all
-   * successfully created records.
+   * will still exist. The returned record reflects the created hypercert,
+   * including location when attachment succeeds.
    *
    * **Progress Steps**:
    * - `uploadImage`: Image blob upload
@@ -520,7 +520,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // Step 4: Attach location if provided
       if (params.location) {
         try {
-          result.locationUri = await this.attachLocationWithProgress(hypercertUri, params.location, params.onProgress);
+          const { uri, cid } = await this.attachLocationWithProgress(hypercertUri, params.location, params.onProgress);
+          result.locationUri = uri;
+          result.locationCid = cid;
         } catch {
           // Error already logged and progress emitted
         }
@@ -1278,6 +1280,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   async createCollection(params: CreateCollectionParams): Promise<CreateCollectionResult> {
     const createdAt = new Date().toISOString();
 
+    let locationResult: { uri: string; cid: string } | undefined;
+
     const collectionRecord: HypercertCollection = {
       $type: HYPERCERT_COLLECTIONS.COLLECTION,
       title: params.title,
@@ -1310,7 +1314,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     }
 
     if (params.location) {
-      const locationResult = await this.resolveLocation(params.location);
+      locationResult = await this.resolveLocation(params.location);
       collectionRecord.location = locationResult;
     }
 
@@ -1333,6 +1337,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       uri: result.data.uri,
       cid: result.data.cid,
       record: collectionRecord,
+      locationUri: locationResult?.uri,
     };
     this.emit("collectionCreated", createCollectionResult);
     return createCollectionResult;
@@ -1928,6 +1933,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @returns Promise resolving to location record result
    */
   async attachLocationToProject(uri: string, location: LocationParams): Promise<CreateResult> {
+    // Validate it's actually a project
+    await this.getProject(uri);
+
     const result = await this.attachLocationToCollection(uri, location);
     this.emit("locationAttachedToProject", {
       uri: result.uri,
@@ -1943,6 +1951,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param uri - AT-URI of the project
    */
   async removeLocationFromProject(uri: string): Promise<void> {
+    // Validate it's actually a project
+    await this.getProject(uri);
+
     await this.removeLocationFromCollection(uri);
     this.emit("locationRemovedFromProject", { projectUri: uri });
   }
