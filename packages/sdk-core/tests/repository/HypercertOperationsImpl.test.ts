@@ -1382,6 +1382,12 @@ describe("HypercertOperationsImpl", () => {
           }),
         }),
       );
+
+      // Explicitly verify that itemWeight was added to both items
+      const putRecordCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      const updatedItems = putRecordCall.record.items;
+      expect(updatedItems[0]).toHaveProperty("itemWeight", "30");
+      expect(updatedItems[1]).toHaveProperty("itemWeight", "70");
     });
 
     it("should update collection removing weights from items", async () => {
