@@ -44,6 +44,7 @@ import type {
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
 import { $Typed } from "@atproto/api";
+import { sha256Hash } from "../lib/crypto.js";
 
 /**
  * Implementation of high-level hypercert operations.
@@ -288,10 +289,29 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error?.message}`);
     }
 
+    // Generate rKey from stable content hash (idempotency)
+    // We hash the user's intent (params + rights definition), not the volatile outputs (like new rights CID or createdAt)
+
+    // Destructure to remove non-hashable/redundant fields (image, onProgress)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { image, onProgress: _onProgress, ...paramsForHash } = params;
+
+    const hashInput = {
+      ...paramsForHash,
+      // Use the full image blob reference for identity (handled by stable stringify)
+      imageRecord: imageBlobRef,
+      // Ensure rights definition is part of identity, but not the new CID
+      rightsData: typeof params.rights === "object" ? params.rights : undefined,
+    };
+
+    const contentHash = await sha256Hash(hashInput);
+    const rkey = `hc2:${contentHash}`;
+
     const hypercertResult = await this.agent.com.atproto.repo.createRecord({
       repo: this.repoDid,
       collection: HYPERCERT_COLLECTIONS.CLAIM,
       record: hypercertRecord,
+      rkey,
     });
 
     if (!hypercertResult.success) {
