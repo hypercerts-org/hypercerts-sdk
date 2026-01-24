@@ -88,7 +88,51 @@ export type HypercertMeasurement = OrgHypercertsClaimMeasurement.Main;
 export type HypercertEvaluation = OrgHypercertsClaimEvaluation.Main;
 export type HypercertEvidence = OrgHypercertsClaimEvidence.Main;
 export type HypercertCollection = OrgHypercertsClaimCollection.Main;
-/** Collection item with optional weight */
+
+/**
+ * Collection item with optional weight.
+ *
+ * Represents a single item in a collection's `items` array. Each item can reference
+ * either an activity or another collection (nested collections), with an optional
+ * weight for proportional attribution.
+ *
+ * @remarks
+ * Structure (beta.7+):
+ * - `itemIdentifier` (required): StrongRef to the item (activity or collection)
+ * - `itemWeight` (optional): Positive numeric value as string for proportional weighting
+ *
+ * @example Basic item without weight
+ * ```typescript
+ * const item: HypercertCollectionItem = {
+ *   itemIdentifier: {
+ *     uri: "at://did:plc:abc123/org.hypercerts.claim.activity/xyz789",
+ *     cid: "bafyreiabc123..."
+ *   }
+ * };
+ * ```
+ *
+ * @example Item with weight for proportional attribution
+ * ```typescript
+ * const weightedItem: HypercertCollectionItem = {
+ *   itemIdentifier: {
+ *     uri: "at://did:plc:abc123/org.hypercerts.claim.activity/xyz789",
+ *     cid: "bafyreiabc123..."
+ *   },
+ *   itemWeight: "2.5"  // This activity has 2.5x weight compared to items with weight "1"
+ * };
+ * ```
+ *
+ * @example Nested collection
+ * ```typescript
+ * const nestedCollection: HypercertCollectionItem = {
+ *   itemIdentifier: {
+ *     uri: "at://did:plc:abc123/org.hypercerts.claim.collection/sub789",
+ *     cid: "bafyreiabc456..."
+ *   },
+ *   itemWeight: "1.0"
+ * };
+ * ```
+ */
 export type HypercertCollectionItem = OrgHypercertsClaimCollection.Item;
 /** Work scope tag for creating reusable scope atoms */
 export type HypercertWorkScopeTag = OrgHypercertsHelperWorkScopeTag.Main;
@@ -144,6 +188,26 @@ export type { OrgHypercertsClaimCollection as CollectionLexicon } from "@hyperce
 // SDK Input Helper Types (Derived from Lexicon)
 // ============================================================================
 
+/**
+ * Input type for collection items.
+ *
+ * Same as {@link HypercertCollectionItem} but with `$type` field optional since
+ * the SDK will automatically populate it when creating records.
+ *
+ * @example
+ * ```typescript
+ * const items: CollectionItemInput[] = [
+ *   {
+ *     itemIdentifier: { uri: "at://did:plc:abc/org.hypercerts.claim.activity/123", cid: "bafyrei..." },
+ *     itemWeight: "1.0"
+ *   },
+ *   {
+ *     itemIdentifier: { uri: "at://did:plc:abc/org.hypercerts.claim.activity/456", cid: "bafyrei..." },
+ *     itemWeight: "2.5"  // This activity weighted 2.5x more
+ *   }
+ * ];
+ * ```
+ */
 export type CollectionItemInput = SetOptional<OrgHypercertsClaimCollection.Item, "$type">;
 
 /**
