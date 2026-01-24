@@ -212,7 +212,8 @@ describe("HypercertOperationsImpl", () => {
         },
       });
 
-      expect(result.locationUri).toBe("at://did:plc:test/app.certified.location/ghi");
+      expect(result.locationUri).toEqual("at://did:plc:test/app.certified.location/ghi");
+      expect(result.locationCid).toEqual("location-cid");
     });
 
     it("should create contributions when provided", async () => {
@@ -987,6 +988,228 @@ describe("HypercertOperationsImpl", () => {
       const result = await hypercertOps.listCollections();
 
       expect(result.records).toHaveLength(1);
+    });
+  });
+
+  describe("updateCollection", () => {
+    beforeEach(() => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.collection/abc123",
+          cid: "old-cid",
+          value: {
+            $type: "org.hypercerts.collection",
+            title: "Old Title",
+            items: [],
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.collection/abc123", cid: "new-cid" },
+      });
+    });
+
+    it("should update a collection successfully", async () => {
+      const result = await hypercertOps.updateCollection("at://did:plc:test/org.hypercerts.collection/abc123", {
+        title: "New Title",
+      });
+
+      expect(result.uri).toBe("at://did:plc:test/org.hypercerts.collection/abc123");
+      expect(result.cid).toBe("new-cid");
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            title: "New Title",
+            items: [], // Preserved
+            createdAt: "2024-01-01T00:00:00Z", // Preserved
+          }),
+        }),
+      );
+    });
+
+    it("should throw ValidationError for invalid URI format", async () => {
+      await expect(hypercertOps.updateCollection("invalid-uri", { title: "New Title" })).rejects.toThrow(
+        ValidationError,
+      );
+    });
+
+    it("should throw NetworkError when collection not found", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: false,
+        error: { message: "Not found" },
+      });
+
+      await expect(
+        hypercertOps.updateCollection("at://did:plc:test/org.hypercerts.collection/missing", {
+          title: "New Title",
+        }),
+      ).rejects.toThrow(NetworkError);
+    });
+
+    it("should prevent type changes", async () => {
+      await expect(
+        hypercertOps.updateCollection("at://did:plc:test/org.hypercerts.collection/abc123", {
+          type: "project",
+        }),
+      ).rejects.toThrow(ValidationError);
+    });
+  });
+
+  describe("deleteCollection", () => {
+    it("should delete a collection successfully", async () => {
+      mockAgent.com.atproto.repo.deleteRecord.mockResolvedValue({
+        success: true,
+        data: {},
+      });
+
+      await expect(
+        hypercertOps.deleteCollection(`at://${TEST_REPO_DID}/org.hypercerts.collection/abc123`),
+      ).resolves.toBeUndefined();
+
+      expect(mockAgent.com.atproto.repo.deleteRecord).toHaveBeenCalledWith({
+        repo: TEST_REPO_DID,
+        collection: "org.hypercerts.collection",
+        rkey: "abc123",
+      });
+    });
+
+    it("should throw ValidationError for invalid URI format", async () => {
+      await expect(hypercertOps.deleteCollection("invalid-uri")).rejects.toThrow(ValidationError);
+    });
+
+    it("should throw NetworkError on delete failure", async () => {
+      mockAgent.com.atproto.repo.deleteRecord.mockResolvedValue({
+        success: false,
+        error: { message: "Delete failed" },
+      });
+
+      await expect(hypercertOps.deleteCollection("at://did:plc:test/org.hypercerts.collection/abc123")).rejects.toThrow(
+        NetworkError,
+      );
+    });
+  });
+
+  describe("attachLocationToCollection", () => {
+    beforeEach(() => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.collection/abc123",
+          cid: "collection-cid",
+          value: {
+            $type: "org.hypercerts.collection",
+            title: "Test Collection",
+            items: [],
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.collection/abc123", cid: "updated-cid" },
+      });
+    });
+
+    it("should attach location successfully", async () => {
+      const result = await hypercertOps.attachLocationToCollection(
+        `at://${TEST_REPO_DID}/org.hypercerts.collection/abc123`,
+        { uri: `at://${TEST_REPO_DID}/app.certified.location/loc123`, cid: "location-cid" },
+      );
+
+      expect(result.uri).toBe(`at://${TEST_REPO_DID}/app.certified.location/loc123`);
+      expect(result.cid).toBe("location-cid");
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            location: {
+              $type: "com.atproto.repo.strongRef",
+              uri: `at://${TEST_REPO_DID}/app.certified.location/loc123`,
+              cid: "location-cid",
+            },
+          }),
+        }),
+      );
+    });
+
+    it("should throw ValidationError for invalid URI format", async () => {
+      await expect(
+        hypercertOps.attachLocationToCollection("invalid-uri", {
+          uri: "at://location",
+          cid: "cid",
+        }),
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it("should throw NetworkError when collection not found", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: false,
+        error: { message: "Not found" },
+      });
+
+      await expect(
+        hypercertOps.attachLocationToCollection("at://did:plc:test/org.hypercerts.collection/missing", {
+          uri: "at://location",
+          cid: "cid",
+        }),
+      ).rejects.toThrow(NetworkError);
+    });
+  });
+
+  describe("removeLocationFromCollection", () => {
+    beforeEach(() => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.collection/abc123",
+          cid: "collection-cid",
+          value: {
+            $type: "org.hypercerts.collection",
+            title: "Test Collection",
+            items: [],
+            createdAt: "2024-01-01T00:00:00Z",
+            location: { uri: "at://location", cid: "location-cid" },
+          },
+        },
+      });
+
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.collection/abc123", cid: "updated-cid" },
+      });
+    });
+
+    it("should remove location successfully", async () => {
+      await expect(
+        hypercertOps.removeLocationFromCollection("at://did:plc:test/org.hypercerts.collection/abc123"),
+      ).resolves.toBeUndefined();
+
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.not.objectContaining({
+            location: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it("should throw ValidationError for invalid URI format", async () => {
+      await expect(hypercertOps.removeLocationFromCollection("invalid-uri")).rejects.toThrow(ValidationError);
+    });
+
+    it("should throw NetworkError when collection not found", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: false,
+        error: { message: "Not found" },
+      });
+
+      await expect(
+        hypercertOps.removeLocationFromCollection("at://did:plc:test/org.hypercerts.collection/missing"),
+      ).rejects.toThrow(NetworkError);
     });
   });
 
@@ -1790,7 +2013,7 @@ describe("HypercertOperationsImpl", () => {
         });
 
         await expect(
-          hypercertOps.deleteProject("at://did:plc:test/org.hypercerts.claim.collection/abc123"),
+          hypercertOps.deleteProject(`at://${TEST_REPO_DID}/org.hypercerts.claim.collection/abc123`),
         ).resolves.toBeUndefined();
 
         expect(mockAgent.com.atproto.repo.deleteRecord).toHaveBeenCalledWith({
