@@ -298,14 +298,15 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     }
 
     // Generate rKey from stable content hash (idempotency)
-    // We hash the user's intent (params + rights definition), not the volatile outputs (like new rights CID or createdAt)
-
-    // Destructure to remove non-hashable/redundant fields (image, onProgress)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { image, onProgress: _onProgress, ...paramsForHash } = params;
-
+    // Hash only the fields that end up in the claim record itself, plus image blob ref and rights data.
+    // Excludes sidecar data (location, contributions, evidence) to keep rKeys stable.
     const hashInput = {
-      ...paramsForHash,
+      title: params.title,
+      description: params.description,
+      shortDescription: params.shortDescription,
+      workScope: params.workScope,
+      startDate: params.startDate,
+      endDate: params.endDate,
       // Use the full image blob reference for identity (handled by stable stringify)
       imageRecord: imageBlobRef,
       // Ensure rights definition is part of identity, but not the new CID
