@@ -2,7 +2,7 @@
  * Crypto utilities for the SDK.
  */
 
-import { NetworkError } from "../core/errors.js";
+import { NetworkError, ValidationError } from "../core/errors.js";
 
 /**
  * Deterministically stringifies an object by sorting keys recursively.
@@ -43,10 +43,16 @@ export function stableStringify(obj: unknown): string | undefined {
  *
  * @param content - The content to hash (will be JSON serialized)
  * @returns The SHA-256 hash of the content
+ * @throws {ValidationError} If content is not serializable (e.g. undefined, function, symbol)
  */
 export async function sha256Hash(content: unknown): Promise<string> {
     // Use stable stringification to ensure deterministic output
-    const jsonString = stableStringify(content) ?? "";
+    const jsonString = stableStringify(content);
+
+    if (jsonString === undefined) {
+        throw new ValidationError(`Content illegal: not serializable (type: ${typeof content})`);
+    }
+
     const msgBuffer = new TextEncoder().encode(jsonString);
 
     if (typeof crypto !== "undefined" && crypto.subtle) {

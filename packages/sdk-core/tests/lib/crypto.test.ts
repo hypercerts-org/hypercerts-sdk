@@ -64,3 +64,19 @@ describe("stableStringify", () => {
         expect(stableStringify(obj)).toBe('{"id":1,"meta":{"info":{"x":1,"y":2},"tags":["b","a"]}}');
     });
 });
+
+import { sha256Hash } from "../../src/lib/crypto.js";
+import { ValidationError } from "../../src/core/errors.js";
+
+describe("sha256Hash", () => {
+    it("should throw ValidationError for undefined input", async () => {
+        await expect(sha256Hash(undefined)).rejects.toThrow(ValidationError);
+        await expect(sha256Hash(undefined)).rejects.toThrow(/Content illegal: not serializable/);
+    });
+
+    it("should throw ValidationError for function input", async () => {
+        const func = () => { };
+        await expect(sha256Hash(func)).rejects.toThrow(ValidationError);
+        await expect(sha256Hash(func)).rejects.toThrow(/Content illegal: not serializable/);
+    });
+});
