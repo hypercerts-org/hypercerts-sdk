@@ -153,9 +153,10 @@ Example plan structure:
 
 **SDK Tasks**:
 
-- [ ] Add/update documentation for X
-- [ ] Add type exports for Y
-- [ ] Add usage examples
+- [ ] Add/update JSDoc documentation to methods (e.g., createX(), updateX())
+- [ ] Add type exports for Y if needed
+- [ ] Add usage examples in method documentation
+- [ ] Add/update tests
 - [ ] Build and test
 - [ ] Create changeset (minor/major - reason)
 
@@ -217,15 +218,18 @@ Present this plan to the user and ask:
 
 For the current change (e.g., "Change 1: Collection Item Weights"):
 
-1. **Update documentation** in `packages/sdk-core/src/services/hypercerts/types.ts`:
-   - Add JSDoc comments for new/changed types
-   - Add usage examples
+1. **Update method documentation** - Focus on documenting the methods users will call:
+   - Add/update JSDoc comments on SDK methods (e.g., `createCollection()`, `updateCollection()`)
+   - Add usage examples in method documentation showing new features
+   - Document parameters, return values, and behavior
    - Document breaking changes if any
+   - Location: `packages/sdk-core/src/repository/HypercertOperationsImpl.ts` and interfaces
 
 2. **Add type exports** if needed:
-   - Add type aliases for new lexicon types
-   - Add helper types for SDK operations
+   - Add type aliases for new lexicon types in `packages/sdk-core/src/services/hypercerts/types.ts`
+   - Add helper types for SDK operations (CreateParams, UpdateParams, etc.)
    - Export from appropriate modules
+   - Keep type documentation minimal - let method docs do the heavy lifting
 
 3. **Update SDK code** if needed:
    - Modify operations to support new fields
@@ -325,9 +329,15 @@ The sync process focuses on making SDK changes visible and usable to developers.
 
 ### Documentation Updates
 
-1. **Type documentation** - JSDoc comments explaining new features
-2. **Usage examples** - Code snippets showing how to use new fields/types
-3. **Breaking change notes** - Clear warnings about incompatible changes
+**IMPORTANT**: Document methods, not types. Users call methods, not types.
+
+1. **Method documentation** - JSDoc comments on SDK methods explaining new features
+   - Focus on `createX()`, `updateX()`, `getX()` methods in `HypercertOperationsImpl.ts`
+   - Document parameters, return values, and behavior
+   - Add `@example` tags showing how to use new fields
+2. **Usage examples** - Code snippets in method docs showing how to use new fields/types
+3. **Breaking change notes** - Clear warnings in method docs about incompatible changes
+4. **Type documentation** - Keep minimal; types should be self-explanatory from method docs
 
 ### Type System Updates
 
