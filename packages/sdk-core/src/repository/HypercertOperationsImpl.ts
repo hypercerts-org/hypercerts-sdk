@@ -283,6 +283,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       hypercertRecord.image = imageBlobRef;
     }
 
+    if (params.shortDescriptionFacets) {
+      hypercertRecord.shortDescriptionFacets = params.shortDescriptionFacets;
+    }
+
+    if (params.descriptionFacets) {
+      hypercertRecord.descriptionFacets = params.descriptionFacets;
+    }
+
     const hypercertValidation = validate(hypercertRecord, HYPERCERT_COLLECTIONS.CLAIM, "main", false);
     if (!hypercertValidation.success) {
       throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error?.message}`);

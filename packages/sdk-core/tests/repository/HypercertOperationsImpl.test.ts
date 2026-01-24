@@ -110,6 +110,42 @@ describe("HypercertOperationsImpl", () => {
       expect(hypercertCall.record.shortDescription).toBe("Short desc");
     });
 
+    it("should include rich text facets when provided", async () => {
+      const shortDescriptionFacets = [
+        {
+          index: { byteStart: 13, byteEnd: 19 },
+          features: [{ $type: "app.bsky.richtext.facet#mention", did: "did:plc:alice123" }],
+        },
+      ];
+
+      const descriptionFacets = [
+        {
+          index: { byteStart: 6, byteEnd: 33 },
+          features: [{ $type: "app.bsky.richtext.facet#link", uri: "https://example.com/cleanup" }],
+        },
+      ];
+
+      await hypercertOps.create({
+        ...validParams,
+        shortDescription: "Organized by @alice",
+        shortDescriptionFacets,
+        description: "Visit https://example.com/cleanup for details",
+        descriptionFacets,
+      });
+
+      const hypercertCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(hypercertCall.record.shortDescriptionFacets).toEqual(shortDescriptionFacets);
+      expect(hypercertCall.record.descriptionFacets).toEqual(descriptionFacets);
+    });
+
+    it("should create hypercert without facets when not provided", async () => {
+      await hypercertOps.create(validParams);
+
+      const hypercertCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(hypercertCall.record.shortDescriptionFacets).toBeUndefined();
+      expect(hypercertCall.record.descriptionFacets).toBeUndefined();
+    });
+
     it("should create evidence records when provided", async () => {
       const evidence = [
         {

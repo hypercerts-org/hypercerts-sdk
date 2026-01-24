@@ -78,7 +78,69 @@ import type {
 // ============================================================================
 
 export type StrongRef = ComAtprotoRepoStrongRef.Main;
+
+/**
+ * Hypercert claim (activity) record.
+ *
+ * Represents a single hypercert activity with metadata including descriptions,
+ * time periods, work scope, contributors, and optional rich text annotations.
+ *
+ * @remarks
+ * **Rich Text Facets (beta.7+):**
+ * - `shortDescriptionFacets` - Annotations for the short description text
+ * - `descriptionFacets` - Annotations for the full description text
+ *
+ * Facets enable rich text features like mentions (@user), URLs, hashtags (#tag),
+ * and other inline annotations. Each facet specifies:
+ * - `index`: Byte range in the UTF-8 encoded text (byteStart, byteEnd)
+ * - `features`: Array of feature objects (mention, link, tag, etc.)
+ *
+ * @example Basic claim without facets
+ * ```typescript
+ * const claim: HypercertClaim = {
+ *   $type: "org.hypercerts.claim.activity",
+ *   createdAt: new Date().toISOString(),
+ *   shortDescription: "Community cleanup project",
+ *   description: "Monthly beach cleanup initiative",
+ *   startDate: "2024-01-01T00:00:00Z",
+ *   endDate: "2024-12-31T23:59:59Z",
+ *   // ... other fields
+ * };
+ * ```
+ *
+ * @example Claim with rich text facets
+ * ```typescript
+ * const claimWithFacets: HypercertClaim = {
+ *   $type: "org.hypercerts.claim.activity",
+ *   createdAt: new Date().toISOString(),
+ *   shortDescription: "Organized by @alice for #sustainability",
+ *   shortDescriptionFacets: [
+ *     {
+ *       index: { byteStart: 13, byteEnd: 19 },  // "@alice"
+ *       features: [{ $type: "app.bsky.richtext.facet#mention", did: "did:plc:alice123" }]
+ *     },
+ *     {
+ *       index: { byteStart: 24, byteEnd: 39 },  // "#sustainability"
+ *       features: [{ $type: "app.bsky.richtext.facet#tag", tag: "sustainability" }]
+ *     }
+ *   ],
+ *   description: "Visit https://example.com/cleanup for more info",
+ *   descriptionFacets: [
+ *     {
+ *       index: { byteStart: 6, byteEnd: 33 },  // URL
+ *       features: [{ $type: "app.bsky.richtext.facet#link", uri: "https://example.com/cleanup" }]
+ *     }
+ *   ],
+ *   startDate: "2024-01-01T00:00:00Z",
+ *   endDate: "2024-12-31T23:59:59Z",
+ *   // ... other fields
+ * };
+ * ```
+ *
+ * @see {@link https://atproto.com/specs/record-key#record-key-type|AT Protocol Facets}
+ */
 export type HypercertClaim = OrgHypercertsClaimActivity.Main;
+
 export type HypercertRights = OrgHypercertsClaimRights.Main;
 export type HypercertContributionDetails = OrgHypercertsClaimContributionDetails.Main;
 export type HypercertContributorInformation = OrgHypercertsClaimContributorInformation.Main;
