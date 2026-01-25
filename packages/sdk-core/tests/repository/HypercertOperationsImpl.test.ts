@@ -547,7 +547,18 @@ describe("HypercertOperationsImpl", () => {
         $type: "org.hypercerts.defs#uri",
         uri: "https://example.com/location",
       });
+
+      // Verify hypercert update used locations array
+      const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updatedRecord = putCall.record as any;
+      expect(updatedRecord.location).toBeUndefined();
+      expect(updatedRecord.locations).toBeDefined();
+
+      expect(updatedRecord.locations).toHaveLength(1);
+      expect(updatedRecord.locations[0].uri).toBe(result.uri);
     });
+
     it("should attach a location using a GeoJSON Blob", async () => {
       const hypercertUri = "at://did:plc:test/org.hypercerts.claim.record/abc";
       const blob = new Blob([JSON.stringify({ type: "Point", coordinates: [0, 0] })], {
@@ -581,6 +592,16 @@ describe("HypercertOperationsImpl", () => {
           size: 100,
         },
       });
+
+      // Verify hypercert update used locations array
+      const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updatedRecord = putCall.record as any;
+      expect(updatedRecord.location).toBeUndefined();
+      expect(updatedRecord.locations).toBeDefined();
+
+      expect(updatedRecord.locations).toHaveLength(1);
+      expect(updatedRecord.locations[0].uri).toBe(result.uri);
     });
   });
 
