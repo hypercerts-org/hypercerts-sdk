@@ -271,6 +271,13 @@ export interface CreateHypercertParams {
      * @example "1", "1", "1" - all contributors weighted equally
      */
     weight?: string;
+
+    /**
+     * Optional StrongRef to an existing contributionDetails record.
+     * If provided, this is used directly instead of creating a new record
+     * or using the role string. Takes precedence over role/description.
+     */
+    contributionDetailsRef?: { uri: string; cid: string };
   }>;
 
   /**

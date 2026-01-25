@@ -1173,6 +1173,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           role: string;
           description?: string;
           weight?: string;
+          contributionDetailsRef?: { uri: string; cid: string };
           props?: Record<string, unknown>;
         }>
       | undefined,
@@ -1188,10 +1189,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     if (!contributions || contributions.length === 0) return undefined;
 
     const contributorsPromises = contributions.map(async (contrib) => {
-      let detailsRef: string | { uri: string; cid: string } = contrib.role;
+      let detailsRef: string | { uri: string; cid: string };
 
-      // If description is provided, create a detailed record
-      if (contrib.description) {
+      // Priority: contributionDetailsRef > description (creates record) > role (inline string)
+      if (contrib.contributionDetailsRef) {
+        // Use existing StrongRef directly
+        detailsRef = contrib.contributionDetailsRef;
+      } else if (contrib.description) {
+        // Create a detailed record
         try {
           this.emitProgress(onProgress, { name: "createContribution", status: "start" });
           const result = await this.addContribution({
@@ -1213,6 +1218,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           });
           throw error;
         }
+      } else {
+        // Use role as inline string
+        detailsRef = contrib.role;
       }
 
       // Expand to one entry per contributor (DID string or StrongRef)

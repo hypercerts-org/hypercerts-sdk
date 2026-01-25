@@ -478,6 +478,33 @@ describe("HypercertOperationsImpl", () => {
       expect(createCall.record.contributors[1].contributorIdentity).toEqual(contributorRef);
     });
 
+    it("should use contributionDetailsRef directly when provided", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockReset();
+      mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+        });
+
+      const detailsRef = {
+        uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/existing",
+        cid: "existing-cid",
+      };
+      await hypercertOps.create({
+        ...validParams,
+        contributions: [{ contributors: ["did:plc:contrib1"], role: "Developer", contributionDetailsRef: detailsRef }],
+      });
+
+      // Should only create rights + hypercert, NOT contributionDetails (since ref was provided)
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledTimes(2);
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(createCall.record.contributors[0].contributionDetails).toEqual(detailsRef);
+    });
+
     it("should call onProgress callback", async () => {
       const onProgress = vi.fn();
 
