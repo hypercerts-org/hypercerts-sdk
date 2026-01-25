@@ -259,11 +259,13 @@ export interface CreateHypercertParams {
     description?: string;
 
     /**
-     * Relative weight/importance of this contribution.
+     * Relative weight of this contribution compared to others.
+     * Weights are proportional - if three contributors have weights 1, 1, 2,
+     * the third has double the weight of the first two.
      * Stored as string to avoid float precision issues.
-     * Weights do not need to sum to a specific total.
      *
-     * @example "1.0", "0.5", "100"
+     * @example "1", "1", "2" - third contributor has double weight
+     * @example "1", "1", "1" - all contributors weighted equally
      */
     weight?: string;
   }>;
