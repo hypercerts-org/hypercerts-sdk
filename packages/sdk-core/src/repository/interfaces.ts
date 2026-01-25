@@ -51,9 +51,10 @@ export type { LocationParams };
  * const params: CreateHypercertParams = {
  *   title: "Community Garden Project",
  *   description: "Established a 1-acre community garden serving 50 families",
+ *   shortDescription: "1-acre community garden",
  *   workScope: "Food Security",
- *   workTimeframeFrom: "2024-01-01",
- *   workTimeframeTo: "2024-06-30",
+ *   startDate: "2024-01-01",
+ *   endDate: "2024-06-30",
  *   rights: {
  *     name: "Attribution",
  *     type: "license",
@@ -69,19 +70,21 @@ export type { LocationParams };
  *   description: "Planted 10,000 trees in deforested areas",
  *   shortDescription: "10K trees planted",
  *   workScope: "Environmental Restoration",
- *   workTimeframeFrom: "2024-01-01",
- *   workTimeframeTo: "2024-12-31",
+ *   startDate: "2024-01-01",
+ *   endDate: "2024-12-31",
  *   rights: {
  *     name: "Open Impact",
  *     type: "impact-rights",
  *     description: "Transferable impact rights",
  *   },
  *   image: coverImageBlob,
- *   location: {
- *     value: "Amazon Rainforest, Brazil",
- *     name: "Amazon Basin",
- *     description: "Southern Amazon region",
- *   },
+ *   locations: [
+ *     {
+ *       value: "Amazon Rainforest, Brazil",
+ *       name: "Amazon Basin",
+ *       description: "Southern Amazon region",
+ *     },
+ *   ],
  *   contributions: [
  *     {
  *       contributors: ["did:plc:lead-org"],
@@ -225,9 +228,12 @@ export interface CreateHypercertParams {
   image?: Blob;
 
   /**
-   * Optional geographic location of the impact.
+   * Optional geographic locations of the impact.
+   *
+   * Can provide multiple locations for activities spanning multiple places.
+   * Each location can be a StrongRef, string URI, or location object.
    */
-  location?: LocationParams;
+  locations?: LocationParams[];
 
   /**
    * Optional list of contributions to the impact.
@@ -356,14 +362,14 @@ export interface CreateHypercertResult {
   rightsCid: string;
 
   /**
-   * AT-URI of the location record, if location was provided.
+   * AT-URIs of location records, if locations were provided.
    */
-  locationUri?: string;
+  locationUris?: string[];
 
   /**
-   * CID of the location record
+   * CIDs of location records, if locations were provided.
    */
-  locationCid?: string;
+  locationCids?: string[];
 
   /**
    * AT-URIs of contribution records, if contributions were provided.

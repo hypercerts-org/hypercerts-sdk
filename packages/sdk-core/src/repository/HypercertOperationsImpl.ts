@@ -252,7 +252,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param rightsUri - URI of the associated rights record
    * @param rightsCid - CID of the associated rights record
    * @param imageBlobRef - Optional image blob reference
-   * @param locationRef - Optional strong reference to the associated location record
+   * @param locationRefs - Optional array of strong references to the associated location records
    * @param contributorsData - Optional array of contributor data (inline or StrongRef) to embed in the claim
    * @param createdAt - ISO timestamp for creation
    * @param onProgress - Optional progress callback
@@ -266,7 +266,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     rightsUri: string,
     rightsCid: string,
     imageBlobRef: JsonBlobRef | undefined,
-    locationRef: { uri: string; cid: string } | undefined,
+    locationRefs: Array<{ uri: string; cid: string }> | undefined,
     contributorsData:
       | Array<{ contributorIdentity: string; contributionDetails?: string | { uri: string; cid: string } }>
       | undefined,
@@ -290,9 +290,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       hypercertRecord.image = imageBlobRef;
     }
 
-    // Add location as embedded StrongRef if provided
-    if (locationRef) {
-      hypercertRecord.locations = [{ uri: locationRef.uri, cid: locationRef.cid }];
+    // Add locations as embedded StrongRefs if provided
+    if (locationRefs && locationRefs.length > 0) {
+      hypercertRecord.locations = locationRefs.map((ref) => ({ uri: ref.uri, cid: ref.cid }));
     }
 
     if (params.shortDescriptionFacets) {
@@ -349,8 +349,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         type: params.rights.type,
         description: params.rights.description,
       },
-      // Location: use resolved StrongRef (uri+cid), not raw params which may be Blob
-      locationRef: locationRef ? { uri: locationRef.uri, cid: locationRef.cid } : undefined,
+      // Locations: use resolved StrongRefs (uri+cid), not raw params which may be Blob
+      locationRefs: locationRefs?.map((ref) => ({ uri: ref.uri, cid: ref.cid })),
       // Contributors: use already-processed canonical format from processContributors()
       contributors: contributorsData,
     };
@@ -522,9 +522,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * const result = await repo.hypercerts.create({
    *   title: "My Impact",
    *   description: "Description of impact work",
+   *   shortDescription: "Impact work",
    *   workScope: "Education",
-   *   workTimeframeFrom: "2024-01-01",
-   *   workTimeframeTo: "2024-06-30",
+   *   startDate: "2024-01-01",
+   *   endDate: "2024-06-30",
    *   rights: {
    *     name: "Attribution",
    *     type: "license",
@@ -540,11 +541,11 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *   description: "Planted 10,000 trees...",
    *   shortDescription: "10K trees planted",
    *   workScope: "Environment",
-   *   workTimeframeFrom: "2024-01-01",
-   *   workTimeframeTo: "2024-12-31",
+   *   startDate: "2024-01-01",
+   *   endDate: "2024-12-31",
    *   rights: { name: "Open", type: "impact", description: "..." },
    *   image: coverImageBlob,
-   *   location: { value: "Amazon, Brazil", name: "Amazon Basin" },
+   *   locations: [{ value: "Amazon, Brazil", name: "Amazon Basin" }],
    *   contributions: [
    *     { contributors: ["did:plc:org1"], role: "coordinator" },
    *     { contributors: ["did:plc:org2"], role: "implementer" },
@@ -567,12 +568,12 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // Step 1: Upload image if provided
       const imageBlobRef = params.image ? await this.uploadImageBlob(params.image, params.onProgress) : undefined;
 
-      // Step 2: Create location record if provided (must be before hypercert)
-      // If location is provided, it must succeed - failing silently would change the rKey on retries
-      const locationRef = await this.processLocation(params.location, params.onProgress);
-      if (locationRef) {
-        result.locationUri = locationRef.uri;
-        result.locationCid = locationRef.cid;
+      // Step 2: Create location records if provided (must be before hypercert)
+      // If locations are provided, they must succeed - failing silently would change the rKey on retries
+      const locationRefs = await this.processLocations(params.locations, params.onProgress);
+      if (locationRefs && locationRefs.length > 0) {
+        result.locationUris = locationRefs.map((ref) => ref.uri);
+        result.locationCids = locationRefs.map((ref) => ref.cid);
       }
 
       // Step 3: Create rights record
@@ -587,13 +588,13 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // Step 4: Build contributors data for embedding (if provided)
       const contributorsData = await this.processContributors(params.contributions, params.onProgress);
 
-      // Step 5: Create hypercert record (with embedded location, rights, and contributors)
+      // Step 5: Create hypercert record (with embedded locations, rights, and contributors)
       const { uri: hypercertUri, cid: hypercertCid } = await this.createHypercertRecord(
         params,
         rightsUri,
         rightsCid,
         imageBlobRef,
-        locationRef,
+        locationRefs,
         contributorsData,
         createdAt,
         params.onProgress,
@@ -914,18 +915,25 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async attachLocation(hypercertUri: string, location: LocationParams): Promise<CreateResult> {
     try {
-      // Validate that hypercert exists (unused but confirms hypercert is valid)
-      await this.get(hypercertUri);
+      // Get existing hypercert to preserve current locations
+      const existing = await this.get(hypercertUri);
       const resolvedLocation = await this.resolveLocation(location);
+
+      // Build new locations array: existing + new location
+      const existingLocations = existing.record.locations || [];
+      const newLocations = [
+        ...existingLocations,
+        {
+          $type: "com.atproto.repo.strongRef",
+          uri: resolvedLocation.uri,
+          cid: resolvedLocation.cid,
+        } as StrongRef,
+      ];
 
       await this.update({
         uri: hypercertUri,
         updates: {
-          location: {
-            $type: "com.atproto.repo.strongRef",
-            uri: resolvedLocation.uri,
-            cid: resolvedLocation.cid,
-          },
+          locations: newLocations,
         },
       });
 
@@ -1108,28 +1116,28 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Processes location parameters, creating a location record if necessary.
+   * Processes location parameters, creating location records if necessary.
    *
-   * @param locationParams - Location parameters from create request
+   * @param locationParams - Location parameters array from create request
    * @param onProgress - Optional progress callback
-   * @returns Promise resolving to location StrongRef or undefined
+   * @returns Promise resolving to array of location StrongRefs or undefined
    * @internal
    */
-  private async processLocation(
-    locationParams: LocationParams | undefined,
+  private async processLocations(
+    locationParams: LocationParams[] | undefined,
     onProgress?: (step: ProgressStep) => void,
-  ): Promise<{ uri: string; cid: string } | undefined> {
-    if (!locationParams) return undefined;
+  ): Promise<Array<{ uri: string; cid: string }> | undefined> {
+    if (!locationParams || locationParams.length === 0) return undefined;
 
     try {
       this.emitProgress(onProgress, { name: "createLocation", status: "start" });
-      const locationRef = await this.resolveLocation(locationParams);
+      const locationRefs = await Promise.all(locationParams.map((loc) => this.resolveLocation(loc)));
       this.emitProgress(onProgress, {
         name: "createLocation",
         status: "success",
-        data: { uri: locationRef.uri },
+        data: { count: locationRefs.length },
       });
-      return locationRef;
+      return locationRefs;
     } catch (error) {
       this.emitProgress(onProgress, { name: "createLocation", status: "error", error: error as Error });
       this.logger?.warn(`Failed to create location: ${error instanceof Error ? error.message : "Unknown"}`);

@@ -215,18 +215,80 @@ describe("HypercertOperationsImpl", () => {
 
       const result = await hypercertOps.create({
         ...validParams,
-        location: {
-          lpVersion: "1.0.0",
-          srs: "EPSG:4326",
-          locationType: "coordinate-decimal",
-          location: "https://example.com/location",
-          name: "Test Location",
-          description: "A test location",
-        },
+        locations: [
+          {
+            lpVersion: "1.0.0",
+            srs: "EPSG:4326",
+            locationType: "coordinate-decimal",
+            location: "https://example.com/location",
+            name: "Test Location",
+            description: "A test location",
+          },
+        ],
       });
 
-      expect(result.locationUri).toEqual("at://did:plc:test/app.certified.location/ghi");
-      expect(result.locationCid).toEqual("location-cid");
+      expect(result.locationUris).toEqual(["at://did:plc:test/app.certified.location/ghi"]);
+      expect(result.locationCids).toEqual(["location-cid"]);
+    });
+
+    it("should attach multiple locations when provided", async () => {
+      // Reset mocks and set up for multiple locations (location1 → location2 → rights → hypercert)
+      mockAgent.com.atproto.repo.createRecord.mockReset();
+      mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/app.certified.location/loc1", cid: "location-cid-1" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/app.certified.location/loc2", cid: "location-cid-2" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+        });
+
+      const result = await hypercertOps.create({
+        ...validParams,
+        locations: [
+          {
+            lpVersion: "1.0.0",
+            srs: "EPSG:4326",
+            locationType: "coordinate-decimal",
+            location: "https://example.com/location1",
+            name: "Location 1",
+          },
+          {
+            lpVersion: "1.0.0",
+            srs: "EPSG:4326",
+            locationType: "coordinate-decimal",
+            location: "https://example.com/location2",
+            name: "Location 2",
+          },
+        ],
+      });
+
+      expect(result.locationUris).toEqual([
+        "at://did:plc:test/app.certified.location/loc1",
+        "at://did:plc:test/app.certified.location/loc2",
+      ]);
+      expect(result.locationCids).toEqual(["location-cid-1", "location-cid-2"]);
+
+      // Verify the hypercert record has both locations embedded
+      const hypercertCall = mockAgent.com.atproto.repo.createRecord.mock.calls[3][0];
+      expect(hypercertCall.record.locations).toHaveLength(2);
+      expect(hypercertCall.record.locations[0]).toEqual({
+        uri: "at://did:plc:test/app.certified.location/loc1",
+        cid: "location-cid-1",
+      });
+      expect(hypercertCall.record.locations[1]).toEqual({
+        uri: "at://did:plc:test/app.certified.location/loc2",
+        cid: "location-cid-2",
+      });
     });
 
     it("should create contributions when provided", async () => {
