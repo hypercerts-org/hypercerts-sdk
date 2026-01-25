@@ -84,6 +84,12 @@ export interface CreateContributionDetailsParams {
  */
 export type ContributionDetailsParams = string | { uri: string; cid: string } | CreateContributionDetailsParams;
 
+/**
+ * Resolved contribution details (after processing).
+ * CreateContributionDetailsParams is converted to a StrongRef.
+ */
+export type ResolvedContributionDetails = string | { uri: string; cid: string };
+
 // ============================================================================
 // Hypercert Operation Types
 // ============================================================================

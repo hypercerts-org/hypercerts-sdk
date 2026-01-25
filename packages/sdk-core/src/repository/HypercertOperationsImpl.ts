@@ -42,6 +42,7 @@ import type {
   HypercertEvents,
   HypercertOperations,
   ContributionDetailsParams,
+  ResolvedContributionDetails,
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
 import { $Typed } from "@atproto/api";
@@ -272,7 +273,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       | Array<{
           contributorIdentity: string | { uri: string; cid: string };
           contributionWeight?: string;
-          contributionDetails?: string | { uri: string; cid: string };
+          contributionDetails?: ResolvedContributionDetails;
         }>
       | undefined,
     createdAt: string,
@@ -1180,14 +1181,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     | Array<{
         contributorIdentity: string | { uri: string; cid: string };
         contributionWeight?: string;
-        contributionDetails?: string | { uri: string; cid: string };
+        contributionDetails?: ResolvedContributionDetails;
       }>
     | undefined
   > {
     if (!contributions || contributions.length === 0) return undefined;
 
     const contributorsPromises = contributions.map(async (contrib) => {
-      let detailsRef: string | { uri: string; cid: string };
+      let detailsRef: ResolvedContributionDetails;
       const details = contrib.contributionDetails;
 
       // Determine the type of contributionDetails
