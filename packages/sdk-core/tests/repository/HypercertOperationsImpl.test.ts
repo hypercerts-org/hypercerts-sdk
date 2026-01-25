@@ -505,6 +505,40 @@ describe("HypercertOperationsImpl", () => {
       expect(createCall.record.contributors[0].contributionDetails).toEqual(detailsRef);
     });
 
+    it("should pass through extra properties to contributionDetails record", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockReset();
+      mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+        });
+
+      await hypercertOps.create({
+        ...validParams,
+        contributions: [
+          {
+            contributors: ["did:plc:contrib1"],
+            role: "Developer",
+            description: "Backend work",
+            customField: "custom value",
+            anotherProp: 123,
+          },
+        ],
+      });
+
+      const detailsCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(detailsCall.record.customField).toBe("custom value");
+      expect(detailsCall.record.anotherProp).toBe(123);
+    });
+
     it("should include startDate and endDate in contributionDetails record", async () => {
       mockAgent.com.atproto.repo.createRecord.mockReset();
       mockAgent.com.atproto.repo.createRecord

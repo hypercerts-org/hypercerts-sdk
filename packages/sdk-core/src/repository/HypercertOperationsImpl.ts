@@ -1201,12 +1201,24 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         // Create a detailed record
         try {
           this.emitProgress(onProgress, { name: "createContribution", status: "start" });
+          // Extract known fields, pass rest as extra props
+          const {
+            contributors,
+            role,
+            description,
+            weight: _weight,
+            contributionDetailsRef: _ref,
+            startDate,
+            endDate,
+            ...extraProps
+          } = contrib;
           const result = await this.addContribution({
-            contributors: contrib.contributors.filter((c): c is string => typeof c === "string"),
-            role: contrib.role,
-            description: contrib.description,
-            startDate: contrib.startDate,
-            endDate: contrib.endDate,
+            contributors: contributors.filter((c): c is string => typeof c === "string"),
+            role,
+            description,
+            startDate,
+            endDate,
+            ...extraProps,
           });
           detailsRef = { uri: result.uri, cid: result.cid };
           this.emitProgress(onProgress, {
@@ -1270,21 +1282,33 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async addContribution(params: {
     hypercertUri?: string;
-    contributors: string[];
+    contributors?: string[];
     role: string;
     description?: string;
     startDate?: string;
     endDate?: string;
+    [key: string]: unknown;
   }): Promise<CreateResult> {
     try {
       const createdAt = new Date().toISOString();
+      // Extract known fields, spread the rest
+      const {
+        hypercertUri: _hypercertUri,
+        contributors: _contributors,
+        role,
+        description,
+        startDate,
+        endDate,
+        ...extraProps
+      } = params;
       const contributionRecord: HypercertContributionDetails = {
         $type: HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
-        role: params.role,
+        role,
         createdAt,
-        contributionDescription: params.description,
-        startDate: params.startDate,
-        endDate: params.endDate,
+        contributionDescription: description,
+        startDate,
+        endDate,
+        ...extraProps,
       };
 
       const validation = validate(contributionRecord, HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS, "main", false);

@@ -292,6 +292,12 @@ export interface CreateHypercertParams {
      * ISO 8601 datetime format.
      */
     endDate?: string;
+
+    /**
+     * Additional properties to include in the contributionDetails record.
+     * Any extra fields are passed through when creating the record.
+     */
+    [key: string]: unknown;
   }>;
 
   /**
