@@ -3,7 +3,8 @@ import { validate } from "@hypercerts-org/lexicon";
 import { HypercertOperationsImpl } from "../../src/repository/HypercertOperationsImpl.js";
 import { ValidationError } from "../../src/core/errors.js";
 import type { Agent } from "@atproto/api";
-import { createMockAgent, TEST_REPO_DID, TEST_PDS_URL } from "../utils/mocks.js";
+import type { BlobOperations } from "../../src/repository/interfaces.js";
+import { createMockAgent, createMockBlobOperations, TEST_REPO_DID } from "../utils/mocks.js";
 
 /**
  * Create a simple string work scope for testing.
@@ -24,11 +25,17 @@ vi.mock("@hypercerts-org/lexicon", async (importOriginal) => {
 
 describe("HypercertOperationsImpl validation", () => {
   let mockAgent: ReturnType<typeof createMockAgent>;
+  let mockBlobs: ReturnType<typeof createMockBlobOperations>;
   let hypercertOps: HypercertOperationsImpl;
 
   beforeEach(() => {
     mockAgent = createMockAgent(vi);
-    hypercertOps = new HypercertOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL);
+    mockBlobs = createMockBlobOperations(vi);
+    hypercertOps = new HypercertOperationsImpl(
+      mockAgent as unknown as Agent,
+      TEST_REPO_DID,
+      mockBlobs as BlobOperations,
+    );
     vi.clearAllMocks();
   });
 
