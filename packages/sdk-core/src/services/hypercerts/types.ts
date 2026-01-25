@@ -137,7 +137,7 @@ export type StrongRef = ComAtprotoRepoStrongRef.Main;
  * };
  * ```
  *
- * @see {@link https://atproto.com/specs/record-key#record-key-type|AT Protocol Facets}
+ * @see {@link https://atproto.com/specs/richtext#facets|AT Protocol Rich Text Facets}
  */
 export type HypercertClaim = OrgHypercertsClaimActivity.Main;
 
