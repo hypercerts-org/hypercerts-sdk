@@ -257,6 +257,15 @@ export interface CreateHypercertParams {
      * Description of the contribution.
      */
     description?: string;
+
+    /**
+     * Relative weight/importance of this contribution.
+     * Stored as string to avoid float precision issues.
+     * Weights do not need to sum to a specific total.
+     *
+     * @example "1.0", "0.5", "100"
+     */
+    weight?: string;
   }>;
 
   /**

@@ -268,7 +268,11 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     imageBlobRef: JsonBlobRef | undefined,
     locationRefs: Array<{ uri: string; cid: string }> | undefined,
     contributorsData:
-      | Array<{ contributorIdentity: string; contributionDetails?: string | { uri: string; cid: string } }>
+      | Array<{
+          contributorIdentity: string;
+          contributionWeight?: string;
+          contributionDetails?: string | { uri: string; cid: string };
+        }>
       | undefined,
     createdAt: string,
     onProgress?: (step: ProgressStep) => void,
@@ -309,6 +313,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         const contributor: Record<string, unknown> = {
           contributorIdentity: c.contributorIdentity,
         };
+        if (c.contributionWeight) {
+          contributor.contributionWeight = c.contributionWeight;
+        }
         if (c.contributionDetails) {
           // StrongRef has uri/cid, string is inline role
           contributor.contributionDetails = c.contributionDetails;
@@ -422,7 +429,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   private async createContributionsWithProgress(
     hypercertUri: string,
-    contributions: Array<{ contributors: string[]; role: string; description?: string }>,
+    contributions: Array<{ contributors: string[]; role: string; description?: string; weight?: string }>,
     onProgress?: (step: ProgressStep) => void,
   ): Promise<string[]> {
     this.emitProgress(onProgress, { name: "createContributions", status: "start" });
@@ -1156,11 +1163,22 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   private async processContributors(
     contributions:
-      | Array<{ contributors: string[]; role: string; description?: string; props?: Record<string, unknown> }>
+      | Array<{
+          contributors: string[];
+          role: string;
+          description?: string;
+          weight?: string;
+          props?: Record<string, unknown>;
+        }>
       | undefined,
     onProgress?: (step: ProgressStep) => void,
   ): Promise<
-    Array<{ contributorIdentity: string; contributionDetails?: string | { uri: string; cid: string } }> | undefined
+    | Array<{
+        contributorIdentity: string;
+        contributionWeight?: string;
+        contributionDetails?: string | { uri: string; cid: string };
+      }>
+    | undefined
   > {
     if (!contributions || contributions.length === 0) return undefined;
 
@@ -1195,6 +1213,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // Expand to one entry per contributor DID
       return contrib.contributors.map((did) => ({
         contributorIdentity: did,
+        contributionWeight: contrib.weight,
         contributionDetails: detailsRef,
       }));
     });

@@ -358,6 +358,80 @@ describe("HypercertOperationsImpl", () => {
       });
     });
 
+    it("should embed contributionWeight when provided", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockReset();
+      mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+        });
+
+      await hypercertOps.create({
+        ...validParams,
+        contributions: [{ contributors: ["did:plc:contrib1"], role: "Developer", weight: "0.75" }],
+      });
+
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(createCall.record.contributors[0].contributionWeight).toBe("0.75");
+      expect(createCall.record.contributors[0].contributionDetails).toBe("Developer");
+    });
+
+    it("should omit contributionWeight when not provided", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockReset();
+      mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+        });
+
+      await hypercertOps.create({
+        ...validParams,
+        contributions: [{ contributors: ["did:plc:contrib1"], role: "Developer" }],
+      });
+
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(createCall.record.contributors[0].contributionWeight).toBeUndefined();
+    });
+
+    it("should handle contributionWeight with description (StrongRef)", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockReset();
+      mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+        });
+
+      await hypercertOps.create({
+        ...validParams,
+        contributions: [
+          { contributors: ["did:plc:contrib1"], role: "Developer", description: "Backend work", weight: "1.5" },
+        ],
+      });
+
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
+      expect(createCall.record.contributors[0].contributionWeight).toBe("1.5");
+      expect(createCall.record.contributors[0].contributionDetails).toEqual({
+        uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz",
+        cid: "details-cid",
+      });
+    });
+
     it("should call onProgress callback", async () => {
       const onProgress = vi.fn();
 
