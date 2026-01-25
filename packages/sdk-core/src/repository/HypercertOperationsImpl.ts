@@ -906,26 +906,68 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async attachLocation(hypercertUri: string, location: LocationParams): Promise<CreateResult> {
     try {
-      // Validate that hypercert exists (unused but confirms hypercert is valid)
-      await this.get(hypercertUri);
+      // Validate that hypercert exists and get current record
+      const { record } = await this.get(hypercertUri);
+
+      const uriMatch = hypercertUri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
+      if (!uriMatch) {
+        throw new ValidationError(`Invalid URI format: ${hypercertUri}`);
+      }
+      const [, , collection, rkey] = uriMatch;
+
       const resolvedLocation = await this.resolveLocation(location);
 
-      await this.update({
-        uri: hypercertUri,
-        updates: {
-          location: {
-            $type: "com.atproto.repo.strongRef",
-            uri: resolvedLocation.uri,
-            cid: resolvedLocation.cid,
-          },
-        },
+      // Handle migration: preserve existing locations and migrate legacy 'location'
+      // Use 'any' cast as types might not yet reflect the schema change
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const existingLocations: StrongRef[] = (record as any).locations ? [...(record as any).locations] : [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const legacyLocation = (record as any).location;
+
+      if (legacyLocation) {
+        existingLocations.unshift(legacyLocation);
+      }
+
+      existingLocations.push({
+        $type: "com.atproto.repo.strongRef",
+        uri: resolvedLocation.uri,
+        cid: resolvedLocation.cid,
       });
+
+      const recordForUpdate: Record<string, unknown> = {
+        ...record,
+        locations: existingLocations,
+        createdAt: record.createdAt,
+      };
+
+      // Delete legacy location field so the payload is valid against new schema
+      delete recordForUpdate.location;
+
+      const validation = validate(recordForUpdate, collection, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid hypercert record: ${validation.error?.message}`);
+      }
+
+      const result = await this.agent.com.atproto.repo.putRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+        record: recordForUpdate,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to attach location");
+      }
 
       this.emit("locationAttached", {
         uri: resolvedLocation.uri,
         cid: resolvedLocation.cid,
         hypercertUri,
       });
+
+      // Also emit recordUpdated since the record structure changed
+      this.emit("recordUpdated", { uri: result.data.uri, cid: result.data.cid });
+
       return { uri: resolvedLocation.uri, cid: resolvedLocation.cid };
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
