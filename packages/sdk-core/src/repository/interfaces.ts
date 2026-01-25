@@ -37,6 +37,54 @@ import type {
 export type { LocationParams };
 
 // ============================================================================
+// Contribution Details Types
+// ============================================================================
+
+/**
+ * Parameters for creating a new contributionDetails record.
+ * Contains the full details of a contribution (role, description, timeframe).
+ */
+export interface CreateContributionDetailsParams {
+  /**
+   * Role or title of the contributor.
+   * @example "coordinator", "implementer", "funder", "volunteer"
+   */
+  role: string;
+
+  /**
+   * What the contribution concretely was.
+   */
+  contributionDescription?: string;
+
+  /**
+   * When this contribution started.
+   * Should be a subset of the hypercert timeframe.
+   * ISO 8601 datetime format.
+   */
+  startDate?: string;
+
+  /**
+   * When this contribution ended.
+   * Should be a subset of the hypercert timeframe.
+   * ISO 8601 datetime format.
+   */
+  endDate?: string;
+
+  /**
+   * Additional properties to include in the record.
+   */
+  [key: string]: unknown;
+}
+
+/**
+ * Reference to contribution details. Can be:
+ * - A string for inline role (e.g., "Developer")
+ * - A StrongRef to an existing contributionDetails record
+ * - A CreateContributionDetailsParams object to auto-create a record
+ */
+export type ContributionDetailsParams = string | { uri: string; cid: string } | CreateContributionDetailsParams;
+
+// ============================================================================
 // Hypercert Operation Types
 // ============================================================================
 
@@ -250,16 +298,12 @@ export interface CreateHypercertParams {
     contributors: Array<string | { uri: string; cid: string }>;
 
     /**
-     * Role in the contribution.
-     *
-     * @example "coordinator", "implementer", "funder", "volunteer"
+     * Contribution details. Can be:
+     * - A string for inline role (e.g., "Developer")
+     * - A StrongRef to an existing contributionDetails record
+     * - A CreateContributionDetailsParams object to auto-create a record
      */
-    role: string;
-
-    /**
-     * Description of the contribution.
-     */
-    description?: string;
+    contributionDetails: ContributionDetailsParams;
 
     /**
      * Relative weight of this contribution compared to others.
@@ -271,33 +315,6 @@ export interface CreateHypercertParams {
      * @example "1", "1", "1" - all contributors weighted equally
      */
     weight?: string;
-
-    /**
-     * Optional StrongRef to an existing contributionDetails record.
-     * If provided, this is used directly instead of creating a new record
-     * or using the role string. Takes precedence over role/description.
-     */
-    contributionDetailsRef?: { uri: string; cid: string };
-
-    /**
-     * When this contribution started.
-     * Should be a subset of the hypercert timeframe.
-     * ISO 8601 datetime format.
-     */
-    startDate?: string;
-
-    /**
-     * When this contribution ended.
-     * Should be a subset of the hypercert timeframe.
-     * ISO 8601 datetime format.
-     */
-    endDate?: string;
-
-    /**
-     * Additional properties to include in the contributionDetails record.
-     * Any extra fields are passed through when creating the record.
-     */
-    [key: string]: unknown;
   }>;
 
   /**

@@ -306,7 +306,7 @@ describe("HypercertOperationsImpl", () => {
 
       const result = await hypercertOps.create({
         ...validParams,
-        contributions: [{ contributors: ["did:plc:contrib1"], role: "Developer" }],
+        contributions: [{ contributors: ["did:plc:contrib1"], contributionDetails: "Developer" }],
       });
 
       expect(result.hypercertUri).toBeDefined();
@@ -337,7 +337,12 @@ describe("HypercertOperationsImpl", () => {
 
       const result = await hypercertOps.create({
         ...validParams,
-        contributions: [{ contributors: ["did:plc:contrib1"], role: "Developer", description: "Backend work" }],
+        contributions: [
+          {
+            contributors: ["did:plc:contrib1"],
+            contributionDetails: { role: "Developer", contributionDescription: "Backend work" },
+          },
+        ],
       });
 
       expect(result.hypercertUri).toBeDefined();
@@ -372,7 +377,7 @@ describe("HypercertOperationsImpl", () => {
 
       await hypercertOps.create({
         ...validParams,
-        contributions: [{ contributors: ["did:plc:contrib1"], role: "Developer", weight: "0.75" }],
+        contributions: [{ contributors: ["did:plc:contrib1"], contributionDetails: "Developer", weight: "0.75" }],
       });
 
       const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
@@ -394,7 +399,7 @@ describe("HypercertOperationsImpl", () => {
 
       await hypercertOps.create({
         ...validParams,
-        contributions: [{ contributors: ["did:plc:contrib1"], role: "Developer" }],
+        contributions: [{ contributors: ["did:plc:contrib1"], contributionDetails: "Developer" }],
       });
 
       const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
@@ -420,7 +425,11 @@ describe("HypercertOperationsImpl", () => {
       await hypercertOps.create({
         ...validParams,
         contributions: [
-          { contributors: ["did:plc:contrib1"], role: "Developer", description: "Backend work", weight: "1.5" },
+          {
+            contributors: ["did:plc:contrib1"],
+            contributionDetails: { role: "Developer", contributionDescription: "Backend work" },
+            weight: "1.5",
+          },
         ],
       });
 
@@ -447,7 +456,7 @@ describe("HypercertOperationsImpl", () => {
       const contributorRef = { uri: "at://did:plc:test/org.hypercerts.actor.profile/xyz", cid: "profile-cid" };
       await hypercertOps.create({
         ...validParams,
-        contributions: [{ contributors: [contributorRef], role: "Developer" }],
+        contributions: [{ contributors: [contributorRef], contributionDetails: "Developer" }],
       });
 
       const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
@@ -469,7 +478,7 @@ describe("HypercertOperationsImpl", () => {
       const contributorRef = { uri: "at://did:plc:test/org.hypercerts.actor.profile/xyz", cid: "profile-cid" };
       await hypercertOps.create({
         ...validParams,
-        contributions: [{ contributors: ["did:plc:string-did", contributorRef], role: "Developer" }],
+        contributions: [{ contributors: ["did:plc:string-did", contributorRef], contributionDetails: "Developer" }],
       });
 
       const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
@@ -496,7 +505,7 @@ describe("HypercertOperationsImpl", () => {
       };
       await hypercertOps.create({
         ...validParams,
-        contributions: [{ contributors: ["did:plc:contrib1"], role: "Developer", contributionDetailsRef: detailsRef }],
+        contributions: [{ contributors: ["did:plc:contrib1"], contributionDetails: detailsRef }],
       });
 
       // Should only create rights + hypercert, NOT contributionDetails (since ref was provided)
@@ -526,10 +535,12 @@ describe("HypercertOperationsImpl", () => {
         contributions: [
           {
             contributors: ["did:plc:contrib1"],
-            role: "Developer",
-            description: "Backend work",
-            customField: "custom value",
-            anotherProp: 123,
+            contributionDetails: {
+              role: "Developer",
+              contributionDescription: "Backend work",
+              customField: "custom value",
+              anotherProp: 123,
+            },
           },
         ],
       });
@@ -560,10 +571,12 @@ describe("HypercertOperationsImpl", () => {
         contributions: [
           {
             contributors: ["did:plc:contrib1"],
-            role: "Developer",
-            description: "Backend work",
-            startDate: "2024-01-15T00:00:00Z",
-            endDate: "2024-06-30T23:59:59Z",
+            contributionDetails: {
+              role: "Developer",
+              contributionDescription: "Backend work",
+              startDate: "2024-01-15T00:00:00Z",
+              endDate: "2024-06-30T23:59:59Z",
+            },
           },
         ],
       });

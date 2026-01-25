@@ -1170,13 +1170,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     contributions:
       | Array<{
           contributors: Array<string | { uri: string; cid: string }>;
-          role: string;
-          description?: string;
+          contributionDetails: string | { uri: string; cid: string } | { role: string; [key: string]: unknown };
           weight?: string;
-          contributionDetailsRef?: { uri: string; cid: string };
-          startDate?: string;
-          endDate?: string;
-          props?: Record<string, unknown>;
         }>
       | undefined,
     onProgress?: (step: ProgressStep) => void,
@@ -1192,30 +1187,29 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
     const contributorsPromises = contributions.map(async (contrib) => {
       let detailsRef: string | { uri: string; cid: string };
+      const details = contrib.contributionDetails;
 
-      // Priority: contributionDetailsRef > description (creates record) > role (inline string)
-      if (contrib.contributionDetailsRef) {
-        // Use existing StrongRef directly
-        detailsRef = contrib.contributionDetailsRef;
-      } else if (contrib.description) {
-        // Create a detailed record
+      // Determine the type of contributionDetails
+      if (typeof details === "string") {
+        // Inline role string
+        detailsRef = details;
+      } else if ("uri" in details && "cid" in details && !("role" in details)) {
+        // StrongRef to existing record (has uri+cid but no role)
+        detailsRef = { uri: details.uri as string, cid: details.cid as string };
+      } else if ("role" in details) {
+        // CreateContributionDetailsParams - auto-create record
         try {
           this.emitProgress(onProgress, { name: "createContribution", status: "start" });
-          // Extract known fields, pass rest as extra props
-          const {
-            contributors,
-            role,
-            description,
-            weight: _weight,
-            contributionDetailsRef: _ref,
-            startDate,
-            endDate,
-            ...extraProps
-          } = contrib;
+          const { role, contributionDescription, startDate, endDate, ...extraProps } = details as {
+            role: string;
+            contributionDescription?: string;
+            startDate?: string;
+            endDate?: string;
+            [key: string]: unknown;
+          };
           const result = await this.addContribution({
-            contributors: contributors.filter((c): c is string => typeof c === "string"),
             role,
-            description,
+            description: contributionDescription,
             startDate,
             endDate,
             ...extraProps,
@@ -1235,8 +1229,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           throw error;
         }
       } else {
-        // Use role as inline string
-        detailsRef = contrib.role;
+        // Fallback - shouldn't happen with proper types
+        throw new Error("Invalid contributionDetails format");
       }
 
       // Expand to one entry per contributor (DID string or StrongRef)
