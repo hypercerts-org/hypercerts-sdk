@@ -134,6 +134,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     const uint8Array = new Uint8Array(arrayBuffer);
     const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
       encoding: content.type || fallbackContentType,
+      qp: { repo: this.repoDid },
     });
     if (!uploadResult.success) {
       throw new NetworkError("Failed to upload blob");
@@ -160,6 +161,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const uint8Array = new Uint8Array(arrayBuffer);
       const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
         encoding: image.type || "image/jpeg",
+        qp: { repo: this.repoDid },
       });
       if (uploadResult.success) {
         const blobRef: JsonBlobRef = {
