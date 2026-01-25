@@ -91,6 +91,52 @@ export type ContributionDetailsParams = string | { uri: string; cid: string } | 
 export type ResolvedContributionDetails = string | { uri: string; cid: string };
 
 // ============================================================================
+// Contributor Identity Types
+// ============================================================================
+
+/**
+ * Parameters for creating a new contributorInformation record.
+ * Contains the profile details of a contributor.
+ */
+export interface CreateContributorInformationParams {
+  /**
+   * DID or a URI to a social profile of the contributor.
+   * @example "did:plc:abc123", "https://github.com/username"
+   */
+  identifier: string;
+
+  /**
+   * Display name of the contributor.
+   * @maxLength 100
+   */
+  displayName?: string;
+
+  /**
+   * The contributor visual representation as a URI or image blob.
+   */
+  image?: string | Blob;
+
+  /**
+   * Additional properties to include in the record.
+   */
+  [key: string]: unknown;
+}
+
+/**
+ * Reference to contributor identity. Can be:
+ * - A string DID (e.g., "did:plc:abc123")
+ * - A StrongRef to an existing contributorInformation record
+ * - A CreateContributorInformationParams object to auto-create a record
+ */
+export type ContributorIdentityParams = string | { uri: string; cid: string } | CreateContributorInformationParams;
+
+/**
+ * Resolved contributor identity (after processing).
+ * CreateContributorInformationParams is converted to a StrongRef.
+ */
+export type ResolvedContributorIdentity = string | { uri: string; cid: string };
+
+// ============================================================================
 // Hypercert Operation Types
 // ============================================================================
 
@@ -297,11 +343,12 @@ export interface CreateHypercertParams {
   contributions?: Array<{
     /**
      * Contributors for this contribution.
-     * Each can be either:
+     * Each can be:
      * - A string DID (e.g., "did:plc:abc123")
-     * - A StrongRef to a contributor info record ({ uri, cid })
+     * - A StrongRef to an existing contributorInformation record
+     * - A CreateContributorInformationParams object to auto-create a record
      */
-    contributors: Array<string | { uri: string; cid: string }>;
+    contributors: Array<ContributorIdentityParams>;
 
     /**
      * Contribution details. Can be:
@@ -730,6 +777,11 @@ export interface HypercertEvents {
    * Emitted when a contribution record is created.
    */
   contributionCreated: { uri: string; cid: string };
+
+  /**
+   * Emitted when a contributor information record is created.
+   */
+  contributorCreated: { uri: string; cid: string };
 
   /**
    * Emitted when evidence is added to a hypercert.

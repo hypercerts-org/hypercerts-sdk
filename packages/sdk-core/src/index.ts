@@ -96,6 +96,10 @@ export type {
   LocationParams,
   ContributionDetailsParams,
   CreateContributionDetailsParams,
+  ResolvedContributionDetails,
+  ContributorIdentityParams,
+  CreateContributorInformationParams,
+  ResolvedContributorIdentity,
 } from "./repository/interfaces.js";
 
 // ============================================================================

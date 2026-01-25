@@ -22,6 +22,7 @@ import {
   type HypercertClaim,
   type HypercertCollection,
   type HypercertContributionDetails,
+  type HypercertContributorInformation,
   type HypercertEvaluation,
   type HypercertEvidence,
   type HypercertLocation,
@@ -43,6 +44,8 @@ import type {
   HypercertOperations,
   ContributionDetailsParams,
   ResolvedContributionDetails,
+  ContributorIdentityParams,
+  ResolvedContributorIdentity,
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
 import { $Typed } from "@atproto/api";
@@ -271,7 +274,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     locationRefs: Array<{ uri: string; cid: string }> | undefined,
     contributorsData:
       | Array<{
-          contributorIdentity: string | { uri: string; cid: string };
+          contributorIdentity: ResolvedContributorIdentity;
           contributionWeight?: string;
           contributionDetails?: ResolvedContributionDetails;
         }>
@@ -1161,7 +1164,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Processes contribution parameters, creating detailed contribution records if necessary.
+   * Processes contribution parameters, creating contributor/contribution records if necessary.
    *
    * @param contributions - Array of contribution parameters
    * @param onProgress - Optional progress callback
@@ -1171,7 +1174,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   private async processContributors(
     contributions:
       | Array<{
-          contributors: Array<string | { uri: string; cid: string }>;
+          contributors: Array<ContributorIdentityParams>;
           contributionDetails: ContributionDetailsParams;
           weight?: string;
         }>
@@ -1179,7 +1182,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     onProgress?: (step: ProgressStep) => void,
   ): Promise<
     | Array<{
-        contributorIdentity: string | { uri: string; cid: string };
+        contributorIdentity: ResolvedContributorIdentity;
         contributionWeight?: string;
         contributionDetails?: ResolvedContributionDetails;
       }>
@@ -1188,55 +1191,16 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     if (!contributions || contributions.length === 0) return undefined;
 
     const contributorsPromises = contributions.map(async (contrib) => {
-      let detailsRef: ResolvedContributionDetails;
-      const details = contrib.contributionDetails;
+      // Resolve contributionDetails
+      const detailsRef = await this.resolveContributionDetails(contrib.contributionDetails, onProgress);
 
-      // Determine the type of contributionDetails
-      if (typeof details === "string") {
-        // Inline role string
-        detailsRef = details;
-      } else if ("uri" in details && "cid" in details && !("role" in details)) {
-        // StrongRef to existing record (has uri+cid but no role)
-        detailsRef = { uri: details.uri as string, cid: details.cid as string };
-      } else if ("role" in details) {
-        // CreateContributionDetailsParams - auto-create record
-        try {
-          this.emitProgress(onProgress, { name: "createContribution", status: "start" });
-          const { role, contributionDescription, startDate, endDate, ...extraProps } = details as {
-            role: string;
-            contributionDescription?: string;
-            startDate?: string;
-            endDate?: string;
-            [key: string]: unknown;
-          };
-          const result = await this.addContribution({
-            role,
-            description: contributionDescription,
-            startDate,
-            endDate,
-            ...extraProps,
-          });
-          detailsRef = { uri: result.uri, cid: result.cid };
-          this.emitProgress(onProgress, {
-            name: "createContribution",
-            status: "success",
-            data: result,
-          });
-        } catch (error) {
-          this.emitProgress(onProgress, {
-            name: "createContribution",
-            status: "error",
-            error: error as Error,
-          });
-          throw error;
-        }
-      } else {
-        // Fallback - shouldn't happen with proper types
-        throw new Error("Invalid contributionDetails format");
-      }
+      // Resolve each contributor identity
+      const resolvedContributors = await Promise.all(
+        contrib.contributors.map((identity) => this.resolveContributorIdentity(identity, onProgress)),
+      );
 
-      // Expand to one entry per contributor (DID string or StrongRef)
-      return contrib.contributors.map((identity) => ({
+      // Expand to one entry per contributor
+      return resolvedContributors.map((identity) => ({
         contributorIdentity: identity,
         contributionWeight: contrib.weight,
         contributionDetails: detailsRef,
@@ -1245,6 +1209,116 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
     const nestedContributors = await Promise.all(contributorsPromises);
     return nestedContributors.flat();
+  }
+
+  /**
+   * Resolves ContributionDetailsParams to a ResolvedContributionDetails.
+   * Creates a record if CreateContributionDetailsParams is provided.
+   * @internal
+   */
+  private async resolveContributionDetails(
+    details: ContributionDetailsParams,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<ResolvedContributionDetails> {
+    if (typeof details === "string") {
+      // Inline role string
+      return details;
+    } else if ("uri" in details && "cid" in details && !("role" in details)) {
+      // StrongRef to existing record
+      return { uri: details.uri as string, cid: details.cid as string };
+    } else if ("role" in details) {
+      // CreateContributionDetailsParams - auto-create record
+      try {
+        this.emitProgress(onProgress, { name: "createContribution", status: "start" });
+        const { role, contributionDescription, startDate, endDate, ...extraProps } = details as {
+          role: string;
+          contributionDescription?: string;
+          startDate?: string;
+          endDate?: string;
+          [key: string]: unknown;
+        };
+        const result = await this.addContribution({
+          role,
+          description: contributionDescription,
+          startDate,
+          endDate,
+          ...extraProps,
+        });
+        this.emitProgress(onProgress, {
+          name: "createContribution",
+          status: "success",
+          data: result,
+        });
+        return { uri: result.uri, cid: result.cid };
+      } catch (error) {
+        this.emitProgress(onProgress, {
+          name: "createContribution",
+          status: "error",
+          error: error as Error,
+        });
+        throw error;
+      }
+    }
+    throw new ValidationError("Invalid contributionDetails format");
+  }
+
+  /**
+   * Resolves ContributorIdentityParams to a ResolvedContributorIdentity.
+   * Creates a contributorInformation record if CreateContributorInformationParams is provided.
+   * @internal
+   */
+  private async resolveContributorIdentity(
+    identity: ContributorIdentityParams,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<ResolvedContributorIdentity> {
+    if (typeof identity === "string") {
+      // DID or inline string
+      return identity;
+    } else if ("uri" in identity && "cid" in identity && !("identifier" in identity)) {
+      // StrongRef to existing record
+      return { uri: identity.uri as string, cid: identity.cid as string };
+    } else if ("identifier" in identity) {
+      // CreateContributorInformationParams - auto-create record
+      try {
+        this.emitProgress(onProgress, { name: "createContributorInformation", status: "start" });
+        const { identifier, displayName, image, ...extraProps } = identity as {
+          identifier: string;
+          displayName?: string;
+          image?: string | Blob;
+          [key: string]: unknown;
+        };
+
+        // Handle image upload if it's a Blob
+        let imageRef: JsonBlobRef | string | undefined;
+        if (image instanceof Blob) {
+          const uploadResult = await this.uploadImageBlob(image, onProgress);
+          imageRef = uploadResult;
+        } else {
+          imageRef = image;
+        }
+
+        const result = await this.addContributorInformation({
+          identifier,
+          displayName,
+          image: imageRef,
+          ...extraProps,
+        });
+        this.emitProgress(onProgress, {
+          name: "createContributorInformation",
+          status: "success",
+          data: result,
+        });
+        return { uri: result.uri, cid: result.cid };
+      } catch (error) {
+        this.emitProgress(onProgress, {
+          name: "createContributorInformation",
+          status: "error",
+          error: error as Error,
+        });
+        throw error;
+      }
+    }
+    throw new ValidationError("Invalid contributorIdentity format");
   }
 
   /**
@@ -1328,6 +1402,88 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(
         `Failed to add contribution: ${error instanceof Error ? error.message : "Unknown"}`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Creates a contributor information record.
+   *
+   * This creates a contributor profile record that can be referenced
+   * from an activity's `contributors` array via a strong reference.
+   *
+   * @param params - Contributor parameters
+   * @param params.identifier - DID or URI of the contributor
+   * @param params.displayName - Display name of the contributor
+   * @param params.image - Optional image URI or blob ref
+   * @returns Promise resolving to contributor information record URI and CID
+   * @throws {@link ValidationError} if validation fails
+   * @throws {@link NetworkError} if the operation fails
+   *
+   * @example
+   * ```typescript
+   * await repo.hypercerts.addContributorInformation({
+   *   identifier: "did:plc:contributor123",
+   *   displayName: "Alice",
+   * });
+   * ```
+   */
+  async addContributorInformation(params: {
+    identifier: string;
+    displayName?: string;
+    image?: JsonBlobRef | string;
+    [key: string]: unknown;
+  }): Promise<CreateResult> {
+    try {
+      const createdAt = new Date().toISOString();
+      const { identifier, displayName, image, ...extraProps } = params;
+
+      // Resolve image to proper lexicon type if provided
+      let resolvedImage: HypercertContributorInformation["image"];
+      if (image) {
+        if (typeof image === "string") {
+          // URI string - wrap in typed object
+          resolvedImage = { $type: "org.hypercerts.defs#uri", uri: image } as HypercertContributorInformation["image"];
+        } else {
+          // JsonBlobRef from upload - wrap in smallImage
+          resolvedImage = {
+            $type: "org.hypercerts.defs#smallImage",
+            image: image,
+          } as HypercertContributorInformation["image"];
+        }
+      }
+
+      const contributorRecord = {
+        $type: HYPERCERT_COLLECTIONS.CONTRIBUTOR_INFORMATION,
+        identifier,
+        displayName,
+        image: resolvedImage,
+        createdAt,
+        ...extraProps,
+      } as HypercertContributorInformation;
+
+      const validation = validate(contributorRecord, HYPERCERT_COLLECTIONS.CONTRIBUTOR_INFORMATION, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid contributor information record: ${validation.error?.message}`);
+      }
+
+      const result = await this.agent.com.atproto.repo.createRecord({
+        repo: this.repoDid,
+        collection: HYPERCERT_COLLECTIONS.CONTRIBUTOR_INFORMATION,
+        record: contributorRecord as Record<string, unknown>,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to create contributor information");
+      }
+
+      this.emit("contributorCreated", { uri: result.data.uri, cid: result.data.cid });
+      return { uri: result.data.uri, cid: result.data.cid };
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
+      throw new NetworkError(
+        `Failed to add contributor information: ${error instanceof Error ? error.message : "Unknown"}`,
         error,
       );
     }
