@@ -242,9 +242,12 @@ export interface CreateHypercertParams {
    */
   contributions?: Array<{
     /**
-     * DIDs of the contributors.
+     * Contributors for this contribution.
+     * Each can be either:
+     * - A string DID (e.g., "did:plc:abc123")
+     * - A StrongRef to a contributor info record ({ uri, cid })
      */
-    contributors: string[];
+    contributors: Array<string | { uri: string; cid: string }>;
 
     /**
      * Role in the contribution.

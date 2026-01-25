@@ -269,7 +269,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     locationRefs: Array<{ uri: string; cid: string }> | undefined,
     contributorsData:
       | Array<{
-          contributorIdentity: string;
+          contributorIdentity: string | { uri: string; cid: string };
           contributionWeight?: string;
           contributionDetails?: string | { uri: string; cid: string };
         }>
@@ -429,7 +429,12 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   private async createContributionsWithProgress(
     hypercertUri: string,
-    contributions: Array<{ contributors: string[]; role: string; description?: string; weight?: string }>,
+    contributions: Array<{
+      contributors: Array<string | { uri: string; cid: string }>;
+      role: string;
+      description?: string;
+      weight?: string;
+    }>,
     onProgress?: (step: ProgressStep) => void,
   ): Promise<string[]> {
     this.emitProgress(onProgress, { name: "createContributions", status: "start" });
@@ -438,7 +443,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       for (const contrib of contributions) {
         const contribResult = await this.addContribution({
           hypercertUri,
-          contributors: contrib.contributors,
+          contributors: contrib.contributors.filter((c): c is string => typeof c === "string"),
           role: contrib.role,
           description: contrib.description,
         });
@@ -1164,7 +1169,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   private async processContributors(
     contributions:
       | Array<{
-          contributors: string[];
+          contributors: Array<string | { uri: string; cid: string }>;
           role: string;
           description?: string;
           weight?: string;
@@ -1174,7 +1179,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     onProgress?: (step: ProgressStep) => void,
   ): Promise<
     | Array<{
-        contributorIdentity: string;
+        contributorIdentity: string | { uri: string; cid: string };
         contributionWeight?: string;
         contributionDetails?: string | { uri: string; cid: string };
       }>
@@ -1190,7 +1195,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         try {
           this.emitProgress(onProgress, { name: "createContribution", status: "start" });
           const result = await this.addContribution({
-            contributors: contrib.contributors, // Passed for legacy reasons/completeness
+            contributors: contrib.contributors.filter((c): c is string => typeof c === "string"),
             role: contrib.role,
             description: contrib.description,
           });
@@ -1210,9 +1215,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         }
       }
 
-      // Expand to one entry per contributor DID
-      return contrib.contributors.map((did) => ({
-        contributorIdentity: did,
+      // Expand to one entry per contributor (DID string or StrongRef)
+      return contrib.contributors.map((identity) => ({
+        contributorIdentity: identity,
         contributionWeight: contrib.weight,
         contributionDetails: detailsRef,
       }));

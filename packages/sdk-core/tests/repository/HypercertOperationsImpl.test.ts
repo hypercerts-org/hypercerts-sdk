@@ -432,6 +432,52 @@ describe("HypercertOperationsImpl", () => {
       });
     });
 
+    it("should support StrongRef for contributor identity", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockReset();
+      mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+        });
+
+      const contributorRef = { uri: "at://did:plc:test/org.hypercerts.actor.profile/xyz", cid: "profile-cid" };
+      await hypercertOps.create({
+        ...validParams,
+        contributions: [{ contributors: [contributorRef], role: "Developer" }],
+      });
+
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(createCall.record.contributors[0].contributorIdentity).toEqual(contributorRef);
+    });
+
+    it("should support mixed string DIDs and StrongRefs for contributors", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockReset();
+      mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+        });
+
+      const contributorRef = { uri: "at://did:plc:test/org.hypercerts.actor.profile/xyz", cid: "profile-cid" };
+      await hypercertOps.create({
+        ...validParams,
+        contributions: [{ contributors: ["did:plc:string-did", contributorRef], role: "Developer" }],
+      });
+
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(createCall.record.contributors).toHaveLength(2);
+      expect(createCall.record.contributors[0].contributorIdentity).toBe("did:plc:string-did");
+      expect(createCall.record.contributors[1].contributorIdentity).toEqual(contributorRef);
+    });
+
     it("should call onProgress callback", async () => {
       const onProgress = vi.fn();
 
