@@ -329,9 +329,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // Rights definition (what the user specified, not the generated CID)
       rightsData: typeof params.rights === "object" ? params.rights : undefined,
       // Location StrongRef - part of claim identity per lexicon
-      locationRef: locationRef,
+      location: params.location,
       // Contributors - part of claim identity per lexicon
-      contributors: contributorsData,
+      contributors: params.contributions ? params.contributions : undefined,
     };
 
     const contentHash = await sha256Hash(hashInput);
