@@ -41,6 +41,7 @@ import type {
   CreateHypercertResult,
   HypercertEvents,
   HypercertOperations,
+  ContributionDetailsParams,
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
 import { $Typed } from "@atproto/api";
@@ -1170,7 +1171,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     contributions:
       | Array<{
           contributors: Array<string | { uri: string; cid: string }>;
-          contributionDetails: string | { uri: string; cid: string } | { role: string; [key: string]: unknown };
+          contributionDetails: ContributionDetailsParams;
           weight?: string;
         }>
       | undefined,
