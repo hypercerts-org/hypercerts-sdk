@@ -110,6 +110,42 @@ describe("HypercertOperationsImpl", () => {
       expect(hypercertCall.record.shortDescription).toBe("Short desc");
     });
 
+    it("should include rich text facets when provided", async () => {
+      const shortDescriptionFacets = [
+        {
+          index: { byteStart: 13, byteEnd: 19 },
+          features: [{ $type: "app.bsky.richtext.facet#mention", did: "did:plc:alice123" }],
+        },
+      ];
+
+      const descriptionFacets = [
+        {
+          index: { byteStart: 6, byteEnd: 33 },
+          features: [{ $type: "app.bsky.richtext.facet#link", uri: "https://example.com/cleanup" }],
+        },
+      ];
+
+      await hypercertOps.create({
+        ...validParams,
+        shortDescription: "Organized by @alice",
+        shortDescriptionFacets,
+        description: "Visit https://example.com/cleanup for details",
+        descriptionFacets,
+      });
+
+      const hypercertCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(hypercertCall.record.shortDescriptionFacets).toEqual(shortDescriptionFacets);
+      expect(hypercertCall.record.descriptionFacets).toEqual(descriptionFacets);
+    });
+
+    it("should create hypercert without facets when not provided", async () => {
+      await hypercertOps.create(validParams);
+
+      const hypercertCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(hypercertCall.record.shortDescriptionFacets).toBeUndefined();
+      expect(hypercertCall.record.descriptionFacets).toBeUndefined();
+    });
+
     it("should create evidence records when provided", async () => {
       const evidence = [
         {
@@ -950,6 +986,236 @@ describe("HypercertOperationsImpl", () => {
         }),
       );
     });
+
+    it("should create a collection with weighted items", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.collection/weighted", cid: "weighted-cid" },
+      });
+
+      const result = await hypercertOps.createCollection({
+        title: "Weighted Collection",
+        items: [
+          { itemIdentifier: { uri: "at://claim1", cid: "cid1" }, itemWeight: "30" },
+          { itemIdentifier: { uri: "at://claim2", cid: "cid2" }, itemWeight: "70" },
+        ],
+      });
+
+      expect(result.uri).toContain("collection");
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            title: "Weighted Collection",
+            items: [
+              { itemIdentifier: { uri: "at://claim1", cid: "cid1" }, itemWeight: "30" },
+              { itemIdentifier: { uri: "at://claim2", cid: "cid2" }, itemWeight: "70" },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it("should create a collection with mixed weighted and unweighted items", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.collection/mixed", cid: "mixed-cid" },
+      });
+
+      const result = await hypercertOps.createCollection({
+        title: "Mixed Collection",
+        items: [
+          { itemIdentifier: { uri: "at://claim1", cid: "cid1" }, itemWeight: "50" },
+          { itemIdentifier: { uri: "at://claim2", cid: "cid2" } }, // No weight
+          { itemIdentifier: { uri: "at://claim3", cid: "cid3" }, itemWeight: "25" },
+        ],
+      });
+
+      expect(result.uri).toContain("collection");
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            items: [
+              { itemIdentifier: { uri: "at://claim1", cid: "cid1" }, itemWeight: "50" },
+              { itemIdentifier: { uri: "at://claim2", cid: "cid2" } },
+              { itemIdentifier: { uri: "at://claim3", cid: "cid3" }, itemWeight: "25" },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it("should create a collection with items without weights", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.collection/unweighted", cid: "unweighted-cid" },
+      });
+
+      const result = await hypercertOps.createCollection({
+        title: "Unweighted Collection",
+        items: [
+          { itemIdentifier: { uri: "at://claim1", cid: "cid1" } },
+          { itemIdentifier: { uri: "at://claim2", cid: "cid2" } },
+        ],
+      });
+
+      expect(result.uri).toContain("collection");
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            items: [
+              { itemIdentifier: { uri: "at://claim1", cid: "cid1" } },
+              { itemIdentifier: { uri: "at://claim2", cid: "cid2" } },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it("should create a collection with avatar and banner (Blob)", async () => {
+      const avatarBlob = new Blob(["avatar"], { type: "image/png" });
+      const bannerBlob = new Blob(["banner"], { type: "image/jpeg" });
+
+      // Mock blob upload
+      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValueOnce({
+        success: true,
+        data: {
+          blob: {
+            $type: "blob",
+            ref: { $link: "bafyrei-avatar" },
+            mimeType: "image/png",
+            size: 100,
+          },
+        },
+      });
+
+      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValueOnce({
+        success: true,
+        data: {
+          blob: {
+            $type: "blob",
+            ref: { $link: "bafyrei-banner" },
+            mimeType: "image/jpeg",
+            size: 200,
+          },
+        },
+      });
+
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.collection/branded", cid: "branded-cid" },
+      });
+
+      const result = await hypercertOps.createCollection({
+        title: "Branded Collection",
+        avatar: avatarBlob,
+        banner: bannerBlob,
+        items: [],
+      });
+
+      expect(result.uri).toContain("collection");
+      expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalledTimes(2);
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            title: "Branded Collection",
+            avatar: expect.objectContaining({
+              $type: "org.hypercerts.defs#smallImage",
+            }),
+            banner: expect.objectContaining({
+              $type: "org.hypercerts.defs#largeImage",
+            }),
+          }),
+        }),
+      );
+    });
+
+    it("should create a collection with avatar and banner (URI strings)", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.collection/uris", cid: "uris-cid" },
+      });
+
+      const result = await hypercertOps.createCollection({
+        title: "Collection with URIs",
+        avatar: "https://example.com/avatar.png",
+        banner: "https://example.com/banner.jpg",
+        items: [],
+      });
+
+      expect(result.uri).toContain("collection");
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            avatar: expect.objectContaining({
+              $type: "org.hypercerts.defs#uri",
+              uri: "https://example.com/avatar.png",
+            }),
+            banner: expect.objectContaining({
+              $type: "org.hypercerts.defs#uri",
+              uri: "https://example.com/banner.jpg",
+            }),
+          }),
+        }),
+      );
+    });
+
+    it("should create a project with avatar and banner", async () => {
+      const logoBlob = new Blob(["logo"], { type: "image/png" });
+      const headerBlob = new Blob(["header"], { type: "image/jpeg" });
+
+      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValueOnce({
+        success: true,
+        data: {
+          blob: {
+            $type: "blob",
+            ref: { $link: "bafyrei-logo" },
+            mimeType: "image/png",
+            size: 150,
+          },
+        },
+      });
+
+      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValueOnce({
+        success: true,
+        data: {
+          blob: {
+            $type: "blob",
+            ref: { $link: "bafyrei-header" },
+            mimeType: "image/jpeg",
+            size: 250,
+          },
+        },
+      });
+
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.collection/project123", cid: "project-cid" },
+      });
+
+      const result = await hypercertOps.createProject({
+        title: "Climate Action Project",
+        avatar: logoBlob,
+        banner: headerBlob,
+        shortDescription: "Community climate initiative",
+        items: [],
+      });
+
+      expect(result.uri).toContain("collection");
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            title: "Climate Action Project",
+            type: "project",
+            avatar: expect.objectContaining({
+              $type: "org.hypercerts.defs#smallImage",
+            }),
+            banner: expect.objectContaining({
+              $type: "org.hypercerts.defs#largeImage",
+            }),
+          }),
+        }),
+      );
+    });
   });
 
   describe("getCollection", () => {
@@ -1056,6 +1322,260 @@ describe("HypercertOperationsImpl", () => {
           type: "project",
         }),
       ).rejects.toThrow(ValidationError);
+    });
+
+    it("should update collection items with weights", async () => {
+      const result = await hypercertOps.updateCollection("at://did:plc:test/org.hypercerts.collection/abc123", {
+        items: [
+          { itemIdentifier: { uri: "at://claim1", cid: "cid1" }, itemWeight: "40" },
+          { itemIdentifier: { uri: "at://claim2", cid: "cid2" }, itemWeight: "60" },
+        ],
+      });
+
+      expect(result.uri).toBe("at://did:plc:test/org.hypercerts.collection/abc123");
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            items: [
+              { itemIdentifier: { uri: "at://claim1", cid: "cid1" }, itemWeight: "40" },
+              { itemIdentifier: { uri: "at://claim2", cid: "cid2" }, itemWeight: "60" },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it("should update collection adding weights to existing items", async () => {
+      // Setup: collection with unweighted items
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.collection/abc123",
+          cid: "old-cid",
+          value: {
+            $type: "org.hypercerts.collection",
+            title: "Collection",
+            items: [
+              { itemIdentifier: { uri: "at://claim1", cid: "cid1" } },
+              { itemIdentifier: { uri: "at://claim2", cid: "cid2" } },
+            ],
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+
+      const result = await hypercertOps.updateCollection("at://did:plc:test/org.hypercerts.collection/abc123", {
+        items: [
+          { itemIdentifier: { uri: "at://claim1", cid: "cid1" }, itemWeight: "30" },
+          { itemIdentifier: { uri: "at://claim2", cid: "cid2" }, itemWeight: "70" },
+        ],
+      });
+
+      expect(result.uri).toBe("at://did:plc:test/org.hypercerts.collection/abc123");
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            items: [
+              { itemIdentifier: { uri: "at://claim1", cid: "cid1" }, itemWeight: "30" },
+              { itemIdentifier: { uri: "at://claim2", cid: "cid2" }, itemWeight: "70" },
+            ],
+          }),
+        }),
+      );
+
+      // Explicitly verify that itemWeight was added to both items
+      const putRecordCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      const updatedItems = putRecordCall.record.items;
+      expect(updatedItems[0]).toHaveProperty("itemWeight", "30");
+      expect(updatedItems[1]).toHaveProperty("itemWeight", "70");
+    });
+
+    it("should update collection removing weights from items", async () => {
+      // Setup: collection with weighted items
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.collection/abc123",
+          cid: "old-cid",
+          value: {
+            $type: "org.hypercerts.collection",
+            title: "Collection",
+            items: [
+              { itemIdentifier: { uri: "at://claim1", cid: "cid1" }, itemWeight: "50" },
+              { itemIdentifier: { uri: "at://claim2", cid: "cid2" }, itemWeight: "50" },
+            ],
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+
+      const result = await hypercertOps.updateCollection("at://did:plc:test/org.hypercerts.collection/abc123", {
+        items: [
+          { itemIdentifier: { uri: "at://claim1", cid: "cid1" } },
+          { itemIdentifier: { uri: "at://claim2", cid: "cid2" } },
+        ],
+      });
+
+      expect(result.uri).toBe("at://did:plc:test/org.hypercerts.collection/abc123");
+
+      // Verify that putRecord was called
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            items: [
+              { itemIdentifier: { uri: "at://claim1", cid: "cid1" } },
+              { itemIdentifier: { uri: "at://claim2", cid: "cid2" } },
+            ],
+          }),
+        }),
+      );
+
+      // Explicitly verify that itemWeight was removed from both items
+      const putRecordCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      const updatedItems = putRecordCall.record.items;
+      expect(updatedItems[0]).not.toHaveProperty("itemWeight");
+      expect(updatedItems[1]).not.toHaveProperty("itemWeight");
+    });
+
+    it("should update collection avatar and banner (Blob)", async () => {
+      const newAvatar = new Blob(["new-avatar"], { type: "image/png" });
+      const newBanner = new Blob(["new-banner"], { type: "image/jpeg" });
+
+      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValueOnce({
+        success: true,
+        data: {
+          blob: {
+            $type: "blob",
+            ref: { $link: "bafyrei-new-avatar" },
+            mimeType: "image/png",
+            size: 100,
+          },
+        },
+      });
+
+      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValueOnce({
+        success: true,
+        data: {
+          blob: {
+            $type: "blob",
+            ref: { $link: "bafyrei-new-banner" },
+            mimeType: "image/jpeg",
+            size: 200,
+          },
+        },
+      });
+
+      const result = await hypercertOps.updateCollection("at://did:plc:test/org.hypercerts.collection/abc123", {
+        avatar: newAvatar,
+        banner: newBanner,
+      });
+
+      expect(result.uri).toBe("at://did:plc:test/org.hypercerts.collection/abc123");
+      expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalledTimes(2);
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            avatar: expect.objectContaining({
+              $type: "org.hypercerts.defs#smallImage",
+            }),
+            banner: expect.objectContaining({
+              $type: "org.hypercerts.defs#largeImage",
+            }),
+          }),
+        }),
+      );
+    });
+
+    it("should update collection avatar and banner (URI strings)", async () => {
+      const result = await hypercertOps.updateCollection("at://did:plc:test/org.hypercerts.collection/abc123", {
+        avatar: "https://example.com/new-avatar.png",
+        banner: "https://example.com/new-banner.jpg",
+      });
+
+      expect(result.uri).toBe("at://did:plc:test/org.hypercerts.collection/abc123");
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            avatar: expect.objectContaining({
+              $type: "org.hypercerts.defs#uri",
+              uri: "https://example.com/new-avatar.png",
+            }),
+            banner: expect.objectContaining({
+              $type: "org.hypercerts.defs#uri",
+              uri: "https://example.com/new-banner.jpg",
+            }),
+          }),
+        }),
+      );
+    });
+
+    it("should remove avatar and banner when set to null", async () => {
+      // Setup: collection with avatar and banner
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.collection/abc123",
+          cid: "old-cid",
+          value: {
+            $type: "org.hypercerts.collection",
+            title: "Collection",
+            items: [],
+            avatar: { $type: "org.hypercerts.defs#uri", uri: "https://example.com/old-avatar.png" },
+            banner: { $type: "org.hypercerts.defs#uri", uri: "https://example.com/old-banner.jpg" },
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+
+      const result = await hypercertOps.updateCollection("at://did:plc:test/org.hypercerts.collection/abc123", {
+        avatar: null,
+        banner: null,
+      });
+
+      expect(result.uri).toBe("at://did:plc:test/org.hypercerts.collection/abc123");
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.not.objectContaining({
+            avatar: expect.anything(),
+            banner: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it("should preserve avatar and banner when not updating them", async () => {
+      // Setup: collection with avatar and banner
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.collection/abc123",
+          cid: "old-cid",
+          value: {
+            $type: "org.hypercerts.collection",
+            title: "Old Title",
+            items: [],
+            avatar: { $type: "org.hypercerts.defs#uri", uri: "https://example.com/avatar.png" },
+            banner: { $type: "org.hypercerts.defs#uri", uri: "https://example.com/banner.jpg" },
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+
+      const result = await hypercertOps.updateCollection("at://did:plc:test/org.hypercerts.collection/abc123", {
+        title: "New Title",
+        // Not updating avatar or banner
+      });
+
+      expect(result.uri).toBe("at://did:plc:test/org.hypercerts.collection/abc123");
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            title: "New Title",
+            avatar: { $type: "org.hypercerts.defs#uri", uri: "https://example.com/avatar.png" },
+            banner: { $type: "org.hypercerts.defs#uri", uri: "https://example.com/banner.jpg" },
+          }),
+        }),
+      );
     });
   });
 

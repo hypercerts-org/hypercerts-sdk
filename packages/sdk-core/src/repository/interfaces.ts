@@ -8,6 +8,7 @@
  * @packageDocumentation
  */
 
+import type { AppBskyRichtextFacet } from "@atproto/api";
 import type { EventEmitter } from "eventemitter3";
 import type {
   LocationParams,
@@ -179,6 +180,42 @@ export interface CreateHypercertParams {
    * Required field. Should be under 300 characters.
    */
   shortDescription: string;
+
+  /**
+   * Optional rich text facets for the short description (v0.10.0-beta.7+).
+   *
+   * Enables mentions (@user), URLs, hashtags (#tag), and other inline annotations
+   * in the short description text. Each facet specifies a byte range and feature type.
+   *
+   * @example
+   * ```typescript
+   * shortDescriptionFacets: [
+   *   {
+   *     index: { byteStart: 13, byteEnd: 19 },  // "@alice"
+   *     features: [{ $type: "app.bsky.richtext.facet#mention", did: "did:plc:alice123" }]
+   *   }
+   * ]
+   * ```
+   */
+  shortDescriptionFacets?: AppBskyRichtextFacet.Main[];
+
+  /**
+   * Optional rich text facets for the full description (v0.10.0-beta.7+).
+   *
+   * Enables mentions (@user), URLs, hashtags (#tag), and other inline annotations
+   * in the description text. Each facet specifies a byte range and feature type.
+   *
+   * @example
+   * ```typescript
+   * descriptionFacets: [
+   *   {
+   *     index: { byteStart: 6, byteEnd: 33 },  // URL
+   *     features: [{ $type: "app.bsky.richtext.facet#link", uri: "https://example.com" }]
+   *   }
+   * ]
+   * ```
+   */
+  descriptionFacets?: AppBskyRichtextFacet.Main[];
 
   /**
    * Optional cover image for the hypercert.

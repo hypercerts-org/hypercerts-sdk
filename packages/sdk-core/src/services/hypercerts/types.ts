@@ -78,7 +78,69 @@ import type {
 // ============================================================================
 
 export type StrongRef = ComAtprotoRepoStrongRef.Main;
+
+/**
+ * Hypercert claim (activity) record.
+ *
+ * Represents a single hypercert activity with metadata including descriptions,
+ * time periods, work scope, contributors, and optional rich text annotations.
+ *
+ * @remarks
+ * **Rich Text Facets (beta.7+):**
+ * - `shortDescriptionFacets` - Annotations for the short description text
+ * - `descriptionFacets` - Annotations for the full description text
+ *
+ * Facets enable rich text features like mentions (@user), URLs, hashtags (#tag),
+ * and other inline annotations. Each facet specifies:
+ * - `index`: Byte range in the UTF-8 encoded text (byteStart, byteEnd)
+ * - `features`: Array of feature objects (mention, link, tag, etc.)
+ *
+ * @example Basic claim without facets
+ * ```typescript
+ * const claim: HypercertClaim = {
+ *   $type: "org.hypercerts.claim.activity",
+ *   createdAt: new Date().toISOString(),
+ *   shortDescription: "Community cleanup project",
+ *   description: "Monthly beach cleanup initiative",
+ *   startDate: "2024-01-01T00:00:00Z",
+ *   endDate: "2024-12-31T23:59:59Z",
+ *   // ... other fields
+ * };
+ * ```
+ *
+ * @example Claim with rich text facets
+ * ```typescript
+ * const claimWithFacets: HypercertClaim = {
+ *   $type: "org.hypercerts.claim.activity",
+ *   createdAt: new Date().toISOString(),
+ *   shortDescription: "Organized by @alice for #sustainability",
+ *   shortDescriptionFacets: [
+ *     {
+ *       index: { byteStart: 13, byteEnd: 19 },  // "@alice"
+ *       features: [{ $type: "app.bsky.richtext.facet#mention", did: "did:plc:alice123" }]
+ *     },
+ *     {
+ *       index: { byteStart: 24, byteEnd: 39 },  // "#sustainability"
+ *       features: [{ $type: "app.bsky.richtext.facet#tag", tag: "sustainability" }]
+ *     }
+ *   ],
+ *   description: "Visit https://example.com/cleanup for more info",
+ *   descriptionFacets: [
+ *     {
+ *       index: { byteStart: 6, byteEnd: 33 },  // URL
+ *       features: [{ $type: "app.bsky.richtext.facet#link", uri: "https://example.com/cleanup" }]
+ *     }
+ *   ],
+ *   startDate: "2024-01-01T00:00:00Z",
+ *   endDate: "2024-12-31T23:59:59Z",
+ *   // ... other fields
+ * };
+ * ```
+ *
+ * @see {@link https://atproto.com/specs/richtext#facets|AT Protocol Rich Text Facets}
+ */
 export type HypercertClaim = OrgHypercertsClaimActivity.Main;
+
 export type HypercertRights = OrgHypercertsClaimRights.Main;
 export type HypercertContributionDetails = OrgHypercertsClaimContributionDetails.Main;
 export type HypercertContributorInformation = OrgHypercertsClaimContributorInformation.Main;
@@ -88,7 +150,51 @@ export type HypercertMeasurement = OrgHypercertsClaimMeasurement.Main;
 export type HypercertEvaluation = OrgHypercertsClaimEvaluation.Main;
 export type HypercertEvidence = OrgHypercertsClaimEvidence.Main;
 export type HypercertCollection = OrgHypercertsClaimCollection.Main;
-/** Collection item with optional weight */
+
+/**
+ * Collection item with optional weight.
+ *
+ * Represents a single item in a collection's `items` array. Each item can reference
+ * either an activity or another collection (nested collections), with an optional
+ * weight for proportional attribution.
+ *
+ * @remarks
+ * Structure (beta.7+):
+ * - `itemIdentifier` (required): StrongRef to the item (activity or collection)
+ * - `itemWeight` (optional): Positive numeric value as string for proportional weighting
+ *
+ * @example Basic item without weight
+ * ```typescript
+ * const item: HypercertCollectionItem = {
+ *   itemIdentifier: {
+ *     uri: "at://did:plc:abc123/org.hypercerts.claim.activity/xyz789",
+ *     cid: "bafyreiabc123..."
+ *   }
+ * };
+ * ```
+ *
+ * @example Item with weight for proportional attribution
+ * ```typescript
+ * const weightedItem: HypercertCollectionItem = {
+ *   itemIdentifier: {
+ *     uri: "at://did:plc:abc123/org.hypercerts.claim.activity/xyz789",
+ *     cid: "bafyreiabc123..."
+ *   },
+ *   itemWeight: "2.5"  // This activity has 2.5x weight compared to items with weight "1"
+ * };
+ * ```
+ *
+ * @example Nested collection
+ * ```typescript
+ * const nestedCollection: HypercertCollectionItem = {
+ *   itemIdentifier: {
+ *     uri: "at://did:plc:abc123/org.hypercerts.claim.collection/sub789",
+ *     cid: "bafyreiabc456..."
+ *   },
+ *   itemWeight: "1.0"
+ * };
+ * ```
+ */
 export type HypercertCollectionItem = OrgHypercertsClaimCollection.Item;
 /** Work scope tag for creating reusable scope atoms */
 export type HypercertWorkScopeTag = OrgHypercertsHelperWorkScopeTag.Main;
@@ -144,6 +250,26 @@ export type { OrgHypercertsClaimCollection as CollectionLexicon } from "@hyperce
 // SDK Input Helper Types (Derived from Lexicon)
 // ============================================================================
 
+/**
+ * Input type for collection items.
+ *
+ * Same as {@link HypercertCollectionItem} but with `$type` field optional since
+ * the SDK will automatically populate it when creating records.
+ *
+ * @example
+ * ```typescript
+ * const items: CollectionItemInput[] = [
+ *   {
+ *     itemIdentifier: { uri: "at://did:plc:abc/org.hypercerts.claim.activity/123", cid: "bafyrei..." },
+ *     itemWeight: "1.0"
+ *   },
+ *   {
+ *     itemIdentifier: { uri: "at://did:plc:abc/org.hypercerts.claim.activity/456", cid: "bafyrei..." },
+ *     itemWeight: "2.5"  // This activity weighted 2.5x more
+ *   }
+ * ];
+ * ```
+ */
 export type CollectionItemInput = SetOptional<OrgHypercertsClaimCollection.Item, "$type">;
 
 /**
