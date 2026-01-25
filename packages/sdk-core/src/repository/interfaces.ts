@@ -278,6 +278,20 @@ export interface CreateHypercertParams {
      * or using the role string. Takes precedence over role/description.
      */
     contributionDetailsRef?: { uri: string; cid: string };
+
+    /**
+     * When this contribution started.
+     * Should be a subset of the hypercert timeframe.
+     * ISO 8601 datetime format.
+     */
+    startDate?: string;
+
+    /**
+     * When this contribution ended.
+     * Should be a subset of the hypercert timeframe.
+     * ISO 8601 datetime format.
+     */
+    endDate?: string;
   }>;
 
   /**

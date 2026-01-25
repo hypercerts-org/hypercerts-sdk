@@ -505,6 +505,42 @@ describe("HypercertOperationsImpl", () => {
       expect(createCall.record.contributors[0].contributionDetails).toEqual(detailsRef);
     });
 
+    it("should include startDate and endDate in contributionDetails record", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockReset();
+      mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+        });
+
+      await hypercertOps.create({
+        ...validParams,
+        contributions: [
+          {
+            contributors: ["did:plc:contrib1"],
+            role: "Developer",
+            description: "Backend work",
+            startDate: "2024-01-15T00:00:00Z",
+            endDate: "2024-06-30T23:59:59Z",
+          },
+        ],
+      });
+
+      // Verify contributionDetails record includes timeframe
+      const detailsCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(detailsCall.collection).toBe("org.hypercerts.claim.contributionDetails");
+      expect(detailsCall.record.startDate).toBe("2024-01-15T00:00:00Z");
+      expect(detailsCall.record.endDate).toBe("2024-06-30T23:59:59Z");
+    });
+
     it("should call onProgress callback", async () => {
       const onProgress = vi.fn();
 

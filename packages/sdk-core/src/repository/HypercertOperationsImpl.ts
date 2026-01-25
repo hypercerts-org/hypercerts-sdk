@@ -1174,6 +1174,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           description?: string;
           weight?: string;
           contributionDetailsRef?: { uri: string; cid: string };
+          startDate?: string;
+          endDate?: string;
           props?: Record<string, unknown>;
         }>
       | undefined,
@@ -1203,6 +1205,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
             contributors: contrib.contributors.filter((c): c is string => typeof c === "string"),
             role: contrib.role,
             description: contrib.description,
+            startDate: contrib.startDate,
+            endDate: contrib.endDate,
           });
           detailsRef = { uri: result.uri, cid: result.cid };
           this.emitProgress(onProgress, {
@@ -1269,6 +1273,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     contributors: string[];
     role: string;
     description?: string;
+    startDate?: string;
+    endDate?: string;
   }): Promise<CreateResult> {
     try {
       const createdAt = new Date().toISOString();
@@ -1277,6 +1283,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         role: params.role,
         createdAt,
         contributionDescription: params.description,
+        startDate: params.startDate,
+        endDate: params.endDate,
       };
 
       const validation = validate(contributionRecord, HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS, "main", false);
