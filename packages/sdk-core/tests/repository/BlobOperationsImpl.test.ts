@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
 import { BlobOperationsImpl } from "../../src/repository/BlobOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
-import { createMockAgent, TEST_REPO_DID, TEST_PDS_URL } from "../utils/mocks.js";
+import { createMockAgent, TEST_REPO_DID, TEST_PDS_URL, TEST_SDS_URL } from "../utils/mocks.js";
 
 describe("BlobOperationsImpl", () => {
   let mockAgent: ReturnType<typeof createMockAgent>;
@@ -10,7 +10,7 @@ describe("BlobOperationsImpl", () => {
 
   beforeEach(() => {
     mockAgent = createMockAgent(vi);
-    blobOps = new BlobOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL);
+    blobOps = new BlobOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL, false);
   });
 
   describe("upload", () => {
@@ -91,6 +91,94 @@ describe("BlobOperationsImpl", () => {
       mockAgent.com.atproto.repo.uploadBlob.mockRejectedValue(new Error("Upload failed"));
 
       await expect(blobOps.upload(mockBlob)).rejects.toThrow(NetworkError);
+    });
+  });
+
+  describe("upload (SDS)", () => {
+    let sdsBlobOps: BlobOperationsImpl;
+
+    beforeEach(() => {
+      sdsBlobOps = new BlobOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_SDS_URL, true);
+    });
+
+    it("should upload a blob via SDS fetchHandler", async () => {
+      const mockBlob = new Blob(["test content"], { type: "image/png" });
+      mockAgent.fetchHandler.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          blob: {
+            ref: { $link: "bafyrei-sds-123" },
+            mimeType: "image/png",
+            size: 12,
+          },
+        }),
+      });
+
+      const result = await sdsBlobOps.upload(mockBlob);
+
+      expect(result.ref).toEqual({ $link: "bafyrei-sds-123" });
+      expect(result.mimeType).toBe("image/png");
+      expect(result.size).toBe(12);
+      expect(mockAgent.fetchHandler).toHaveBeenCalledWith(
+        `/xrpc/com.sds.repo.uploadBlob?repo=${encodeURIComponent(TEST_REPO_DID)}`,
+        expect.objectContaining({
+          method: "POST",
+          headers: { "Content-Type": "image/png" },
+        }),
+      );
+    });
+
+    it("should handle string blob ref from SDS", async () => {
+      const mockBlob = new Blob(["test"], { type: "text/plain" });
+      mockAgent.fetchHandler.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          blob: {
+            ref: "bafyrei-string-ref",
+            mimeType: "text/plain",
+            size: 4,
+          },
+        }),
+      });
+
+      const result = await sdsBlobOps.upload(mockBlob);
+
+      expect(result.ref).toEqual({ $link: "bafyrei-string-ref" });
+    });
+
+    it("should throw NetworkError when SDS returns non-ok response", async () => {
+      const mockBlob = new Blob(["test"]);
+      mockAgent.fetchHandler.mockResolvedValue({
+        ok: false,
+        statusText: "Internal Server Error",
+      });
+
+      await expect(sdsBlobOps.upload(mockBlob)).rejects.toThrow(NetworkError);
+    });
+
+    it("should throw NetworkError when SDS fetch throws", async () => {
+      const mockBlob = new Blob(["test"]);
+      mockAgent.fetchHandler.mockRejectedValue(new Error("Network failure"));
+
+      await expect(sdsBlobOps.upload(mockBlob)).rejects.toThrow(NetworkError);
+    });
+
+    it("should not call PDS uploadBlob when isSDS is true", async () => {
+      const mockBlob = new Blob(["test"], { type: "image/jpeg" });
+      mockAgent.fetchHandler.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          blob: {
+            ref: { $link: "bafyrei-sds" },
+            mimeType: "image/jpeg",
+            size: 4,
+          },
+        }),
+      });
+
+      await sdsBlobOps.upload(mockBlob);
+
+      expect(mockAgent.com.atproto.repo.uploadBlob).not.toHaveBeenCalled();
     });
   });
 
