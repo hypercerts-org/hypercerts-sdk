@@ -94,6 +94,8 @@ export type {
   CreateHypercertEvidenceParams,
   CreateOrganizationParams,
   LocationParams,
+  ContributionDetailsParams,
+  CreateContributionDetailsParams,
 } from "./repository/interfaces.js";
 
 // ============================================================================
