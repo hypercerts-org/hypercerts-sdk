@@ -315,8 +315,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     }
 
     // Generate rKey from stable content hash (idempotency)
-    // Hash the complete claim record including all StrongRefs and embedded data
-    // These define the claim's identity per the lexicon.
+    // Use NORMALIZED values (already resolved StrongRefs and processed data)
+    // to ensure JSON-serializability and deterministic hashing.
+    // Raw params.location can contain non-serializable Blobs (GeoJSON),
+    // and params.contributions can have arbitrary/inconsistent props.
     const hashInput = {
       title: params.title,
       description: params.description,
@@ -324,14 +326,25 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       workScope: params.workScope,
       startDate: params.startDate,
       endDate: params.endDate,
-      // Image blob reference (CID-based, stable)
-      imageRecord: imageBlobRef,
-      // Rights definition (what the user specified, not the generated CID)
-      rightsData: typeof params.rights === "object" ? params.rights : undefined,
-      // Location StrongRef - part of claim identity per lexicon
-      location: params.location,
-      // Contributors - part of claim identity per lexicon
-      contributors: params.contributions ? params.contributions : undefined,
+      // Image: extract CID string from blob ref (stable content hash)
+      // JsonBlobRef can have ref.$link (upload result) or cid (existing record)
+      imageRef: imageBlobRef
+        ? "ref" in imageBlobRef && imageBlobRef.ref
+          ? imageBlobRef.ref.$link
+          : "cid" in imageBlobRef
+            ? imageBlobRef.cid
+            : undefined
+        : undefined,
+      // Rights: canonical object with only known fields
+      rights: {
+        name: params.rights.name,
+        type: params.rights.type,
+        description: params.rights.description,
+      },
+      // Location: use resolved StrongRef (uri+cid), not raw params which may be Blob
+      locationRef: locationRef ? { uri: locationRef.uri, cid: locationRef.cid } : undefined,
+      // Contributors: use already-processed canonical format from processContributors()
+      contributors: contributorsData,
     };
 
     const contentHash = await sha256Hash(hashInput);
