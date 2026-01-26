@@ -1,29 +1,21 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "tasks": {
-    "install": {
-      "dependsOn": ["^install"],
-      "outputs": ["node_modules/**"]
-    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["^build"]
     },
     "test": {
-      "dependsOn": ["^test"]
+      "dependsOn": ["^build"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^build"]
     },
-    "format:check": {
-      "dependsOn": ["^format:check"]
-    },
-    "check": {
-      "dependsOn": ["format:check", "lint", "build", "typecheck", "test"]
-    },
+    "format:check": {},
+    "check": {},
     "dev": {
       "persistent": true,
       "cache": false
