@@ -293,11 +293,19 @@ describe("HypercertOperationsImpl", () => {
 
     it("should create contributions when provided", async () => {
       // Contributors are now embedded in the claim record, not created as separate records
+      // String DIDs are converted to contributorInformation records first
       mockAgent.com.atproto.repo.createRecord.mockReset();
       mockAgent.com.atproto.repo.createRecord
         .mockResolvedValueOnce({
           success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+            cid: "contributor-cid",
+          },
         })
         .mockResolvedValueOnce({
           success: true,
@@ -311,11 +319,20 @@ describe("HypercertOperationsImpl", () => {
 
       expect(result.hypercertUri).toBeDefined();
 
-      // Verify contributors are embedded in the claim record
-      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      // Verify contributorInformation record was created
+      const contributorCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(contributorCall.collection).toBe("org.hypercerts.claim.contributorInformation");
+      expect(contributorCall.record.identifier).toBe("did:plc:contrib1");
+
+      // Verify contributors are embedded in the claim record with StrongRef (includes $type)
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
       expect(createCall.record.contributors).toBeDefined();
       expect(createCall.record.contributors).toHaveLength(1);
-      expect(createCall.record.contributors[0].contributorIdentity).toBe("did:plc:contrib1");
+      expect(createCall.record.contributors[0].contributorIdentity).toEqual({
+        $type: "com.atproto.repo.strongRef",
+        uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+        cid: "contributor-cid",
+      });
       expect(createCall.record.contributors[0].contributionDetails).toBe("Developer");
     });
 
@@ -329,6 +346,13 @@ describe("HypercertOperationsImpl", () => {
         .mockResolvedValueOnce({
           success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+            cid: "contributor-cid",
+          },
         })
         .mockResolvedValueOnce({
           success: true,
@@ -353,11 +377,16 @@ describe("HypercertOperationsImpl", () => {
       expect(contributionCall.record.role).toBe("Developer");
       expect(contributionCall.record.contributionDescription).toBe("Backend work");
 
-      // Verify contributors use StrongRef in the claim record
-      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
+      // Verify contributors use StrongRef in the claim record (with $type for lexicon validation)
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[3][0];
       expect(createCall.record.contributors).toBeDefined();
-      expect(createCall.record.contributors[0].contributorIdentity).toBe("did:plc:contrib1");
+      expect(createCall.record.contributors[0].contributorIdentity).toEqual({
+        $type: "com.atproto.repo.strongRef",
+        uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+        cid: "contributor-cid",
+      });
       expect(createCall.record.contributors[0].contributionDetails).toEqual({
+        $type: "com.atproto.repo.strongRef",
         uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz",
         cid: "details-cid",
       });
@@ -372,6 +401,13 @@ describe("HypercertOperationsImpl", () => {
         })
         .mockResolvedValueOnce({
           success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+            cid: "contributor-cid",
+          },
+        })
+        .mockResolvedValueOnce({
+          success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
         });
 
@@ -380,7 +416,7 @@ describe("HypercertOperationsImpl", () => {
         contributions: [{ contributors: ["did:plc:contrib1"], contributionDetails: "Developer", weight: "0.75" }],
       });
 
-      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
       expect(createCall.record.contributors[0].contributionWeight).toBe("0.75");
       expect(createCall.record.contributors[0].contributionDetails).toBe("Developer");
     });
@@ -394,6 +430,13 @@ describe("HypercertOperationsImpl", () => {
         })
         .mockResolvedValueOnce({
           success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+            cid: "contributor-cid",
+          },
+        })
+        .mockResolvedValueOnce({
+          success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
         });
 
@@ -402,7 +445,7 @@ describe("HypercertOperationsImpl", () => {
         contributions: [{ contributors: ["did:plc:contrib1"], contributionDetails: "Developer" }],
       });
 
-      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
       expect(createCall.record.contributors[0].contributionWeight).toBeUndefined();
     });
 
@@ -416,6 +459,13 @@ describe("HypercertOperationsImpl", () => {
         .mockResolvedValueOnce({
           success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+            cid: "contributor-cid",
+          },
         })
         .mockResolvedValueOnce({
           success: true,
@@ -433,9 +483,10 @@ describe("HypercertOperationsImpl", () => {
         ],
       });
 
-      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[3][0];
       expect(createCall.record.contributors[0].contributionWeight).toBe("1.5");
       expect(createCall.record.contributors[0].contributionDetails).toEqual({
+        $type: "com.atproto.repo.strongRef",
         uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz",
         cid: "details-cid",
       });
@@ -453,6 +504,7 @@ describe("HypercertOperationsImpl", () => {
           data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
         });
 
+      // When a StrongRef is provided directly, no contributorInformation record is created
       const contributorRef = { uri: "at://did:plc:test/org.hypercerts.actor.profile/xyz", cid: "profile-cid" };
       await hypercertOps.create({
         ...validParams,
@@ -460,7 +512,12 @@ describe("HypercertOperationsImpl", () => {
       });
 
       const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
-      expect(createCall.record.contributors[0].contributorIdentity).toEqual(contributorRef);
+      // StrongRef gets $type added for lexicon validation
+      expect(createCall.record.contributors[0].contributorIdentity).toEqual({
+        $type: "com.atproto.repo.strongRef",
+        uri: "at://did:plc:test/org.hypercerts.actor.profile/xyz",
+        cid: "profile-cid",
+      });
     });
 
     it("should support mixed string DIDs and StrongRefs for contributors", async () => {
@@ -472,19 +529,37 @@ describe("HypercertOperationsImpl", () => {
         })
         .mockResolvedValueOnce({
           success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/string-did",
+            cid: "string-contributor-cid",
+          },
+        })
+        .mockResolvedValueOnce({
+          success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
         });
 
+      // String DID creates a contributorInformation record, StrongRef is used directly
       const contributorRef = { uri: "at://did:plc:test/org.hypercerts.actor.profile/xyz", cid: "profile-cid" };
       await hypercertOps.create({
         ...validParams,
         contributions: [{ contributors: ["did:plc:string-did", contributorRef], contributionDetails: "Developer" }],
       });
 
-      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
       expect(createCall.record.contributors).toHaveLength(2);
-      expect(createCall.record.contributors[0].contributorIdentity).toBe("did:plc:string-did");
-      expect(createCall.record.contributors[1].contributorIdentity).toEqual(contributorRef);
+      // String DID gets converted to StrongRef pointing to contributorInformation record
+      expect(createCall.record.contributors[0].contributorIdentity).toEqual({
+        $type: "com.atproto.repo.strongRef",
+        uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/string-did",
+        cid: "string-contributor-cid",
+      });
+      // Provided StrongRef gets $type added
+      expect(createCall.record.contributors[1].contributorIdentity).toEqual({
+        $type: "com.atproto.repo.strongRef",
+        uri: "at://did:plc:test/org.hypercerts.actor.profile/xyz",
+        cid: "profile-cid",
+      });
     });
 
     it("should use contributionDetailsRef directly when provided", async () => {
@@ -493,6 +568,13 @@ describe("HypercertOperationsImpl", () => {
         .mockResolvedValueOnce({
           success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+            cid: "contributor-cid",
+          },
         })
         .mockResolvedValueOnce({
           success: true,
@@ -508,10 +590,14 @@ describe("HypercertOperationsImpl", () => {
         contributions: [{ contributors: ["did:plc:contrib1"], contributionDetails: detailsRef }],
       });
 
-      // Should only create rights + hypercert, NOT contributionDetails (since ref was provided)
-      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledTimes(2);
-      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
-      expect(createCall.record.contributors[0].contributionDetails).toEqual(detailsRef);
+      // Should create rights + contributorInformation + hypercert (NOT contributionDetails since ref was provided)
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledTimes(3);
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
+      expect(createCall.record.contributors[0].contributionDetails).toEqual({
+        $type: "com.atproto.repo.strongRef",
+        uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/existing",
+        cid: "existing-cid",
+      });
     });
 
     it("should pass through extra properties to contributionDetails record", async () => {
@@ -524,6 +610,13 @@ describe("HypercertOperationsImpl", () => {
         .mockResolvedValueOnce({
           success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+            cid: "contributor-cid",
+          },
         })
         .mockResolvedValueOnce({
           success: true,
@@ -560,6 +653,13 @@ describe("HypercertOperationsImpl", () => {
         .mockResolvedValueOnce({
           success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+            cid: "contributor-cid",
+          },
         })
         .mockResolvedValueOnce({
           success: true,
