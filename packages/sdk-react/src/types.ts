@@ -14,7 +14,7 @@ import type {
   CreateOrganizationParams,
   CreateProjectParams,
   HypercertClaim,
-  HypercertProjectWithMetadata,
+  HypercertProject,
   OrganizationInfo,
   OrgHypercertsDefs,
   Repository,
@@ -396,7 +396,7 @@ export interface UseHypercertResult {
 export type Project = {
   uri: string;
   cid: string;
-  record: HypercertProjectWithMetadata;
+  record: HypercertProject;
 };
 
 /**
@@ -502,7 +502,7 @@ export type {
   CreateOrganizationParams,
   CreateProjectParams,
   HypercertClaim,
-  HypercertProjectWithMetadata,
+  HypercertProject,
   OrganizationInfo,
   OrgHypercertsDefs,
   Repository,
