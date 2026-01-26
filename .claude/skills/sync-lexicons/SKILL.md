@@ -20,12 +20,20 @@ develop branch, then update SDK files accordingly.
 
 ## How It Works
 
-1. **Extract current dependency**: Read SDK's `packages/sdk-core/package.json` for current `@hypercerts-org/lexicon`
-   version
-2. **Fetch develop branch**: Get latest from lexicons repo develop branch
-3. **Compare versions**: Determine semantic version difference
-4. **Generate git diff**: Show changes between the two versions in lexicons repo
-5. **Update SDK files**: Modify SDK source files to reflect new lexicon imports/exports
+1.  **Extract current dependency**: Read SDK's `packages/sdk-core/package.json` for current `@hypercerts-org/lexicon`
+    version
+2.  **Fetch develop branch**: Get latest from lexicons repo develop branch
+3.  **Compare versions**: Determine semantic version difference
+4.  **Review CHANGELOG**:
+    - For changes between normal releases, inspect `CHANGELOG.md` in the lexicons repo to understand changes between the
+      two versions.
+    - For changes with beta pre-releases, `CHANGELOG.md` is not updated in the lexicons repo, but it is in released
+      packages, so you can download the latest version via:
+
+          tgz=$(npm pack @hypercerts-org/lexicon) && tar zxO package/CHANGELOG.md <$tgz >CHANGELOG.md && rm $tgz
+
+5.  **Generate git diff**: Show changes between the two versions in lexicons repo
+6.  **Update SDK files**: Modify SDK source files to reflect new lexicon imports/exports
 
 ## Key Paths
 
@@ -39,16 +47,30 @@ develop branch, then update SDK files accordingly.
 ### Step 1: Check version of current dependency
 
 ```bash
-OLD_VERSION=$(jq -r '.dependencies["@hypercerts-org/lexicon"]' packages/sdk-core/package.json)
+OLD_VERSION=$(jq -r '.dependencies["@hypercerts-org/lexicon"] // empty' packages/sdk-core/package.json)
+if [ -z "$OLD_VERSION" ]; then
+  echo "Error: @hypercerts-org/lexicon dependency not found in packages/sdk-core/package.json" >&2
+  echo "Please ensure @hypercerts-org/lexicon is listed under dependencies before running this script." >&2
+  exit 1
+fi
 echo "Current SDK dependency: @hypercerts-org/lexicon@${OLD_VERSION}"
 ```
 
 **Note**: `OLD_VERSION` is extracted without the `v` prefix (e.g., `0.10.0-beta.4`). When using with git commands,
-prepend `v` to match git tag format.
+prepend `v` to match git tag format. The `OLD_VERSION` variable should be captured and preserved for use in subsequent
+steps (Step 5). These commands should be executed in the same shell session to maintain variable state, or the variable
+should be saved to a file or environment variable that persists across command executions.
 
 ### Step 2: Fetch latest develop and tags
 
 ```bash
+# Ensure the lexicons repository is present in the expected location
+if [ ! -d "../hypercerts-lexicon" ]; then
+  echo "Error: Lexicons repository not found at ../hypercerts-lexicon" >&2
+  echo "Please ensure the repository is cloned in the expected location." >&2
+  exit 1
+fi
+
 git -C ../hypercerts-lexicon fetch --tags origin
 ```
 
@@ -84,18 +106,27 @@ Look for:
 ### Step 5: Compare versions and diff
 
 ```bash
-# NEW_VERSION already set in Step 3 from package.json (without 'v' prefix)
-# If running Step 5 independently, re-extract it:
+# Use OLD_VERSION from Step 1 and NEW_VERSION from Step 3 (both without the 'v' prefix)
+# If running Step 5 independently, re-extract NEW_VERSION:
 # NEW_VERSION=$(jq -r '.dependencies["@hypercerts-org/lexicon"]' packages/sdk-core/package.json)
 
 echo "Comparing ${OLD_VERSION} (previous) to ${NEW_VERSION} (updated)"
 
-# Show files that changed between old and new versions
-# Note: Prepend 'v' to version numbers to match git tag format
-git -C ../hypercerts-lexicon diff v${OLD_VERSION}..v${NEW_VERSION} --stat
+# Check if versions are identical
+if [ "${OLD_VERSION}" = "${NEW_VERSION}" ]; then
+  echo "OLD_VERSION and NEW_VERSION are identical; no diff to show."
+else
+  # Construct git tag names (tags are of the form vX.Y.Z)
+  OLD_TAG="v${OLD_VERSION}"
+  NEW_TAG="v${NEW_VERSION}"
 
-# Show detailed changes in lexicon JSON files
-git -C ../hypercerts-lexicon diff v${OLD_VERSION}..v${NEW_VERSION} -- '*.json' | head -200
+  # Show files that changed between old and new versions
+  git -C ../hypercerts-lexicon diff "${OLD_TAG}..${NEW_TAG}" --stat
+
+  # Show detailed changes in lexicon JSON files
+  # Note: `head -200` limits output for readability; remove `| head -200` to see the full diff if needed.
+  git -C ../hypercerts-lexicon diff "${OLD_TAG}..${NEW_TAG}" -- '*.json' | head -200
+fi
 ```
 
 ### Step 6: Create structured plan and get user approval
@@ -118,7 +149,8 @@ Based on the CHANGELOG and git diff analysis, create a detailed plan document
      - Helper types needed
      - Usage examples to add
    - Validation steps (build, test, type checking)
-   - Changeset requirements (bump type and justification)
+   - Changeset requirements (bump type according to semantic versioning principles: major/minor/patch, and
+     justification)
 
 3. **Order changes logically**:
    - Group related changes together
@@ -169,7 +201,7 @@ Example plan structure:
 - [ ] Tests pass (`pnpm test`)
 - [ ] Types export correctly
 
-**Status**: ⏳ Pending / 🚧 In Progress / ✅ Complete
+**Status**: ⏳ Pending / � In Progress / ✅ Complete
 
 ---
 
@@ -209,6 +241,20 @@ Present this plan to the user and ask:
 > The plan breaks down the sync into {N} logical changes that will be implemented one at a time.
 >
 > Should I proceed with implementing Change 1: [Feature Name]?"
+
+Present the structured plan to the user and explicitly ask whether to:
+
+- Approve the plan and proceed
+- Request modifications to the plan
+- Cancel the sync process for now
+
+If the user **approves** the plan, proceed to the next steps in this skill.
+
+If the user **requests modifications**, revise the plan based on their feedback, re-present it, and remain in this step
+until an updated plan is explicitly approved.
+
+If the user **declines approval** or **cancels** the sync, stop the sync process, do **not** execute any further steps
+in this skill, and summarize the current state and reasons for cancellation.
 
 **Wait for explicit user confirmation before proceeding to Step 7.**
 
@@ -252,9 +298,10 @@ For the current change (e.g., "Change 1: Collection Item Weights"):
    pnpm changeset
    ```
 
-   - Use the process in the `writing-changesets` skill
+   - Follow guidance from the `writing-changesets` skill (see `.claude/skills/writing-changesets/SKILL.md` for detailed
+     instructions on creating and categorizing changesets)
    - Reference the specific feature being added
-   - Use appropriate bump type
+   - Use an appropriate semantic version bump type (major/minor/patch) according to semantic versioning principles
 
 **After completing these steps for the current change:**
 
@@ -307,16 +354,11 @@ After ALL changes are implemented:
 
 ## Common Anti-Patterns to Avoid
 
-### Don't Hardcode Lexicon Names
-
-- ❌ `if (lexicon === "HYPERCERTS_LEXICON") ...`
-- ✅ Read dynamically from the lexicons package exports
-
 ### Don't Skip Review of the CHANGELOG.md review or diffs
 
 - ❌ Immediately update without reviewing changes
 - ✅ Always check `CHANGELOG.md` first to see exactly what changed between versions
-- ✅ Then run `git diff` for additional context
+- ✅ Then run `git diff` to see what actually changed in your codebase
 
 ### Don't Forget to Rebuild
 
@@ -383,8 +425,14 @@ Each logical change gets its own changeset:
 
 ## Iterative Process Summary
 
-**DO**: Work on one logical feature at a time, validate, get approval, repeat **DON'T**: Try to sync everything at once
-in a big batch
+**Do:**
+
+- Work on one logical feature at a time
+- Validate, get approval, repeat
+
+**Don't:**
+
+- Try to sync everything at once in a big batch
 
 This ensures:
 
