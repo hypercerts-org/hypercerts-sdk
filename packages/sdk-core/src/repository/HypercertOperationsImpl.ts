@@ -89,6 +89,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param agent - AT Protocol Agent for making API calls
    * @param repoDid - DID of the repository to operate on
    * @param _serverUrl - Server URL (reserved for future use)
+   * @param isSDS - Whether this is a Shared Data Server
    * @param logger - Optional logger for debugging
    *
    * @internal
@@ -97,6 +98,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     private agent: Agent,
     private repoDid: string,
     private _serverUrl: string,
+    private isSDS: boolean,
     private logger?: LoggerInterface,
   ) {
     super();
@@ -120,6 +122,22 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
+   * Converts a blob reference to JsonBlobRef format.
+   *
+   * @param blob - Blob reference from upload
+   * @returns JsonBlobRef formatted for records
+   * @internal
+   */
+  private blobToJsonRef(blob: { ref: string | { toString(): string }; mimeType: string; size: number }): JsonBlobRef {
+    return {
+      $type: "blob",
+      ref: { $link: typeof blob.ref === "string" ? blob.ref : blob.ref.toString() },
+      mimeType: blob.mimeType,
+      size: blob.size,
+    };
+  }
+
+  /**
    * Helper function to upload a blob to the repository, returns a blob reference
    *
    * @param content - Blob to upload
@@ -132,10 +150,19 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   private async handleBlobUpload(content: Blob, fallbackContentType: string) {
     const arrayBuffer = await content.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
-    const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-      encoding: content.type || fallbackContentType,
-      qp: { repo: this.repoDid },
-    });
+    const encoding = content.type || fallbackContentType;
+
+    // Use SDS endpoint if we're on an SDS, otherwise use PDS endpoint
+    // Note: PDS uses session auth (no repo param), SDS requires repo param
+    const uploadResult = this.isSDS
+      ? await this.agent.com.sds.repo.uploadBlob(uint8Array, {
+          encoding,
+          qp: { repo: this.repoDid },
+        })
+      : await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
+          encoding,
+        });
+
     if (!uploadResult.success) {
       throw new NetworkError("Failed to upload blob");
     }
@@ -157,27 +184,13 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   ): Promise<JsonBlobRef | undefined> {
     this.emitProgress(onProgress, { name: "uploadImage", status: "start" });
     try {
-      const arrayBuffer = await image.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-        encoding: image.type || "image/jpeg",
-        qp: { repo: this.repoDid },
+      const blob = await this.handleBlobUpload(image, "image/jpeg");
+      this.emitProgress(onProgress, {
+        name: "uploadImage",
+        status: "success",
+        data: { size: image.size },
       });
-      if (uploadResult.success) {
-        const blobRef: JsonBlobRef = {
-          $type: "blob",
-          ref: { $link: uploadResult.data.blob.ref.toString() },
-          mimeType: uploadResult.data.blob.mimeType,
-          size: uploadResult.data.blob.size,
-        };
-        this.emitProgress(onProgress, {
-          name: "uploadImage",
-          status: "success",
-          data: { size: image.size },
-        });
-        return blobRef;
-      }
-      throw new NetworkError("Image upload succeeded but returned no blob reference");
+      return this.blobToJsonRef(blob);
     } catch (error) {
       this.emitProgress(onProgress, { name: "uploadImage", status: "error", error: error as Error });
       throw new NetworkError(`Failed to upload image: ${error instanceof Error ? error.message : "Unknown"}`, error);
@@ -629,19 +642,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         if (params.image === null) {
           // Remove image
         } else {
-          const arrayBuffer = await params.image.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-            encoding: params.image.type || "image/jpeg",
-          });
-          if (uploadResult.success) {
-            recordForUpdate.image = {
-              $type: "blob",
-              ref: uploadResult.data.blob.ref,
-              mimeType: uploadResult.data.blob.mimeType,
-              size: uploadResult.data.blob.size,
-            };
-          }
+          const blob = await this.handleBlobUpload(params.image, "image/jpeg");
+          recordForUpdate.image = this.blobToJsonRef(blob);
         }
       } else if (existingRecord.image) {
         // Preserve existing image
@@ -1219,19 +1221,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
       let bannerRef: JsonBlobRef | undefined;
       if (params.banner) {
-        const arrayBuffer = await params.banner.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-          encoding: params.banner.type || "image/jpeg",
-        });
-        if (uploadResult.success) {
-          bannerRef = {
-            $type: "blob",
-            ref: { $link: uploadResult.data.blob.ref.toString() },
-            mimeType: uploadResult.data.blob.mimeType,
-            size: uploadResult.data.blob.size,
-          };
-        }
+        const blob = await this.handleBlobUpload(params.banner, "image/jpeg");
+        bannerRef = this.blobToJsonRef(blob);
       }
 
       const collectionRecord: Record<string, unknown> = {
@@ -1408,41 +1399,15 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // Upload avatar blob if provided
       let avatarRef: JsonBlobRef | undefined;
       if (params.avatar) {
-        const arrayBuffer = await params.avatar.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-          encoding: params.avatar.type || "image/jpeg",
-        });
-        if (uploadResult.success) {
-          avatarRef = {
-            $type: "blob",
-            ref: { $link: uploadResult.data.blob.ref.toString() },
-            mimeType: uploadResult.data.blob.mimeType,
-            size: uploadResult.data.blob.size,
-          };
-        } else {
-          throw new NetworkError("Failed to upload avatar image");
-        }
+        const blob = await this.handleBlobUpload(params.avatar, "image/jpeg");
+        avatarRef = this.blobToJsonRef(blob);
       }
 
       // Upload banner blob if provided
       let bannerRef: JsonBlobRef | undefined;
       if (params.banner) {
-        const arrayBuffer = await params.banner.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-          encoding: params.banner.type || "image/jpeg",
-        });
-        if (uploadResult.success) {
-          bannerRef = {
-            $type: "blob",
-            ref: { $link: uploadResult.data.blob.ref.toString() },
-            mimeType: uploadResult.data.blob.mimeType,
-            size: uploadResult.data.blob.size,
-          };
-        } else {
-          throw new NetworkError("Failed to upload banner image");
-        }
+        const blob = await this.handleBlobUpload(params.banner, "image/jpeg");
+        bannerRef = this.blobToJsonRef(blob);
       }
 
       // Build project record as a collection with type='project'
@@ -1690,21 +1655,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         if (updates.avatar === null) {
           // Remove avatar
         } else {
-          const arrayBuffer = await updates.avatar.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-            encoding: updates.avatar.type || "image/jpeg",
-          });
-          if (uploadResult.success) {
-            recordForUpdate.avatar = {
-              $type: "blob",
-              ref: uploadResult.data.blob.ref,
-              mimeType: uploadResult.data.blob.mimeType,
-              size: uploadResult.data.blob.size,
-            };
-          } else {
-            throw new NetworkError("Failed to upload avatar image");
-          }
+          const blob = await this.handleBlobUpload(updates.avatar, "image/jpeg");
+          recordForUpdate.avatar = this.blobToJsonRef(blob);
         }
       } else if (existingRecord.avatar) {
         recordForUpdate.avatar = existingRecord.avatar;
@@ -1716,21 +1668,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         if (updates.banner === null) {
           // Remove banner
         } else {
-          const arrayBuffer = await updates.banner.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-            encoding: updates.banner.type || "image/jpeg",
-          });
-          if (uploadResult.success) {
-            recordForUpdate.banner = {
-              $type: "blob",
-              ref: uploadResult.data.blob.ref,
-              mimeType: uploadResult.data.blob.mimeType,
-              size: uploadResult.data.blob.size,
-            };
-          } else {
-            throw new NetworkError("Failed to upload banner image");
-          }
+          const blob = await this.handleBlobUpload(updates.banner, "image/jpeg");
+          recordForUpdate.banner = this.blobToJsonRef(blob);
         }
       } else if (existingRecord.banner) {
         recordForUpdate.banner = existingRecord.banner;

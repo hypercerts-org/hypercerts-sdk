@@ -42,7 +42,7 @@ describe("HypercertOperationsImpl", () => {
 
   beforeEach(() => {
     mockAgent = createMockAgent(vi);
-    hypercertOps = new HypercertOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL);
+    hypercertOps = new HypercertOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL, false);
   });
 
   describe("create", () => {
@@ -1508,7 +1508,7 @@ describe("HypercertOperationsImpl", () => {
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
         expect(putCall.record.avatar).toEqual({
           $type: "blob",
-          ref: mockRef,
+          ref: { $link: "new-avatar-cid" },
           mimeType: "image/png",
           size: 150,
         });

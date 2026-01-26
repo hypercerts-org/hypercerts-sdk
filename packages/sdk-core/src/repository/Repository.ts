@@ -436,7 +436,13 @@ export class Repository {
    */
   get hypercerts(): HypercertOperations {
     if (!this._hypercerts) {
-      this._hypercerts = new HypercertOperationsImpl(this.agent, this.repoDid, this.serverUrl, this.logger);
+      this._hypercerts = new HypercertOperationsImpl(
+        this.agent,
+        this.repoDid,
+        this.serverUrl,
+        this._isSDS,
+        this.logger,
+      );
     }
     return this._hypercerts;
   }

@@ -32,7 +32,7 @@ describe("HypercertOperationsImpl validation", () => {
 
   beforeEach(() => {
     mockAgent = createMockAgent(vi);
-    hypercertOps = new HypercertOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL);
+    hypercertOps = new HypercertOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL, false);
     vi.clearAllMocks();
   });
 
