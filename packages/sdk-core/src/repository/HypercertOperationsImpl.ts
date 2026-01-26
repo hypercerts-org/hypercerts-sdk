@@ -44,6 +44,7 @@ import type {
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
 import { $Typed } from "@atproto/api";
+import { sha256Hash } from "../lib/crypto.js";
 
 /**
  * Implementation of high-level hypercert operations.
@@ -251,6 +252,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param rightsUri - URI of the associated rights record
    * @param rightsCid - CID of the associated rights record
    * @param imageBlobRef - Optional image blob reference
+   * @param locationRefs - Optional array of strong references to the associated location records
+   * @param contributorsData - Optional array of contributor data (inline or StrongRef) to embed in the claim
    * @param createdAt - ISO timestamp for creation
    * @param onProgress - Optional progress callback
    * @returns Promise resolving to hypercert URI and CID
@@ -263,6 +266,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     rightsUri: string,
     rightsCid: string,
     imageBlobRef: JsonBlobRef | undefined,
+    locationRefs: Array<{ uri: string; cid: string }> | undefined,
+    contributorsData:
+      | Array<{ contributorIdentity: string; contributionDetails?: string | { uri: string; cid: string } }>
+      | undefined,
     createdAt: string,
     onProgress?: (step: ProgressStep) => void,
   ): Promise<{ uri: string; cid: string }> {
@@ -283,6 +290,11 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       hypercertRecord.image = imageBlobRef;
     }
 
+    // Add locations as embedded StrongRefs if provided
+    if (locationRefs && locationRefs.length > 0) {
+      hypercertRecord.locations = locationRefs.map((ref) => ({ uri: ref.uri, cid: ref.cid }));
+    }
+
     if (params.shortDescriptionFacets) {
       hypercertRecord.shortDescriptionFacets = params.shortDescriptionFacets;
     }
@@ -291,15 +303,66 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       hypercertRecord.descriptionFacets = params.descriptionFacets;
     }
 
+    // Add contributors if provided (inline role string or StrongRef per lexicon)
+    if (contributorsData && contributorsData.length > 0) {
+      hypercertRecord.contributors = contributorsData.map((c) => {
+        const contributor: Record<string, unknown> = {
+          contributorIdentity: c.contributorIdentity,
+        };
+        if (c.contributionDetails) {
+          // StrongRef has uri/cid, string is inline role
+          contributor.contributionDetails = c.contributionDetails;
+        }
+        return contributor;
+      });
+    }
+
     const hypercertValidation = validate(hypercertRecord, HYPERCERT_COLLECTIONS.CLAIM, "main", false);
     if (!hypercertValidation.success) {
       throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error?.message}`);
     }
 
+    // Generate rKey from stable content hash (idempotency)
+    // Use NORMALIZED values (already resolved StrongRefs and processed data)
+    // to ensure JSON-serializability and deterministic hashing.
+    // Raw params.location can contain non-serializable Blobs (GeoJSON),
+    // and params.contributions can have arbitrary/inconsistent props.
+    const hashInput = {
+      title: params.title,
+      description: params.description,
+      shortDescription: params.shortDescription,
+      workScope: params.workScope,
+      startDate: params.startDate,
+      endDate: params.endDate,
+      // Image: extract CID string from blob ref (stable content hash)
+      // JsonBlobRef can have ref.$link (upload result) or cid (existing record)
+      imageRef: imageBlobRef
+        ? "ref" in imageBlobRef && imageBlobRef.ref
+          ? imageBlobRef.ref.$link
+          : "cid" in imageBlobRef
+            ? imageBlobRef.cid
+            : undefined
+        : undefined,
+      // Rights: canonical object with only known fields
+      rights: {
+        name: params.rights.name,
+        type: params.rights.type,
+        description: params.rights.description,
+      },
+      // Locations: use resolved StrongRefs (uri+cid), not raw params which may be Blob
+      locationRefs: locationRefs?.map((ref) => ({ uri: ref.uri, cid: ref.cid })),
+      // Contributors: use already-processed canonical format from processContributors()
+      contributors: contributorsData,
+    };
+
+    const contentHash = await sha256Hash(hashInput);
+    const rkey = `hc2:${contentHash}`;
+
     const hypercertResult = await this.agent.com.atproto.repo.createRecord({
       repo: this.repoDid,
       collection: HYPERCERT_COLLECTIONS.CLAIM,
       record: hypercertRecord,
+      rkey,
     });
 
     if (!hypercertResult.success) {
@@ -459,9 +522,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * const result = await repo.hypercerts.create({
    *   title: "My Impact",
    *   description: "Description of impact work",
+   *   shortDescription: "Impact work",
    *   workScope: "Education",
-   *   workTimeframeFrom: "2024-01-01",
-   *   workTimeframeTo: "2024-06-30",
+   *   startDate: "2024-01-01",
+   *   endDate: "2024-06-30",
    *   rights: {
    *     name: "Attribution",
    *     type: "license",
@@ -477,11 +541,11 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *   description: "Planted 10,000 trees...",
    *   shortDescription: "10K trees planted",
    *   workScope: "Environment",
-   *   workTimeframeFrom: "2024-01-01",
-   *   workTimeframeTo: "2024-12-31",
+   *   startDate: "2024-01-01",
+   *   endDate: "2024-12-31",
    *   rights: { name: "Open", type: "impact", description: "..." },
    *   image: coverImageBlob,
-   *   location: { value: "Amazon, Brazil", name: "Amazon Basin" },
+   *   locations: [{ value: "Amazon, Brazil", name: "Amazon Basin" }],
    *   contributions: [
    *     { contributors: ["did:plc:org1"], role: "coordinator" },
    *     { contributors: ["did:plc:org2"], role: "implementer" },
@@ -504,7 +568,15 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // Step 1: Upload image if provided
       const imageBlobRef = params.image ? await this.uploadImageBlob(params.image, params.onProgress) : undefined;
 
-      // Step 2: Create rights record
+      // Step 2: Create location records if provided (must be before hypercert)
+      // If locations are provided, they must succeed - failing silently would change the rKey on retries
+      const locationRefs = await this.processLocations(params.locations, params.onProgress);
+      if (locationRefs && locationRefs.length > 0) {
+        result.locationUris = locationRefs.map((ref) => ref.uri);
+        result.locationCids = locationRefs.map((ref) => ref.cid);
+      }
+
+      // Step 3: Create rights record
       const { uri: rightsUri, cid: rightsCid } = await this.createRightsRecord(
         params.rights,
         createdAt,
@@ -513,41 +585,22 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       result.rightsUri = rightsUri;
       result.rightsCid = rightsCid;
 
-      // Step 3: Create hypercert record
+      // Step 4: Build contributors data for embedding (if provided)
+      const contributorsData = await this.processContributors(params.contributions, params.onProgress);
+
+      // Step 5: Create hypercert record (with embedded locations, rights, and contributors)
       const { uri: hypercertUri, cid: hypercertCid } = await this.createHypercertRecord(
         params,
         rightsUri,
         rightsCid,
         imageBlobRef,
+        locationRefs,
+        contributorsData,
         createdAt,
         params.onProgress,
       );
       result.hypercertUri = hypercertUri;
       result.hypercertCid = hypercertCid;
-
-      // Step 4: Attach location if provided
-      if (params.location) {
-        try {
-          const { uri, cid } = await this.attachLocationWithProgress(hypercertUri, params.location, params.onProgress);
-          result.locationUri = uri;
-          result.locationCid = cid;
-        } catch {
-          // Error already logged and progress emitted
-        }
-      }
-
-      // Step 5: Create contributions if provided
-      if (params.contributions && params.contributions.length > 0) {
-        try {
-          result.contributionUris = await this.createContributionsWithProgress(
-            hypercertUri,
-            params.contributions,
-            params.onProgress,
-          );
-        } catch {
-          // Error already logged and progress emitted
-        }
-      }
 
       // Step 6: Add evidence records if provided
       if (params.evidence && params.evidence.length > 0) {
@@ -862,18 +915,25 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async attachLocation(hypercertUri: string, location: LocationParams): Promise<CreateResult> {
     try {
-      // Validate that hypercert exists (unused but confirms hypercert is valid)
-      await this.get(hypercertUri);
+      // Get existing hypercert to preserve current locations
+      const existing = await this.get(hypercertUri);
       const resolvedLocation = await this.resolveLocation(location);
+
+      // Build new locations array: existing + new location
+      const existingLocations = existing.record.locations || [];
+      const newLocations = [
+        ...existingLocations,
+        {
+          $type: "com.atproto.repo.strongRef",
+          uri: resolvedLocation.uri,
+          cid: resolvedLocation.cid,
+        } as StrongRef,
+      ];
 
       await this.update({
         uri: hypercertUri,
         updates: {
-          location: {
-            $type: "com.atproto.repo.strongRef",
-            uri: resolvedLocation.uri,
-            cid: resolvedLocation.cid,
-          },
+          locations: newLocations,
         },
       });
 
@@ -1053,6 +1113,94 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(`Failed to add evidence: ${error instanceof Error ? error.message : "Unknown"}`, error);
     }
+  }
+
+  /**
+   * Processes location parameters, creating location records if necessary.
+   *
+   * @param locationParams - Location parameters array from create request
+   * @param onProgress - Optional progress callback
+   * @returns Promise resolving to array of location StrongRefs or undefined
+   * @internal
+   */
+  private async processLocations(
+    locationParams: LocationParams[] | undefined,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<Array<{ uri: string; cid: string }> | undefined> {
+    if (!locationParams || locationParams.length === 0) return undefined;
+
+    try {
+      this.emitProgress(onProgress, { name: "createLocation", status: "start" });
+      const locationRefs = await Promise.all(locationParams.map((loc) => this.resolveLocation(loc)));
+      this.emitProgress(onProgress, {
+        name: "createLocation",
+        status: "success",
+        data: { count: locationRefs.length },
+      });
+      return locationRefs;
+    } catch (error) {
+      this.emitProgress(onProgress, { name: "createLocation", status: "error", error: error as Error });
+      this.logger?.warn(`Failed to create location: ${error instanceof Error ? error.message : "Unknown"}`);
+      // Re-throw to fail the operation - swallowing would change rKey on retry
+      throw error;
+    }
+  }
+
+  /**
+   * Processes contribution parameters, creating detailed contribution records if necessary.
+   *
+   * @param contributions - Array of contribution parameters
+   * @param onProgress - Optional progress callback
+   * @returns Promise resolving to flattened array of contributor data for embedding
+   * @internal
+   */
+  private async processContributors(
+    contributions:
+      | Array<{ contributors: string[]; role: string; description?: string; props?: Record<string, unknown> }>
+      | undefined,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<
+    Array<{ contributorIdentity: string; contributionDetails?: string | { uri: string; cid: string } }> | undefined
+  > {
+    if (!contributions || contributions.length === 0) return undefined;
+
+    const contributorsPromises = contributions.map(async (contrib) => {
+      let detailsRef: string | { uri: string; cid: string } = contrib.role;
+
+      // If description is provided, create a detailed record
+      if (contrib.description) {
+        try {
+          this.emitProgress(onProgress, { name: "createContribution", status: "start" });
+          const result = await this.addContribution({
+            contributors: contrib.contributors, // Passed for legacy reasons/completeness
+            role: contrib.role,
+            description: contrib.description,
+          });
+          detailsRef = { uri: result.uri, cid: result.cid };
+          this.emitProgress(onProgress, {
+            name: "createContribution",
+            status: "success",
+            data: result,
+          });
+        } catch (error) {
+          this.emitProgress(onProgress, {
+            name: "createContribution",
+            status: "error",
+            error: error as Error,
+          });
+          throw error;
+        }
+      }
+
+      // Expand to one entry per contributor DID
+      return contrib.contributors.map((did) => ({
+        contributorIdentity: did,
+        contributionDetails: detailsRef,
+      }));
+    });
+
+    const nestedContributors = await Promise.all(contributorsPromises);
+    return nestedContributors.flat();
   }
 
   /**

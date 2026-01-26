@@ -197,62 +197,102 @@ describe("HypercertOperationsImpl", () => {
     });
 
     it("should attach location when provided", async () => {
-      // Reset mocks and set up for location
+      // Reset mocks and set up for location (new order: location → rights → hypercert)
       mockAgent.com.atproto.repo.createRecord.mockReset();
       mockAgent.com.atproto.repo.createRecord
-        .mockResolvedValueOnce({
-          success: true,
-          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
-        })
         .mockResolvedValueOnce({
           success: true,
           data: { uri: "at://did:plc:test/app.certified.location/ghi", cid: "location-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
         });
-
-      // Mock getRecord for attachLocation's internal get call
-      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
-        success: true,
-        data: {
-          uri: "at://did:plc:test/org.hypercerts.claim.record/def",
-          cid: "hypercert-cid",
-          value: {
-            title: "Test",
-            description: "Test",
-            workScope: createWorkScopeAll(["Climate"]),
-            startDate: "2024-01-01",
-            endDate: "2024-12-31",
-            createdAt: "2024-01-01",
-          },
-        },
-      });
-
-      // Mock putRecord for the update call
-      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
-        success: true,
-        data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "updated-cid" },
-      });
 
       const result = await hypercertOps.create({
         ...validParams,
-        location: {
-          lpVersion: "1.0.0",
-          srs: "EPSG:4326",
-          locationType: "coordinate-decimal",
-          location: "https://example.com/location",
-          name: "Test Location",
-          description: "A test location",
-        },
+        locations: [
+          {
+            lpVersion: "1.0.0",
+            srs: "EPSG:4326",
+            locationType: "coordinate-decimal",
+            location: "https://example.com/location",
+            name: "Test Location",
+            description: "A test location",
+          },
+        ],
       });
 
-      expect(result.locationUri).toEqual("at://did:plc:test/app.certified.location/ghi");
-      expect(result.locationCid).toEqual("location-cid");
+      expect(result.locationUris).toEqual(["at://did:plc:test/app.certified.location/ghi"]);
+      expect(result.locationCids).toEqual(["location-cid"]);
+    });
+
+    it("should attach multiple locations when provided", async () => {
+      // Reset mocks and set up for multiple locations (location1 → location2 → rights → hypercert)
+      mockAgent.com.atproto.repo.createRecord.mockReset();
+      mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/app.certified.location/loc1", cid: "location-cid-1" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/app.certified.location/loc2", cid: "location-cid-2" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+        });
+
+      const result = await hypercertOps.create({
+        ...validParams,
+        locations: [
+          {
+            lpVersion: "1.0.0",
+            srs: "EPSG:4326",
+            locationType: "coordinate-decimal",
+            location: "https://example.com/location1",
+            name: "Location 1",
+          },
+          {
+            lpVersion: "1.0.0",
+            srs: "EPSG:4326",
+            locationType: "coordinate-decimal",
+            location: "https://example.com/location2",
+            name: "Location 2",
+          },
+        ],
+      });
+
+      expect(result.locationUris).toEqual([
+        "at://did:plc:test/app.certified.location/loc1",
+        "at://did:plc:test/app.certified.location/loc2",
+      ]);
+      expect(result.locationCids).toEqual(["location-cid-1", "location-cid-2"]);
+
+      // Verify the hypercert record has both locations embedded
+      const hypercertCall = mockAgent.com.atproto.repo.createRecord.mock.calls[3][0];
+      expect(hypercertCall.record.locations).toHaveLength(2);
+      expect(hypercertCall.record.locations[0]).toEqual({
+        uri: "at://did:plc:test/app.certified.location/loc1",
+        cid: "location-cid-1",
+      });
+      expect(hypercertCall.record.locations[1]).toEqual({
+        uri: "at://did:plc:test/app.certified.location/loc2",
+        cid: "location-cid-2",
+      });
     });
 
     it("should create contributions when provided", async () => {
+      // Contributors are now embedded in the claim record, not created as separate records
       mockAgent.com.atproto.repo.createRecord.mockReset();
       mockAgent.com.atproto.repo.createRecord
         .mockResolvedValueOnce({
@@ -262,34 +302,60 @@ describe("HypercertOperationsImpl", () => {
         .mockResolvedValueOnce({
           success: true,
           data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: { uri: "at://did:plc:test/org.hypercerts.claim.contribution/contrib1", cid: "contrib-cid" },
         });
-
-      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
-        success: true,
-        data: {
-          uri: "at://did:plc:test/org.hypercerts.claim.record/def",
-          cid: "hypercert-cid",
-          value: {
-            title: "Test",
-            description: "Test",
-            workScope: createWorkScopeAll(["Climate"]),
-            startDate: "2024-01-01",
-            endDate: "2024-12-31",
-            createdAt: "2024-01-01",
-          },
-        },
-      });
 
       const result = await hypercertOps.create({
         ...validParams,
         contributions: [{ contributors: ["did:plc:contrib1"], role: "Developer" }],
       });
 
-      expect(result.contributionUris).toHaveLength(1);
+      expect(result.hypercertUri).toBeDefined();
+
+      // Verify contributors are embedded in the claim record
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(createCall.record.contributors).toBeDefined();
+      expect(createCall.record.contributors).toHaveLength(1);
+      expect(createCall.record.contributors[0].contributorIdentity).toBe("did:plc:contrib1");
+      expect(createCall.record.contributors[0].contributionDetails).toBe("Developer");
+    });
+
+    it("should create detailed contributions (StrongRef) when description is provided", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockReset();
+      mockAgent.com.atproto.repo.createRecord
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+        });
+
+      const result = await hypercertOps.create({
+        ...validParams,
+        contributions: [{ contributors: ["did:plc:contrib1"], role: "Developer", description: "Backend work" }],
+      });
+
+      expect(result.hypercertUri).toBeDefined();
+
+      // Verify contribution details record was created
+      const contributionCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(contributionCall.collection).toBe("org.hypercerts.claim.contributionDetails");
+      expect(contributionCall.record.role).toBe("Developer");
+      expect(contributionCall.record.contributionDescription).toBe("Backend work");
+
+      // Verify contributors use StrongRef in the claim record
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
+      expect(createCall.record.contributors).toBeDefined();
+      expect(createCall.record.contributors[0].contributorIdentity).toBe("did:plc:contrib1");
+      expect(createCall.record.contributors[0].contributionDetails).toEqual({
+        uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz",
+        cid: "details-cid",
+      });
     });
 
     it("should call onProgress callback", async () => {

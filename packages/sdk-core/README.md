@@ -41,8 +41,8 @@ const claim = await repo.hypercerts.create({
   shortDescription: "1000 trees planted in rainforest",
   description: "Planted 1000 trees in the Amazon rainforest region",
   workScope: "Environmental Conservation",
-  workTimeFrameFrom: "2025-01-01T00:00:00Z",
-  workTimeFrameTo: "2025-12-31T23:59:59Z",
+  startDate: "2025-01-01",
+  endDate: "2025-12-31",
   rights: {
     name: "Attribution",
     type: "license",
