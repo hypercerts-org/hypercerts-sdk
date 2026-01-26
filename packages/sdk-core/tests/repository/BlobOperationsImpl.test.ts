@@ -10,7 +10,7 @@ describe("BlobOperationsImpl", () => {
 
   beforeEach(() => {
     mockAgent = createMockAgent(vi);
-    blobOps = new BlobOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL);
+    blobOps = new BlobOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL, false);
   });
 
   describe("upload", () => {

@@ -57,6 +57,7 @@ export class BlobOperationsImpl implements BlobOperations {
    * @param agent - AT Protocol Agent for making API calls
    * @param repoDid - DID of the repository (used for blob retrieval)
    * @param _serverUrl - Server URL (reserved for future use)
+   * @param isSDS - Whether this is a Shared Data Server
    *
    * @internal
    */
@@ -64,6 +65,7 @@ export class BlobOperationsImpl implements BlobOperations {
     private agent: Agent,
     private repoDid: string,
     private _serverUrl: string,
+    private isSDS: boolean,
   ) {}
 
   /**
@@ -112,10 +114,18 @@ export class BlobOperationsImpl implements BlobOperations {
     try {
       const arrayBuffer = await blob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
+      const encoding = blob.type || "application/octet-stream";
 
-      const result = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-        encoding: blob.type || "application/octet-stream",
-      });
+      // Use SDS endpoint if we're on an SDS, otherwise use PDS endpoint
+      // Note: PDS uses session auth (no repo param), SDS requires repo param
+      const result = this.isSDS
+        ? await this.agent.com.sds.repo.uploadBlob(uint8Array, {
+            encoding,
+            qp: { repo: this.repoDid },
+          })
+        : await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
+            encoding,
+          });
 
       if (!result.success) {
         throw new NetworkError("Failed to upload blob");
