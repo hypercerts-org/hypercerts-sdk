@@ -2,21 +2,35 @@
 "@hypercerts-org/sdk-core": minor
 ---
 
-Add `contributionWeight` field support to contributor structure in hypercert creation.
+**BREAKING CHANGE**: Update contribution structure to match lexicon beta.7+ inline contributor format.
 
-Consumers can now optionally specify a `weight` property when providing contributions:
+**Old API (lexicon beta.5-beta.6):**
 
 ```typescript
 await repo.hypercerts.create({
-  // ...
   contributions: [
     {
-      contributors: ["did:plc:abc"],
+      contributors: ["did:plc:contrib1"],
       role: "Developer",
-      weight: "0.75", // New optional field
+      description: "Led backend development",
     },
   ],
 });
 ```
 
-The weight is stored as a string to avoid floating-point precision issues.
+**New API (lexicon beta.7+):**
+
+```typescript
+await repo.hypercerts.create({
+  contributions: [
+    {
+      contributors: ["did:plc:contrib1"],
+      contributionDetails: "Developer", // string | StrongRef | CreateContributionDetailsParams
+      weight: "0.75", // optional proportional weight
+    },
+  ],
+});
+```
+
+**Migration:** Replace `role` and `description` with `contributionDetails`. Optionally add `weight` for proportional
+attribution.
