@@ -295,11 +295,11 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       hypercertRecord.locations = locationRefs.map((ref) => ({ uri: ref.uri, cid: ref.cid }));
     }
 
-    if (params.shortDescriptionFacets) {
+    if (params.shortDescriptionFacets !== undefined) {
       hypercertRecord.shortDescriptionFacets = params.shortDescriptionFacets;
     }
 
-    if (params.descriptionFacets) {
+    if (params.descriptionFacets !== undefined) {
       hypercertRecord.descriptionFacets = params.descriptionFacets;
     }
 
