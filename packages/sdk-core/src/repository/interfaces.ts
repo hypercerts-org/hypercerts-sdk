@@ -88,7 +88,7 @@ export type ContributionDetailsParams = string | { uri: string; cid: string } | 
  * Resolved contribution details (after processing).
  * CreateContributionDetailsParams is converted to a StrongRef.
  */
-export type ResolvedContributionDetails = string | { uri: string; cid: string };
+export type ResolvedContributionDetails = string | { uri: string; cid: string; $type: "com.atproto.repo.strongRef" };
 
 // ============================================================================
 // Contributor Identity Types
@@ -134,7 +134,7 @@ export type ContributorIdentityParams = string | { uri: string; cid: string } | 
  * Resolved contributor identity (after processing).
  * CreateContributorInformationParams is converted to a StrongRef.
  */
-export type ResolvedContributorIdentity = string | { uri: string; cid: string };
+export type ResolvedContributorIdentity = string | { uri: string; cid: string; $type: "com.atproto.repo.strongRef" };
 
 // ============================================================================
 // Hypercert Operation Types

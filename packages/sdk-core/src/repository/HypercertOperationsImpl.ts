@@ -1225,7 +1225,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       return details;
     } else if ("uri" in details && "cid" in details && !("role" in details)) {
       // StrongRef to existing record
-      return { uri: details.uri as string, cid: details.cid as string };
+      return { uri: details.uri as string, cid: details.cid as string, $type: "com.atproto.repo.strongRef" };
     } else if ("role" in details) {
       // CreateContributionDetailsParams - auto-create record
       try {
@@ -1249,7 +1249,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           status: "success",
           data: result,
         });
-        return { uri: result.uri, cid: result.cid };
+        return { uri: result.uri, cid: result.cid, $type: "com.atproto.repo.strongRef" };
       } catch (error) {
         this.emitProgress(onProgress, {
           name: "createContribution",
@@ -1272,11 +1272,12 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     onProgress?: (step: ProgressStep) => void,
   ): Promise<ResolvedContributorIdentity> {
     if (typeof identity === "string") {
-      // DID or inline string
-      return identity;
+      // we still store as contribtorInformation since it cant directly be a string
+      const result = await this.addContributorInformation({ identifier: identity });
+      return { uri: result.uri, cid: result.cid, $type: "com.atproto.repo.strongRef" };
     } else if ("uri" in identity && "cid" in identity && !("identifier" in identity)) {
       // StrongRef to existing record
-      return { uri: identity.uri as string, cid: identity.cid as string };
+      return { $type: "com.atproto.repo.strongRef", uri: identity.uri as string, cid: identity.cid as string };
     } else if ("identifier" in identity) {
       // CreateContributorInformationParams - auto-create record
       try {
@@ -1308,7 +1309,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           status: "success",
           data: result,
         });
-        return { uri: result.uri, cid: result.cid };
+        return { $type: "com.atproto.repo.strongRef", uri: result.uri, cid: result.cid };
       } catch (error) {
         this.emitProgress(onProgress, {
           name: "createContributorInformation",
