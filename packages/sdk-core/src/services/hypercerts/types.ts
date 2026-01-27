@@ -198,6 +198,171 @@ export type HypercertCollection = OrgHypercertsClaimCollection.Main;
 export type HypercertCollectionItem = OrgHypercertsClaimCollection.Item;
 /** Work scope tag for creating reusable scope atoms */
 export type HypercertWorkScopeTag = OrgHypercertsHelperWorkScopeTag.Main;
+
+// ============================================================================
+// Work Scope Expression Types (beta.8+)
+// Boolean logic for expressing complex work scope conditions
+// ============================================================================
+
+/**
+ * Logical AND operation for work scope.
+ *
+ * Requires ALL nested scope expressions to be satisfied.
+ * Used to express that an activity must match multiple scope conditions.
+ *
+ * @remarks
+ * - `op` is always `"all"`
+ * - `args` contains 1+ nested work scope expressions
+ *
+ * @example Match both "climate" AND "technology" scopes
+ * ```typescript
+ * const workScope: HypercertWorkScopeAll = {
+ *   $type: "org.hypercerts.defs#workScopeAll",
+ *   op: "all",
+ *   args: [
+ *     { $type: "org.hypercerts.defs#workScopeAtom", atom: climateRef },
+ *     { $type: "org.hypercerts.defs#workScopeAtom", atom: technologyRef }
+ *   ]
+ * };
+ * ```
+ */
+export type HypercertWorkScopeAll = OrgHypercertsDefs.WorkScopeAll;
+
+/**
+ * Logical OR operation for work scope.
+ *
+ * Requires AT LEAST ONE nested scope expression to be satisfied.
+ * Used to express that an activity can match any of several scope conditions.
+ *
+ * @remarks
+ * - `op` is always `"any"`
+ * - `args` contains 1+ nested work scope expressions
+ *
+ * @example Match either "climate" OR "environment" scopes
+ * ```typescript
+ * const workScope: HypercertWorkScopeAny = {
+ *   $type: "org.hypercerts.defs#workScopeAny",
+ *   op: "any",
+ *   args: [
+ *     { $type: "org.hypercerts.defs#workScopeAtom", atom: climateRef },
+ *     { $type: "org.hypercerts.defs#workScopeAtom", atom: environmentRef }
+ *   ]
+ * };
+ * ```
+ */
+export type HypercertWorkScopeAny = OrgHypercertsDefs.WorkScopeAny;
+
+/**
+ * Logical NOT operation for work scope.
+ *
+ * Negates the nested scope expression - the work must NOT match the inner condition.
+ * Used to exclude specific scope conditions.
+ *
+ * @remarks
+ * - `op` is always `"not"`
+ * - `arg` contains a single nested work scope expression to negate
+ *
+ * @example Exclude "fossil-fuels" scope
+ * ```typescript
+ * const workScope: HypercertWorkScopeNot = {
+ *   $type: "org.hypercerts.defs#workScopeNot",
+ *   op: "not",
+ *   arg: { $type: "org.hypercerts.defs#workScopeAtom", atom: fossilFuelsRef }
+ * };
+ * ```
+ *
+ * @example Combined: Climate work but NOT fossil fuels
+ * ```typescript
+ * const workScope: HypercertWorkScopeAll = {
+ *   $type: "org.hypercerts.defs#workScopeAll",
+ *   op: "all",
+ *   args: [
+ *     { $type: "org.hypercerts.defs#workScopeAtom", atom: climateRef },
+ *     {
+ *       $type: "org.hypercerts.defs#workScopeNot",
+ *       op: "not",
+ *       arg: { $type: "org.hypercerts.defs#workScopeAtom", atom: fossilFuelsRef }
+ *     }
+ *   ]
+ * };
+ * ```
+ */
+export type HypercertWorkScopeNot = OrgHypercertsDefs.WorkScopeNot;
+
+/**
+ * Atomic work scope reference.
+ *
+ * A leaf node in the work scope expression tree that references a specific
+ * work scope tag via a StrongRef. This is the basic building block for
+ * constructing complex scope expressions.
+ *
+ * @remarks
+ * - `atom` is a StrongRef (uri + cid) pointing to a work scope tag record
+ * - Work scope tags are stored at `org.hypercerts.helper.workScopeTag`
+ *
+ * @example Reference a specific scope tag
+ * ```typescript
+ * const workScope: HypercertWorkScopeAtom = {
+ *   $type: "org.hypercerts.defs#workScopeAtom",
+ *   atom: {
+ *     uri: "at://did:plc:abc123/org.hypercerts.helper.workScopeTag/climate",
+ *     cid: "bafyrei..."
+ *   }
+ * };
+ * ```
+ */
+export type HypercertWorkScopeAtom = OrgHypercertsDefs.WorkScopeAtom;
+
+/**
+ * Union type for all work scope expressions.
+ *
+ * Represents any valid work scope expression that can be used in the
+ * `workScope` field of an activity claim. This type enables building
+ * complex boolean logic trees to express sophisticated scope conditions.
+ *
+ * @remarks
+ * Work scope expressions form an Abstract Syntax Tree (AST) for boolean logic:
+ * - **HypercertWorkScopeAll**: AND - all children must match
+ * - **HypercertWorkScopeAny**: OR - at least one child must match
+ * - **HypercertWorkScopeNot**: NOT - child must not match
+ * - **HypercertWorkScopeAtom**: Leaf node - reference to a scope tag
+ *
+ * @example Complex scope expression
+ * ```typescript
+ * // (Climate AND Technology) OR (Environment AND NOT FossilFuels)
+ * const workScope: HypercertWorkScopeExpression = {
+ *   $type: "org.hypercerts.defs#workScopeAny",
+ *   op: "any",
+ *   args: [
+ *     {
+ *       $type: "org.hypercerts.defs#workScopeAll",
+ *       op: "all",
+ *       args: [
+ *         { $type: "org.hypercerts.defs#workScopeAtom", atom: climateRef },
+ *         { $type: "org.hypercerts.defs#workScopeAtom", atom: technologyRef }
+ *       ]
+ *     },
+ *     {
+ *       $type: "org.hypercerts.defs#workScopeAll",
+ *       op: "all",
+ *       args: [
+ *         { $type: "org.hypercerts.defs#workScopeAtom", atom: environmentRef },
+ *         {
+ *           $type: "org.hypercerts.defs#workScopeNot",
+ *           op: "not",
+ *           arg: { $type: "org.hypercerts.defs#workScopeAtom", atom: fossilFuelsRef }
+ *         }
+ *       ]
+ *     }
+ *   ]
+ * };
+ * ```
+ */
+export type HypercertWorkScopeExpression =
+  | HypercertWorkScopeAll
+  | HypercertWorkScopeAny
+  | HypercertWorkScopeNot
+  | HypercertWorkScopeAtom;
 export type HypercertLocation = AppCertifiedLocation.Main;
 export type BadgeAward = AppCertifiedBadgeAward.Main;
 export type BadgeDefinition = AppCertifiedBadgeDefinition.Main;
@@ -367,3 +532,78 @@ export type CreateProjectParams = CreateCollectionParams;
 export type UpdateProjectParams = UpdateCollectionParams;
 
 export type CreateProjectResult = CreateCollectionResult;
+
+// ============================================================================
+// Work Scope Tag Input Helper Types
+// ============================================================================
+
+/**
+ * Parameters for creating a new work scope tag.
+ *
+ * Work scope tags are reusable labels that can be referenced in work scope
+ * expressions. They form a vocabulary of scope atoms that can be combined
+ * using boolean logic (AND/OR/NOT) in activity claims.
+ *
+ * @remarks
+ * Required fields:
+ * - `key`: Lowercase, hyphenated machine-readable identifier (e.g., "climate-action", "open-source")
+ * - `label`: Human-readable display name
+ *
+ * Optional fields:
+ * - `kind`: Category type (recommended: "topic", "language", "domain", "method", "tag")
+ * - `description`: Longer explanation of the scope
+ * - `parent`: StrongRef to parent tag for hierarchical organization
+ * - `aliases`: Alternative names or identifiers
+ * - `externalReference`: Link to external definition (URI or blob)
+ *
+ * @example Create a simple scope tag
+ * ```typescript
+ * const params: CreateWorkScopeTagParams = {
+ *   key: "climate-action",
+ *   label: "Climate Action",
+ *   kind: "topic",
+ *   description: "Work related to climate change mitigation and adaptation"
+ * };
+ * ```
+ *
+ * @example Create a hierarchical scope tag
+ * ```typescript
+ * const params: CreateWorkScopeTagParams = {
+ *   key: "solar-energy",
+ *   label: "Solar Energy",
+ *   kind: "domain",
+ *   description: "Solar power generation and technology",
+ *   parent: { uri: "at://did:plc:xxx/org.hypercerts.helper.workScopeTag/renewable-energy", cid: "bafyrei..." }
+ * };
+ * ```
+ */
+export type CreateWorkScopeTagParams = SetOptional<HypercertWorkScopeTag, "$type" | "createdAt">;
+
+/**
+ * Parameters for updating an existing work scope tag.
+ *
+ * All fields are optional. Only provided fields will be updated;
+ * omitted fields retain their current values.
+ *
+ * @example Update a tag's description
+ * ```typescript
+ * const params: UpdateWorkScopeTagParams = {
+ *   description: "Updated description for climate action scope"
+ * };
+ * ```
+ *
+ * @example Add aliases to an existing tag
+ * ```typescript
+ * const params: UpdateWorkScopeTagParams = {
+ *   aliases: ["climate", "environmental-action", "green-initiatives"]
+ * };
+ * ```
+ */
+export type UpdateWorkScopeTagParams = Partial<CreateWorkScopeTagParams>;
+
+/**
+ * Union type for work scope tag parameters (create or update).
+ *
+ * Can be used in contexts where either create or update parameters are accepted.
+ */
+export type WorkScopeTagParams = CreateWorkScopeTagParams | UpdateWorkScopeTagParams;
