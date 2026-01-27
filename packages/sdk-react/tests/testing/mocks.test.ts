@@ -165,7 +165,7 @@ describe("createMockHypercert", () => {
     const hc = createMockHypercert();
 
     expect(hc.title).toBe("Mock Hypercert");
-    expect((hc.workScope as { op: string }).op).toBe("all");
+    expect(hc.workScope).toBe("Testing, Environment");
     expect(hc.$type).toBe("org.hypercerts.claim.activity");
     expect(hc.uri).toContain("at://");
     expect(hc.cid).toBeTruthy();
@@ -174,20 +174,11 @@ describe("createMockHypercert", () => {
   it("should allow overriding hypercert properties", () => {
     const hc = createMockHypercert({
       title: "Custom Hypercert",
-      workScope: {
-        $type: "org.hypercerts.defs#workScopeAll",
-        op: "all",
-        args: [
-          {
-            $type: "org.hypercerts.defs#workScopeAtom",
-            atom: { uri: "at://did:plc:tag/climate#main", cid: "bafybeig" },
-          },
-        ],
-      },
+      workScope: "Climate Action" as unknown as typeof hc.workScope,
     });
 
     expect(hc.title).toBe("Custom Hypercert");
-    expect((hc.workScope as { op: string }).op).toBe("all");
+    expect(hc.workScope).toBe("Climate Action");
   });
 
   it("should set valid date ranges", () => {

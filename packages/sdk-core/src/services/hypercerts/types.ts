@@ -13,35 +13,35 @@ import type { OverrideProperties, SetOptional } from "type-fest";
 
 // Re-export everything from lexicon package
 export {
-  // Namespaced types with validation (isRecord, validateRecord)
-  OrgHypercertsClaimActivity,
-  OrgHypercertsClaimRights,
-  OrgHypercertsClaimContributionDetails,
-  OrgHypercertsClaimContributorInformation,
-  OrgHypercertsClaimMeasurement,
-  OrgHypercertsClaimEvaluation,
-  OrgHypercertsClaimEvidence,
-  OrgHypercertsClaimCollection,
-  OrgHypercertsHelperWorkScopeTag,
-  AppCertifiedLocation,
   AppCertifiedBadgeAward,
   AppCertifiedBadgeDefinition,
   AppCertifiedBadgeResponse,
-  OrgHypercertsFundingReceipt,
+  AppCertifiedLocation,
   ComAtprotoRepoStrongRef,
+  HYPERCERTS_LEXICON_DOC,
+  HYPERCERTS_LEXICON_JSON,
+  HYPERCERTS_NSIDS,
+  HYPERCERTS_NSIDS_BY_TYPE,
+  HYPERCERTS_SCHEMA_DICT,
+  HYPERCERTS_SCHEMAS,
+  lexicons,
+  // Namespaced types with validation (isRecord, validateRecord)
+  OrgHypercertsClaimActivity,
+  OrgHypercertsClaimAttachment,
+  OrgHypercertsClaimCollection,
+  OrgHypercertsClaimContributionDetails,
+  OrgHypercertsClaimContributorInformation,
+  OrgHypercertsClaimEvaluation,
+  OrgHypercertsClaimMeasurement,
+  OrgHypercertsClaimRights,
+  OrgHypercertsFundingReceipt,
+  OrgHypercertsHelperWorkScopeTag,
   // Validation utilities
   validate,
-  HYPERCERTS_SCHEMAS,
-  HYPERCERTS_SCHEMA_DICT,
-  HYPERCERTS_NSIDS_BY_TYPE,
-  HYPERCERTS_NSIDS,
-  HYPERCERTS_LEXICON_JSON,
-  HYPERCERTS_LEXICON_DOC,
-  lexicons,
 } from "@hypercerts-org/lexicon";
 
 // Re-export lexicon constants from SDK's lexicons module
-export { HYPERCERT_LEXICONS, HYPERCERT_COLLECTIONS } from "../../lexicons.js";
+export { HYPERCERT_COLLECTIONS, HYPERCERT_LEXICONS } from "../../lexicons.js";
 
 export type { AppCertifiedDefs, OrgHypercertsDefs } from "@hypercerts-org/lexicon";
 
@@ -55,23 +55,25 @@ export type { AppCertifiedDefs, OrgHypercertsDefs } from "@hypercerts-org/lexico
  * when defining `type HypercertClaim = OrgHypercertsClaimActivity.Main`.
  */
 import type {
-  OrgHypercertsClaimActivity,
-  OrgHypercertsClaimRights,
-  OrgHypercertsClaimContributionDetails,
-  OrgHypercertsClaimContributorInformation,
-  OrgHypercertsClaimMeasurement,
-  OrgHypercertsClaimEvaluation,
-  OrgHypercertsClaimEvidence,
-  OrgHypercertsClaimCollection,
-  OrgHypercertsHelperWorkScopeTag,
-  AppCertifiedLocation,
   AppCertifiedBadgeAward,
   AppCertifiedBadgeDefinition,
   AppCertifiedBadgeResponse,
-  OrgHypercertsFundingReceipt,
+  AppCertifiedLocation,
   ComAtprotoRepoStrongRef,
+  OrgHypercertsClaimActivity,
+  OrgHypercertsClaimAttachment,
+  OrgHypercertsClaimCollection,
+  OrgHypercertsClaimContributionDetails,
+  OrgHypercertsClaimContributorInformation,
+  OrgHypercertsClaimEvaluation,
+  OrgHypercertsClaimMeasurement,
+  OrgHypercertsClaimRights,
   OrgHypercertsDefs,
+  OrgHypercertsFundingReceipt,
+  OrgHypercertsHelperWorkScopeTag,
 } from "@hypercerts-org/lexicon";
+// Re-export AppBskyRichtextFacet for rich text annotations
+export type { AppBskyRichtextFacet } from "@atproto/api";
 
 // ============================================================================
 // Type Aliases
@@ -148,7 +150,18 @@ export type HypercertContributorInformation = OrgHypercertsClaimContributorInfor
 export type HypercertContributor = OrgHypercertsClaimActivity.Contributor;
 export type HypercertMeasurement = OrgHypercertsClaimMeasurement.Main;
 export type HypercertEvaluation = OrgHypercertsClaimEvaluation.Main;
-export type HypercertEvidence = OrgHypercertsClaimEvidence.Main;
+/**
+ * Hypercert attachment record (formerly evidence).
+ *
+ * Renamed from `HypercertEvidence` in beta.13. Attachments provide
+ * commentary, context, evidence, or documentary material related
+ * to hypercert records.
+ */
+export type HypercertAttachment = OrgHypercertsClaimAttachment.Main;
+/**
+ * @deprecated Use `HypercertAttachment` instead. Evidence was renamed to Attachment in beta.13.
+ */
+export type HypercertEvidence = HypercertAttachment;
 export type HypercertCollection = OrgHypercertsClaimCollection.Main;
 
 /**
@@ -367,3 +380,60 @@ export type CreateProjectParams = CreateCollectionParams;
 export type UpdateProjectParams = UpdateCollectionParams;
 
 export type CreateProjectResult = CreateCollectionResult;
+
+// ============================================================================
+// Measurement Types
+// ============================================================================
+
+/**
+ * SDK input parameters for creating a measurement.
+ *
+ * Measurements quantify the impact claimed in a hypercert with
+ * specific metrics, values, and units.
+ *
+ * @example Basic measurement
+ * ```typescript
+ * const params: CreateMeasurementParams = {
+ *   subject: "at://did:plc:abc/org.hypercerts.claim.activity/xyz",
+ *   metric: "Carbon Offset",
+ *   unit: "tons CO2e",
+ *   value: "150",
+ * };
+ * ```
+ *
+ * @example Full measurement with all options
+ * ```typescript
+ * const params: CreateMeasurementParams = {
+ *   subject: "at://did:plc:abc/org.hypercerts.claim.activity/xyz",
+ *   metric: "Forest Area Restored",
+ *   unit: "hectares",
+ *   value: "500",
+ *   startDate: "2024-01-01T00:00:00Z",
+ *   endDate: "2024-12-31T23:59:59Z",
+ *   locations: [{ uri: "at://did:plc:.../app.certified.location/...", cid: "..." }],
+ *   measurers: ["did:plc:auditor1", "did:plc:auditor2"],
+ *   methodType: "satellite-imagery",
+ *   methodURI: "https://example.com/methodology",
+ *   evidenceURI: ["https://example.com/audit-report"],
+ *   comment: "Verified through satellite imagery analysis",
+ * };
+ * ```
+ */
+export type CreateMeasurementParams = OverrideProperties<
+  SetOptional<OrgHypercertsClaimMeasurement.Main, "$type" | "createdAt">,
+  {
+    /**
+     * AT-URI of the subject being measured (activity, collection, etc.).
+     * This will be converted to a StrongRef (uri + cid).
+     * or if its a strong ref will be stored as is
+     */
+    subject: string | StrongRef;
+
+    /**
+     * Geographic locations where the measurement was taken.
+     * Can be StrongRefs, AT-URIs, or location objects.
+     * if location objects; location records will be created and then stored as strong ref
+     */
+    locations?: LocationParams[];
+  }
+>;

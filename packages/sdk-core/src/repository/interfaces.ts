@@ -18,9 +18,10 @@ import type {
   CreateProjectResult,
   HypercertCollection,
   HypercertClaim,
-  OrgHypercertsDefs,
   UpdateCollectionParams,
   UpdateProjectParams,
+  CreateMeasurementParams,
+  StrongRef,
 } from "../services/hypercerts/types.js";
 import type {
   CreateResult,
@@ -226,16 +227,22 @@ export interface CreateHypercertParams {
 
   /**
    * Scope of work or impact area.
-   * Logical scope of the work using label-based conditions.
    *
-   * @example WorkScopeAll with atom references
+   * Can be either:
+   * - A simple string describing the work scope
+   * - A StrongRef to a work scope logic record for complex nested definitions
+   *
+   * @example Simple string scope
+   * ```typescript
+   * workScope: "Climate Action"
+   * ```
+   *
+   * @example StrongRef to work scope record
+   * ```typescript
+   * workScope: { uri: "at://did:plc:.../org.hypercerts.helper.workScopeTag/...", cid: "..." }
+   * ```
    */
-  workScope?:
-    | OrgHypercertsDefs.WorkScopeAll
-    | OrgHypercertsDefs.WorkScopeAny
-    | OrgHypercertsDefs.WorkScopeNot
-    | OrgHypercertsDefs.WorkScopeAtom
-    | { $type: string };
+  workScope?: string | StrongRef;
 
   /**
    * Start date of the work period.
@@ -956,19 +963,45 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
   }): Promise<CreateResult>;
 
   /**
-   * Creates a measurement record for a hypercert.
+   * Creates a measurement record for a hypercert or other subject.
    *
-   * @param params - Measurement parameters
-   * @returns Promise resolving to measurement record result
+   * Measurements quantify the impact claimed with specific metrics,
+   * values, and units.
+   *
+   * @param params - Measurement parameters (see {@link CreateMeasurementParams})
+   * @returns Promise resolving to measurement record URI and CID
+   * @throws {@link ValidationError} if validation fails
+   * @throws {@link NetworkError} if the operation fails
+   *
+   * @example Basic measurement
+   * ```typescript
+   * await repo.hypercerts.addMeasurement({
+   *   subjectUri: hypercertUri,
+   *   metric: "Carbon Offset",
+   *   unit: "tons CO2e",
+   *   value: "150",
+   * });
+   * ```
+   *
+   * @example Full measurement with all options
+   * ```typescript
+   * await repo.hypercerts.addMeasurement({
+   *   subject: "at://...",
+   *   metric: "Forest Area",
+   *   unit: "hectares",
+   *   value: "500",
+   *   startDate: "2024-01-01T00:00:00Z",
+   *   endDate: "2024-12-31T23:59:59Z",
+   *   locations: [{ uri: "at://...", cid: "..." }],
+   *   measurers: ["did:plc:auditor"],
+   *   methodType: "satellite-imagery",
+   *   methodUri: "https://example.com/methodology",
+   *   evidenceUris: ["https://example.com/audit-report"],
+   *   comment: "Verified via satellite imagery",
+   * });
+   * ```
    */
-  addMeasurement(params: {
-    hypercertUri: string;
-    measurers: string[];
-    metric: string;
-    value: string;
-    methodUri?: string;
-    evidenceUris?: string[];
-  }): Promise<CreateResult>;
+  addMeasurement(params: CreateMeasurementParams): Promise<CreateResult>;
 
   /**
    * Creates an evaluation record.

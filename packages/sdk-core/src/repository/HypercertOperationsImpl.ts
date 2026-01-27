@@ -24,7 +24,7 @@ import {
   type HypercertContributionDetails,
   type HypercertContributorInformation,
   type HypercertEvaluation,
-  type HypercertEvidence,
+  type HypercertAttachment,
   type HypercertLocation,
   type CreateLocationParams,
   type HypercertMeasurement,
@@ -34,6 +34,7 @@ import {
   type StrongRef,
   type UpdateCollectionParams,
   type UpdateProjectParams,
+  type CreateMeasurementParams,
 } from "../services/hypercerts/types.js";
 import type {
   CreateHypercertEvidenceParams,
@@ -1033,52 +1034,73 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
   /**
    * Helper to resolve a location reference to a StrongRef.
+   * Uses resolveToStrongRef for string and StrongRef inputs.
    *
    * @param location - Location parameter (StrongRef, string URI, or location object)
    * @returns Promise resolving to a StrongRef
-   * @throws {ValidationError} When string input doesn't match AT-URI pattern
+   * @throws {ValidationError} When string input doesn't match AT-URI pattern or input is invalid
    * @throws {NetworkError} When getRecord fails or returns no CID
    * @internal
    */
   private async resolveLocation(location: LocationParams): Promise<StrongRef> {
-    if (typeof location === "string") {
-      return this.resolveStrongRefFromUri(location);
-    }
-
+    // If it's an object with location data, create new record
     if (this.isLocationObject(location)) {
       return this.createLocationRecord(location);
     }
 
-    if ("uri" in location && "cid" in location) {
-      return { $type: "com.atproto.repo.strongRef" as const, uri: location.uri, cid: location.cid };
-    }
-
-    throw new ValidationError("resolveLocation: Unsupported location input.");
+    // Otherwise it's string | StrongRef, resolve to StrongRef
+    return this.resolveToStrongRef(location);
   }
 
   private async resolveStrongRefFromUri(uri: string): Promise<StrongRef> {
     const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
     if (!uriMatch) {
-      throw new ValidationError(`resolveLocation: Invalid location AT-URI: "${uri}"`);
+      throw new ValidationError(`Invalid AT-URI format: "${uri}"`);
     }
 
     const [, repo, collection, rkey] = uriMatch;
     const record = await this.agent.com.atproto.repo.getRecord({ repo, collection, rkey });
     if (!record.success) {
-      throw new NetworkError(
-        `resolveLocation: getRecord failed for repo=${repo}, collection=${collection}, rkey=${rkey}`,
-      );
+      throw new NetworkError(`Failed to fetch record for repo=${repo}, collection=${collection}, rkey=${rkey}`);
     }
     if (!record.data.cid) {
-      throw new NetworkError(
-        `resolveLocation: getRecord returned no CID for repo=${repo}, collection=${collection}, rkey=${rkey}`,
-      );
+      throw new NetworkError(`Record missing CID for repo=${repo}, collection=${collection}, rkey=${rkey}`);
     }
 
     return { $type: "com.atproto.repo.strongRef" as const, uri, cid: record.data.cid };
   }
 
   /**
+   * Resolves a string URI or StrongRef to a StrongRef.
+   * If input is already a StrongRef, returns it as-is.
+   * If input is a string URI, fetches the record to get the CID.
+   *
+   * @param input - String AT-URI or existing StrongRef
+   * @returns Promise resolving to a StrongRef with $type, uri, and cid
+   * @throws {@link ValidationError} When input is invalid or URI format is incorrect
+   * @throws {@link NetworkError} When getRecord fails
+   * @internal
+   */
+  private async resolveToStrongRef(input: string | StrongRef): Promise<StrongRef> {
+    // Check if already a StrongRef
+    if (typeof input === "object" && "uri" in input && "cid" in input) {
+      return {
+        $type: "com.atproto.repo.strongRef" as const,
+        uri: input.uri,
+        cid: input.cid,
+      };
+    }
+
+    // Must be a string URI
+    if (typeof input === "string") {
+      return this.resolveStrongRefFromUri(input);
+    }
+
+    throw new ValidationError("Invalid input: expected string URI or StrongRef");
+  }
+
+  /**
+   * TODO: Match Attachment Lexicon
    * Adds evidence to any subject via the subject ref.
    *
    * @param evidence - HypercertEvidenceInput
@@ -1105,14 +1127,19 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const createdAt = new Date().toISOString();
 
       const evidenceContent = await this.resolveUriOrBlob(content, "application/octet-stream");
-      const evidenceRecord: HypercertEvidence = {
+      // Note: In beta.13, evidence was renamed to attachment with schema changes
+      // - subject -> subjects (array)
+      // - content is now an array
+      // This is a temporary fix to maintain backward compatibility
+      // and since evidence is no longer available in the lexicons
+      const evidenceRecord: HypercertAttachment = {
         ...rest,
-        $type: HYPERCERT_COLLECTIONS.EVIDENCE,
+        $type: HYPERCERT_COLLECTIONS.ATTACHMENT,
         createdAt,
-        content: evidenceContent,
-        subject: { uri: subject.uri, cid: subject.cid },
+        content: [evidenceContent], // content is now an array
+        subjects: [{ uri: subject.uri, cid: subject.cid }], // subject -> subjects array
       };
-      const validation = validate(evidenceRecord, HYPERCERT_COLLECTIONS.EVIDENCE, "main", false);
+      const validation = validate(evidenceRecord, HYPERCERT_COLLECTIONS.ATTACHMENT, "main", false);
       if (!validation.success) {
         throw new ValidationError(`Invalid evidence record: ${validation.error?.message}`);
       }
@@ -1490,55 +1517,72 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Creates a measurement record for a hypercert.
+   * Creates a measurement record for a hypercert or other subject.
    *
-   * Measurements quantify the impact claimed in a hypercert with
-   * specific metrics and values.
+   * Measurements quantify the impact claimed with specific metrics,
+   * values, and units.
    *
-   * @param params - Measurement parameters
-   * @param params.hypercertUri - AT-URI of the hypercert being measured
-   * @param params.measurers - DIDs of entities who performed the measurement
-   * @param params.metric - Name of the metric (e.g., "CO2 Reduced", "Trees Planted")
-   * @param params.value - Measured value with units (e.g., "100 tons", "10000")
-   * @param params.methodUri - Optional URI describing the measurement methodology
-   * @param params.evidenceUris - Optional URIs to supporting evidence
+   * @param params - Measurement parameters (see {@link CreateMeasurementParams})
    * @returns Promise resolving to measurement record URI and CID
    * @throws {@link ValidationError} if validation fails
    * @throws {@link NetworkError} if the operation fails
    *
-   * @example
+   * @example Basic measurement
    * ```typescript
    * await repo.hypercerts.addMeasurement({
-   *   hypercertUri: hypercertUri,
-   *   measurers: ["did:plc:auditor"],
+   *   subjectUri: hypercertUri,
    *   metric: "Carbon Offset",
-   *   value: "150 tons CO2e",
+   *   unit: "tons CO2e",
+   *   value: "150",
+   * });
+   * ```
+   *
+   * @example Full measurement with all options
+   * ```typescript
+   * await repo.hypercerts.addMeasurement({
+   *   subject: "at://...",
+   *   metric: "Forest Area",
+   *   unit: "hectares",
+   *   value: "500",
+   *   startDate: "2024-01-01T00:00:00Z",
+   *   endDate: "2024-12-31T23:59:59Z",
+   *   locations: [{ uri: "at://...", cid: "..." }],
+   *   measurers: ["did:plc:auditor"],
+   *   methodType: "satellite-imagery",
    *   methodUri: "https://example.com/methodology",
    *   evidenceUris: ["https://example.com/audit-report"],
+   *   comment: "Verified via satellite imagery",
    * });
    * ```
    */
-  async addMeasurement(params: {
-    hypercertUri: string;
-    measurers: string[];
-    metric: string;
-    value: string;
-    methodUri?: string;
-    evidenceUris?: string[];
-  }): Promise<CreateResult> {
+  async addMeasurement(params: CreateMeasurementParams): Promise<CreateResult> {
     try {
-      const hypercert = await this.get(params.hypercertUri);
+      // Resolve subject to get CID
+      const subject = await this.resolveToStrongRef(params.subject);
       const createdAt = new Date().toISOString();
 
+      // Resolve locations if provided (reuse existing processLocations helper)
+      const locationRefs = await this.processLocations(params.locations);
+
+      // Cast to Record<string, unknown> to avoid type mismatches between
+      // different Bluesky client packages (@atproto/api vs @atcute/bluesky)
       const measurementRecord: HypercertMeasurement = {
         $type: HYPERCERT_COLLECTIONS.MEASUREMENT,
-        hypercert: { uri: hypercert.uri, cid: hypercert.cid },
-        measurers: params.measurers,
+        subject: { uri: subject.uri, cid: subject.cid },
         metric: params.metric,
+        unit: params.unit,
         value: params.value,
         createdAt,
-        measurementMethodURI: params.methodUri,
-        evidenceURI: params.evidenceUris,
+        // Optional fields
+        startDate: params.startDate,
+        endDate: params.endDate,
+        locations: locationRefs,
+        methodType: params.methodType,
+        methodURI: params.methodURI,
+        evidenceURI: params.evidenceURI,
+        measurers: params.measurers,
+        comment: params.comment,
+        commentFacets: params.commentFacets,
       };
 
       const validation = validate(measurementRecord, HYPERCERT_COLLECTIONS.MEASUREMENT, "main", false);
@@ -1549,7 +1593,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const result = await this.agent.com.atproto.repo.createRecord({
         repo: this.repoDid,
         collection: HYPERCERT_COLLECTIONS.MEASUREMENT,
-        record: measurementRecord as Record<string, unknown>,
+        record: measurementRecord,
       });
 
       if (!result.success) {

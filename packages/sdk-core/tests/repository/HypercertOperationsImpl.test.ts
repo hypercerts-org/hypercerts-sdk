@@ -1,30 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
-import type { OrgHypercertsDefs } from "@hypercerts-org/lexicon";
 import { HypercertOperationsImpl } from "../../src/repository/HypercertOperationsImpl.js";
 import { NetworkError, ValidationError } from "../../src/core/errors.js";
 import { createMockAgent, TEST_REPO_DID, TEST_PDS_URL } from "../utils/mocks.js";
 
-function createWorkScopeAny(tags: string[]): OrgHypercertsDefs.WorkScopeAny {
-  return {
-    $type: "org.hypercerts.defs#workScopeAny",
-    op: "any",
-    args: tags.map((tag) => ({
-      $type: "org.hypercerts.defs#workScopeAtom",
-      atom: { uri: `at://did:plc:tag/${tag.toLowerCase()}#main`, cid: "bafybeig" },
-    })),
-  };
-}
-
-function createWorkScopeAll(tags: string[]): OrgHypercertsDefs.WorkScopeAll {
-  return {
-    $type: "org.hypercerts.defs#workScopeAll",
-    op: "all",
-    args: tags.map((tag) => ({
-      $type: "org.hypercerts.defs#workScopeAtom",
-      atom: { uri: `at://did:plc:tag/${tag.toLowerCase()}#main`, cid: "bafybeig" },
-    })),
-  };
+/**
+ * Create a simple string work scope for testing.
+ * In beta.12+, workScope is now a union of string | StrongRef.
+ * For backward compatibility with tests, accepts an array and joins them.
+ */
+function createWorkScopeString(scopes: string[]): string {
+  return scopes.join(", ");
 }
 
 // Mock the validate function from lexicon package
@@ -50,7 +36,7 @@ describe("HypercertOperationsImpl", () => {
       title: "Test Hypercert",
       shortDescription: "A test hypercert",
       description: "A test hypercert for unit testing",
-      workScope: createWorkScopeAny(["Testing"]),
+      workScope: createWorkScopeString(["Testing"]),
       startDate: "2024-01-01T00:00:00Z",
       endDate: "2024-12-31T23:59:59Z",
       rights: {
@@ -165,7 +151,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: createWorkScopeAll(["Testing"]),
+            workScope: createWorkScopeString(["Testing"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -173,10 +159,11 @@ describe("HypercertOperationsImpl", () => {
         },
       });
 
-      // Mock evidence record creation (third createRecord call after rights and hypercert)
+      // Mock attachment record creation (third createRecord call after rights and hypercert)
+      // Note: In beta.13, evidence was renamed to attachment
       mockAgent.com.atproto.repo.createRecord.mockResolvedValueOnce({
         success: true,
-        data: { uri: "at://did:plc:test/org.hypercerts.claim.evidence/evidence123", cid: "evidence-cid" },
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.attachment/attachment123", cid: "evidence-cid" },
       });
 
       const result = await hypercertOps.create({
@@ -187,12 +174,13 @@ describe("HypercertOperationsImpl", () => {
       // Verify evidence records were created
       expect(result.evidenceUris).toBeDefined();
       expect(result.evidenceUris).toHaveLength(1);
-      expect(result.evidenceUris?.[0]).toContain("evidence");
+      // Note: In beta.13, evidence was renamed to attachment
+      expect(result.evidenceUris?.[0]).toContain("attachment");
 
-      // Verify createRecord was called for evidence (3rd call: rights, hypercert, evidence)
+      // Verify createRecord was called for attachment (3rd call: rights, hypercert, attachment)
       expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledTimes(3);
       const evidenceCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
-      expect(evidenceCall.collection).toBe("org.hypercerts.claim.evidence");
+      expect(evidenceCall.collection).toBe("org.hypercerts.claim.attachment");
       expect(evidenceCall.record.title).toBe("Evidence Document");
     });
 
@@ -630,7 +618,7 @@ describe("HypercertOperationsImpl", () => {
       const mockRecord = {
         title: "Test",
         description: "Test description",
-        workScope: createWorkScopeAll(["Climate"]),
+        workScope: createWorkScopeString(["Climate"]),
         startDate: "2024-01-01",
         endDate: "2024-12-31",
         createdAt: "2024-01-01T00:00:00Z",
@@ -679,7 +667,7 @@ describe("HypercertOperationsImpl", () => {
               value: {
                 title: "First",
                 description: "Desc",
-                workScope: createWorkScopeAll(["Climate"]),
+                workScope: createWorkScopeString(["Climate"]),
                 startDate: "2024-01-01",
                 endDate: "2024-12-31",
                 createdAt: "2024-01-01",
@@ -691,7 +679,7 @@ describe("HypercertOperationsImpl", () => {
               value: {
                 title: "Second",
                 description: "Desc",
-                workScope: createWorkScopeAll(["Climate"]),
+                workScope: createWorkScopeString(["Climate"]),
                 startDate: "2024-01-01",
                 endDate: "2024-12-31",
                 createdAt: "2024-01-01",
@@ -731,7 +719,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Old Title",
             description: "Old description",
-            workScope: createWorkScopeAll(["Climate"]),
+            workScope: createWorkScopeString(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01T00:00:00Z",
@@ -797,7 +785,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Title",
             description: "Desc",
-            workScope: createWorkScopeAll(["Climate"]),
+            workScope: createWorkScopeString(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -840,7 +828,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: createWorkScopeAll(["Climate"]),
+            workScope: createWorkScopeString(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -938,7 +926,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: createWorkScopeAll(["Climate"]),
+            workScope: createWorkScopeString(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -995,7 +983,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: createWorkScopeAll(["Climate"]),
+            workScope: createWorkScopeString(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -1003,9 +991,10 @@ describe("HypercertOperationsImpl", () => {
         },
       });
 
+      // Note: In beta.13, evidence was renamed to attachment
       mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
         success: true,
-        data: { uri: "at://did:plc:test/org.hypercerts.claim.evidence/xyz", cid: "evidence-cid" },
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.attachment/xyz", cid: "evidence-cid" },
       });
     });
 
@@ -1016,13 +1005,17 @@ describe("HypercertOperationsImpl", () => {
         content: "https://example.com/report.pdf",
       });
 
-      expect(result.uri).toContain("evidence");
+      // Note: In beta.13, evidence was renamed to attachment
+      expect(result.uri).toContain("attachment");
       expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalled();
       const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-      expect(call.record.content).toEqual({
-        $type: "org.hypercerts.defs#uri",
-        uri: "https://example.com/report.pdf",
-      });
+      // Content is now an array in the attachment schema
+      expect(call.record.content).toEqual([
+        {
+          $type: "org.hypercerts.defs#uri",
+          uri: "https://example.com/report.pdf",
+        },
+      ]);
     });
 
     it("should add evidence to a hypercert with a Blob upload", async () => {
@@ -1040,13 +1033,17 @@ describe("HypercertOperationsImpl", () => {
         content: blob,
       });
 
-      expect(result.uri).toContain("evidence");
+      // Note: In beta.13, evidence was renamed to attachment
+      expect(result.uri).toContain("attachment");
       expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalled();
       const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-      expect(call.record.content).toEqual({
-        $type: "org.hypercerts.defs#smallBlob",
-        blob: { ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
-      });
+      // Content is now an array in the attachment schema
+      expect(call.record.content).toEqual([
+        {
+          $type: "org.hypercerts.defs#smallBlob",
+          blob: { ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
+        },
+      ]);
     });
 
     it("should emit evidenceAdded event", async () => {
@@ -1073,7 +1070,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: createWorkScopeAll(["Climate"]),
+            workScope: createWorkScopeString(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -1089,10 +1086,29 @@ describe("HypercertOperationsImpl", () => {
 
     it("should create a measurement", async () => {
       const result = await hypercertOps.addMeasurement({
-        hypercertUri: "at://did:plc:test/org.hypercerts.claim.record/abc",
-        measurers: ["did:plc:measurer1"],
+        subject: "at://did:plc:test/org.hypercerts.claim.record/abc",
         metric: "CO2 Reduced",
-        value: "100 tons",
+        unit: "tons",
+        value: "100",
+        measurers: ["did:plc:measurer1"],
+      });
+
+      expect(result.uri).toContain("measurement");
+    });
+
+    it("should create a measurement with all optional fields", async () => {
+      const result = await hypercertOps.addMeasurement({
+        subject: "at://did:plc:test/org.hypercerts.claim.record/abc",
+        metric: "Forest Area",
+        unit: "hectares",
+        value: "500",
+        startDate: "2024-01-01T00:00:00Z",
+        endDate: "2024-12-31T23:59:59Z",
+        measurers: ["did:plc:auditor1"],
+        methodType: "satellite-imagery",
+        methodURI: "https://example.com/methodology",
+        evidenceURI: ["https://example.com/report"],
+        comment: "Verified via satellite imagery analysis",
       });
 
       expect(result.uri).toContain("measurement");
@@ -1109,7 +1125,7 @@ describe("HypercertOperationsImpl", () => {
           value: {
             title: "Test",
             description: "Test",
-            workScope: createWorkScopeAll(["Climate"]),
+            workScope: createWorkScopeString(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
             createdAt: "2024-01-01",
@@ -3057,6 +3073,122 @@ describe("HypercertOperationsImpl", () => {
           hypercertOps.removeLocationFromProject("at://did:plc:test/org.hypercerts.claim.collection/fav"),
         ).rejects.toThrow(ValidationError);
       });
+    });
+  });
+
+  describe("resolveToStrongRef", () => {
+    it("should return StrongRef as-is when given a valid StrongRef", async () => {
+      const input = {
+        uri: "at://did:plc:test/org.hypercerts.claim.record/abc123",
+        cid: "test-cid",
+      };
+
+      // @ts-expect-error - accessing private method for testing
+      const result = await hypercertOps.resolveToStrongRef(input);
+
+      expect(result).toEqual({
+        $type: "com.atproto.repo.strongRef",
+        uri: "at://did:plc:test/org.hypercerts.claim.record/abc123",
+        cid: "test-cid",
+      });
+      expect(mockAgent.com.atproto.repo.getRecord).not.toHaveBeenCalled();
+    });
+
+    it("should resolve string URI to StrongRef by fetching the record", async () => {
+      const uri = "at://did:plc:test/org.hypercerts.claim.record/abc123";
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri,
+          cid: "fetched-cid",
+          value: { $type: "org.hypercerts.claim.record" },
+        },
+      });
+
+      // @ts-expect-error - accessing private method for testing
+      const result = await hypercertOps.resolveToStrongRef(uri);
+
+      expect(result).toEqual({
+        $type: "com.atproto.repo.strongRef",
+        uri,
+        cid: "fetched-cid",
+      });
+      expect(mockAgent.com.atproto.repo.getRecord).toHaveBeenCalledWith({
+        repo: "did:plc:test",
+        collection: "org.hypercerts.claim.record",
+        rkey: "abc123",
+      });
+    });
+
+    it("should throw ValidationError for invalid URI format", async () => {
+      const invalidUri = "invalid-uri-format";
+
+      // @ts-expect-error - accessing private method for testing
+      await expect(hypercertOps.resolveToStrongRef(invalidUri)).rejects.toThrow(ValidationError);
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.resolveToStrongRef(invalidUri),
+      ).rejects.toThrow("Invalid AT-URI format");
+    });
+
+    it("should throw NetworkError when getRecord fails", async () => {
+      const uri = "at://did:plc:test/org.hypercerts.claim.record/abc123";
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: false,
+        error: { message: "Record not found" },
+      });
+
+      // @ts-expect-error - accessing private method for testing
+      await expect(hypercertOps.resolveToStrongRef(uri)).rejects.toThrow(NetworkError);
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.resolveToStrongRef(uri),
+      ).rejects.toThrow("Failed to fetch record");
+    });
+
+    it("should throw NetworkError when record has no CID", async () => {
+      const uri = "at://did:plc:test/org.hypercerts.claim.record/abc123";
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri,
+          cid: undefined,
+          value: { $type: "org.hypercerts.claim.record" },
+        },
+      });
+
+      // @ts-expect-error - accessing private method for testing
+      await expect(hypercertOps.resolveToStrongRef(uri)).rejects.toThrow(NetworkError);
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.resolveToStrongRef(uri),
+      ).rejects.toThrow("Record missing CID");
+    });
+
+    it("should throw ValidationError for invalid input type", async () => {
+      const invalidInput = 12345;
+
+      await expect(
+        // @ts-expect-error - accessing private method with intentionally invalid input for testing
+        hypercertOps.resolveToStrongRef(invalidInput),
+      ).rejects.toThrow(ValidationError);
+      await expect(
+        // @ts-expect-error - accessing private method with intentionally invalid input for testing
+        hypercertOps.resolveToStrongRef(invalidInput),
+      ).rejects.toThrow("Invalid input: expected string URI or StrongRef");
+    });
+
+    it("should throw ValidationError for object without uri/cid", async () => {
+      const invalidInput = { foo: "bar" };
+
+      await expect(
+        // @ts-expect-error - accessing private method with intentionally invalid input for testing
+        hypercertOps.resolveToStrongRef(invalidInput),
+      ).rejects.toThrow(ValidationError);
+      await expect(
+        // @ts-expect-error - accessing private method with intentionally invalid input for testing
+        hypercertOps.resolveToStrongRef(invalidInput),
+      ).rejects.toThrow("Invalid input: expected string URI or StrongRef");
     });
   });
 });

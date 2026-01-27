@@ -87,13 +87,7 @@ export function createMockHypercert(overrides: Partial<Hypercert> = {}): Hyperce
     title: "Test Hypercert",
     shortDescription: "A test hypercert",
     description: "A test hypercert for testing purposes",
-    workScope: {
-      $type: "org.hypercerts.defs#workScopeAll",
-      op: "all",
-      args: [
-        { $type: "org.hypercerts.defs#workScopeAtom", atom: { uri: "at://did:plc:tag/test#main", cid: "bafybeig" } },
-      ],
-    },
+    workScope: "Testing, Environment" as Hypercert["workScope"],
     startDate: yearAgo.toISOString(),
     endDate: now.toISOString(),
     workTimeFrameFrom: yearAgo.toISOString().split("T")[0],

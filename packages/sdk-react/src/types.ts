@@ -16,7 +16,6 @@ import type {
   HypercertClaim,
   HypercertProject,
   OrganizationInfo,
-  OrgHypercertsDefs,
   Repository,
   RepositoryRole,
   Session,
@@ -317,12 +316,7 @@ export interface Hypercert extends HypercertClaim {
 export interface UpdateHypercertParams {
   title?: string;
   description?: string;
-  workScope?:
-    | OrgHypercertsDefs.WorkScopeAll
-    | OrgHypercertsDefs.WorkScopeAny
-    | OrgHypercertsDefs.WorkScopeNot
-    | OrgHypercertsDefs.WorkScopeAtom
-    | { $type: string };
+  workScope?: string | { uri: string; cid: string } | { $type: string };
   impactScope?: string;
   workTimeFrameFrom?: string;
   workTimeFrameTo?: string;
@@ -504,7 +498,6 @@ export type {
   HypercertClaim,
   HypercertProject,
   OrganizationInfo,
-  OrgHypercertsDefs,
   Repository,
   RepositoryRole,
   Session,
