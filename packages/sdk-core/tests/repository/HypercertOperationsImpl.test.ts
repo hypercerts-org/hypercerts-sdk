@@ -1115,6 +1115,153 @@ describe("HypercertOperationsImpl", () => {
     });
   });
 
+  describe("updateMeasurement", () => {
+    const existingMeasurement = {
+      $type: "org.hypercerts.claim.measurement",
+      subject: { uri: "at://did:plc:test/org.hypercerts.claim.activity/abc", cid: "subject-cid" },
+      metric: "CO2 Reduced",
+      unit: "tons",
+      value: "100",
+      createdAt: "2024-01-01T00:00:00Z",
+      measurers: ["did:plc:measurer1"],
+    };
+
+    beforeEach(() => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.claim.measurement/xyz",
+          cid: "old-measurement-cid",
+          value: existingMeasurement,
+        },
+      });
+
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.measurement/xyz", cid: "new-measurement-cid" },
+      });
+    });
+
+    it("should update a measurement successfully", async () => {
+      const result = await hypercertOps.updateMeasurement("at://did:plc:test/org.hypercerts.claim.measurement/xyz", {
+        value: "200",
+        comment: "Updated after re-verification",
+      });
+
+      expect(result.uri).toBe("at://did:plc:test/org.hypercerts.claim.measurement/xyz");
+      expect(result.cid).toBe("new-measurement-cid");
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            value: "200",
+            comment: "Updated after re-verification",
+            // Preserved from existing
+            metric: "CO2 Reduced",
+            unit: "tons",
+          }),
+        }),
+      );
+    });
+
+    it("should preserve createdAt and subject from existing record", async () => {
+      await hypercertOps.updateMeasurement("at://did:plc:test/org.hypercerts.claim.measurement/xyz", {
+        value: "300",
+      });
+
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            createdAt: "2024-01-01T00:00:00Z",
+            subject: { uri: "at://did:plc:test/org.hypercerts.claim.activity/abc", cid: "subject-cid" },
+          }),
+        }),
+      );
+    });
+
+    it("should throw ValidationError for invalid URI format", async () => {
+      await expect(hypercertOps.updateMeasurement("invalid-uri", { value: "200" })).rejects.toThrow(ValidationError);
+    });
+
+    it("should throw ValidationError when URI targets wrong collection", async () => {
+      await expect(
+        hypercertOps.updateMeasurement("at://did:plc:test/org.hypercerts.claim.activity/xyz", { value: "200" }),
+      ).rejects.toThrow(ValidationError);
+
+      await expect(
+        hypercertOps.updateMeasurement("at://did:plc:test/org.hypercerts.collection/xyz", { value: "200" }),
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it("should throw NetworkError when measurement not found", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: false,
+        error: { message: "Not found" },
+      });
+
+      await expect(
+        hypercertOps.updateMeasurement("at://did:plc:test/org.hypercerts.claim.measurement/missing", { value: "200" }),
+      ).rejects.toThrow(NetworkError);
+    });
+
+    it("should update locations correctly", async () => {
+      const newLocations = [{ uri: "at://did:plc:test/app.certified.location/loc1", cid: "loc-cid" }];
+
+      await hypercertOps.updateMeasurement("at://did:plc:test/org.hypercerts.claim.measurement/xyz", {
+        locations: newLocations,
+      });
+
+      // processLocations transforms StrongRefs to $Typed format
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            locations: [
+              {
+                $type: "com.atproto.repo.strongRef",
+                uri: "at://did:plc:test/app.certified.location/loc1",
+                cid: "loc-cid",
+              },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it("should handle partial updates correctly", async () => {
+      // Only update comment, leave everything else unchanged
+      await hypercertOps.updateMeasurement("at://did:plc:test/org.hypercerts.claim.measurement/xyz", {
+        comment: "New comment only",
+      });
+
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            // Original values preserved
+            metric: "CO2 Reduced",
+            unit: "tons",
+            value: "100",
+            measurers: ["did:plc:measurer1"],
+            // New value
+            comment: "New comment only",
+          }),
+        }),
+      );
+    });
+
+    it("should emit measurementUpdated event on success", async () => {
+      const handler = vi.fn();
+      hypercertOps.on("measurementUpdated", handler);
+
+      await hypercertOps.updateMeasurement("at://did:plc:test/org.hypercerts.claim.measurement/xyz", {
+        value: "200",
+      });
+
+      expect(handler).toHaveBeenCalledWith({
+        uri: "at://did:plc:test/org.hypercerts.claim.measurement/xyz",
+        cid: "new-measurement-cid",
+      });
+    });
+  });
+
   describe("addEvaluation", () => {
     beforeEach(() => {
       mockAgent.com.atproto.repo.getRecord.mockResolvedValue({

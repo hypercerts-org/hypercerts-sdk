@@ -16,10 +16,11 @@ Update measurement API to align with lexicon beta.12+ schema
 **Breaking Changes (sdk-react):**
 
 - Removed `OrgHypercertsDefs` export (WorkScope types removed from lexicon)
-- `UpdateHypercertParams.workScope` now accepts `string | { uri: string; cid: string } | { $type: string }`
+- `UpdateHypercertParams.workScope` now accepts `string | StrongRef` (i.e., `string | { uri: string; cid: string }`)
 
 **New Features:**
 
+- Added `updateMeasurement()` method with `UpdateMeasurementParams` type (subject is immutable)
 - Support for `locations` array to specify where measurements were taken
 - Added `startDate` and `endDate` for measurement timeframes
 - Added `methodType` for short methodology identifiers

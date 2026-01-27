@@ -19,6 +19,7 @@ import type {
   Repository,
   RepositoryRole,
   Session,
+  StrongRef,
   UpdateProjectParams,
 } from "@hypercerts-org/sdk-core";
 import type { QueryClient } from "@tanstack/react-query";
@@ -316,7 +317,7 @@ export interface Hypercert extends HypercertClaim {
 export interface UpdateHypercertParams {
   title?: string;
   description?: string;
-  workScope?: string | { uri: string; cid: string } | { $type: string };
+  workScope?: string | StrongRef;
   impactScope?: string;
   workTimeFrameFrom?: string;
   workTimeFrameTo?: string;

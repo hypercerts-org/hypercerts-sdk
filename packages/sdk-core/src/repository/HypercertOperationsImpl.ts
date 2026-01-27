@@ -35,6 +35,7 @@ import {
   type UpdateCollectionParams,
   type UpdateProjectParams,
   type CreateMeasurementParams,
+  type UpdateMeasurementParams,
 } from "../services/hypercerts/types.js";
 import type {
   CreateHypercertEvidenceParams,
@@ -1191,6 +1192,45 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
+   * Applies updates to an existing measurement record, preserving immutable fields.
+   *
+   * @param existing - The existing measurement record
+   * @param updates - The updates to apply
+   * @returns Promise resolving to the updated measurement record
+   * @internal
+   */
+  private async applyMeasurementUpdates(
+    existing: HypercertMeasurement,
+    updates: UpdateMeasurementParams,
+  ): Promise<HypercertMeasurement> {
+    const record: HypercertMeasurement = {
+      ...existing,
+      // Preserve immutable fields
+      $type: existing.$type,
+      subject: existing.subject,
+      createdAt: existing.createdAt,
+    };
+
+    if (updates.metric !== undefined) record.metric = updates.metric;
+    if (updates.unit !== undefined) record.unit = updates.unit;
+    if (updates.value !== undefined) record.value = updates.value;
+    if (updates.startDate !== undefined) record.startDate = updates.startDate;
+    if (updates.endDate !== undefined) record.endDate = updates.endDate;
+    if (updates.methodType !== undefined) record.methodType = updates.methodType;
+    if (updates.methodURI !== undefined) record.methodURI = updates.methodURI;
+    if (updates.evidenceURI !== undefined) record.evidenceURI = updates.evidenceURI;
+    if (updates.measurers !== undefined) record.measurers = updates.measurers;
+    if (updates.comment !== undefined) record.comment = updates.comment;
+    if (updates.commentFacets !== undefined) record.commentFacets = updates.commentFacets;
+
+    if (updates.locations !== undefined) {
+      record.locations = await this.processLocations(updates.locations);
+    }
+
+    return record;
+  }
+
+  /**
    * Processes contribution parameters, creating contributor/contribution records if necessary.
    *
    * @param contributions - Array of contribution parameters
@@ -1530,7 +1570,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @example Basic measurement
    * ```typescript
    * await repo.hypercerts.addMeasurement({
-   *   subjectUri: hypercertUri,
+   *   subject: hypercertUri,
    *   metric: "Carbon Offset",
    *   unit: "tons CO2e",
    *   value: "150",
@@ -1549,23 +1589,19 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *   locations: [{ uri: "at://...", cid: "..." }],
    *   measurers: ["did:plc:auditor"],
    *   methodType: "satellite-imagery",
-   *   methodUri: "https://example.com/methodology",
-   *   evidenceUris: ["https://example.com/audit-report"],
+   *   methodURI: "https://example.com/methodology",
+   *   evidenceURI: ["https://example.com/audit-report"],
    *   comment: "Verified via satellite imagery",
    * });
    * ```
    */
   async addMeasurement(params: CreateMeasurementParams): Promise<CreateResult> {
     try {
-      // Resolve subject to get CID
       const subject = await this.resolveToStrongRef(params.subject);
       const createdAt = new Date().toISOString();
 
-      // Resolve locations if provided (reuse existing processLocations helper)
       const locationRefs = await this.processLocations(params.locations);
 
-      // Cast to Record<string, unknown> to avoid type mismatches between
-      // different Bluesky client packages (@atproto/api vs @atcute/bluesky)
       const measurementRecord: HypercertMeasurement = {
         $type: HYPERCERT_COLLECTIONS.MEASUREMENT,
         subject: { uri: subject.uri, cid: subject.cid },
@@ -1573,7 +1609,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         unit: params.unit,
         value: params.value,
         createdAt,
-        // Optional fields
         startDate: params.startDate,
         endDate: params.endDate,
         locations: locationRefs,
@@ -1604,6 +1639,78 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(`Failed to add measurement: ${error instanceof Error ? error.message : "Unknown"}`, error);
+    }
+  }
+
+  /**
+   * Updates a measurement record.
+   *
+   * Note: The `subject` field is immutable and cannot be changed after creation.
+   *
+   * @param uri - AT-URI of the measurement to update
+   * @param updates - Fields to update (subject is excluded as it's immutable)
+   * @returns Promise resolving to updated measurement URI and CID
+   * @throws {@link ValidationError} if validation fails or URI format is invalid
+   * @throws {@link NetworkError} if the measurement is not found or update fails
+   *
+   * @example Updating a measurement value
+   * ```typescript
+   * await repo.hypercerts.updateMeasurement(
+   *   "at://did:plc:test/org.hypercerts.claim.measurement/xyz",
+   *   { value: "200", comment: "Re-verified measurement" }
+   * );
+   * ```
+   */
+  async updateMeasurement(uri: string, updates: UpdateMeasurementParams): Promise<UpdateResult> {
+    try {
+      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
+      if (!uriMatch) {
+        throw new ValidationError(`Invalid URI format: ${uri}`);
+      }
+      const [, , collection, rkey] = uriMatch;
+
+      if (collection !== HYPERCERT_COLLECTIONS.MEASUREMENT) {
+        throw new ValidationError(
+          `URI must target a measurement collection. Expected '${HYPERCERT_COLLECTIONS.MEASUREMENT}', got '${collection}'`,
+        );
+      }
+
+      const existing = await this.agent.com.atproto.repo.getRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+      });
+
+      if (!existing.success) {
+        throw new NetworkError(`Measurement not found: ${uri}`);
+      }
+
+      const recordForUpdate = await this.applyMeasurementUpdates(existing.data.value as HypercertMeasurement, updates);
+
+      const validation = validate(recordForUpdate, HYPERCERT_COLLECTIONS.MEASUREMENT, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid measurement record: ${validation.error?.message}`);
+      }
+
+      const result = await this.agent.com.atproto.repo.putRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+        record: recordForUpdate,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to update measurement");
+      }
+
+      this.emit("measurementUpdated", { uri: result.data.uri, cid: result.data.cid });
+      return { uri: result.data.uri, cid: result.data.cid };
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
+      throw new NetworkError(
+        `Failed to update measurement: ${error instanceof Error ? error.message : "Unknown"}`,
+        error,
+      );
     }
   }
 

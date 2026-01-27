@@ -220,16 +220,7 @@ describe("useHypercerts", () => {
         title: "New Hypercert",
         shortDescription: "A new hypercert",
         description: "A new hypercert for testing",
-        workScope: {
-          $type: "org.hypercerts.defs#workScopeAll",
-          op: "all",
-          args: [
-            {
-              $type: "org.hypercerts.defs#workScopeAtom",
-              atom: { uri: "at://did:plc:tag/climate#main", cid: "bafybeig" },
-            },
-          ],
-        },
+        workScope: "Climate Action, Reforestation",
         startDate: "2024-01-01",
         endDate: "2024-12-31",
         rights: { name: "CC-BY-4.0", type: "license" as const, description: "Attribution" },
