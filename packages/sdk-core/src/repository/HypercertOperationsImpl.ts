@@ -1855,18 +1855,24 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * Creates a collection of hypercerts.
    *
    * Collections group related hypercerts with optional weights
-   * for relative importance.
+   * for relative importance. Collections can have visual branding
+   * with avatar (icon/logo) and banner (cover) images.
    *
    * @param params - Collection parameters
    * @param params.title - Collection title
    * @param params.items - Array of hypercert references with weights
    * @param params.shortDescription - Optional short description
-   * @param params.banner - Optional cover image blob
+   * @param params.description - Optional full description
+   * @param params.avatar - Optional avatar image (icon/logo) for the collection.
+   *   Can be a Blob, URI string, or image record object. Recommended: square aspect ratio.
+   * @param params.banner - Optional banner image (cover) for the collection.
+   *   Can be a Blob, URI string, or image record object. Recommended: 3:1 aspect ratio.
+   * @param params.location - Optional location reference or inline location data
    * @returns Promise resolving to collection record URI and CID
    * @throws {@link ValidationError} if validation fails
    * @throws {@link NetworkError} if the operation fails
    *
-   * @example
+   * @example Basic collection with items
    * ```typescript
    * const collection = await repo.hypercerts.createCollection({
    *   title: "Climate Projects 2024",
@@ -1876,7 +1882,27 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *     { itemIdentifier: { uri: hypercert2Uri, cid: hypercert2Cid }, itemWeight: "0.3" },
    *     { itemIdentifier: { uri: hypercert3Uri, cid: hypercert3Cid }, itemWeight: "0.2" },
    *   ],
-   *   banner: coverImageBlob,
+   * });
+   * ```
+   *
+   * @example Collection with avatar and banner images
+   * ```typescript
+   * const collection = await repo.hypercerts.createCollection({
+   *   title: "Reforestation Initiative",
+   *   shortDescription: "Tree planting projects worldwide",
+   *   description: "A collection of verified reforestation hypercerts...",
+   *   avatar: logoBlob,    // Square icon/logo image
+   *   banner: coverBlob,   // Wide cover/banner image
+   *   items: [...],
+   * });
+   * ```
+   *
+   * @example Collection with location
+   * ```typescript
+   * const collection = await repo.hypercerts.createCollection({
+   *   title: "Amazon Basin Projects",
+   *   items: [...],
+   *   location: { value: "Amazon Rainforest, Brazil", name: "Amazon Basin" },
    * });
    * ```
    */
@@ -2053,7 +2079,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param params - Project creation parameters
    * @returns Promise resolving to created project URI and CID with optional location URI
    *
-   * @example
+   * @throws {@link ValidationError} if validation fails
+   * @throws {@link NetworkError} if the operation fails
+   *
+   * @example Basic project with items
    * ```typescript
    * const result = await repo.hypercerts.createProject({
    *   title: "Climate Impact 2024",
@@ -2064,6 +2093,26 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *   ]
    * });
    * console.log(`Created project: ${result.uri}`);
+   * ```
+   *
+   * @example Project with avatar and banner
+   * ```typescript
+   * const result = await repo.hypercerts.createProject({
+   *   title: "Ocean Cleanup Initiative",
+   *   shortDescription: "Removing plastic from oceans",
+   *   avatar: logoBlob,    // Square icon/logo for the project
+   *   banner: coverBlob,   // Wide cover/banner image
+   *   items: [...],
+   * });
+   * ```
+   *
+   * @example Project with location
+   * ```typescript
+   * const result = await repo.hypercerts.createProject({
+   *   title: "Amazon Reforestation",
+   *   items: [...],
+   *   location: { value: "Amazon Basin, Brazil", name: "Amazon Rainforest" },
+   * });
    * ```
    */
   async createProject(params: CreateProjectParams): Promise<CreateProjectResult> {
@@ -2197,17 +2246,28 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * Updates an existing project.
    *
    * A project is a collection with type='project'. This method delegates to
-   * updateCollection and handles the avatar field.
+   * updateCollection after verifying the record is a project.
    *
    * @param uri - AT-URI of the project to update
-   * @param updates - Fields to update
+   * @param updates - Fields to update (partial)
    * @returns Promise resolving to updated project URI and CID
    *
-   * @example
+   * @throws {@link ValidationError} if the URI format is invalid or record is not a project
+   * @throws {@link NetworkError} if the project is not found or update fails
+   *
+   * @example Basic update
    * ```typescript
    * const result = await repo.hypercerts.updateProject(projectUri, {
    *   title: "Updated Project Title",
-   *   shortDescription: "New description"
+   *   shortDescription: "New description",
+   * });
+   * ```
+   *
+   * @example Update avatar and banner images
+   * ```typescript
+   * const result = await repo.hypercerts.updateProject(projectUri, {
+   *   avatar: newLogoBlob,   // Square icon/logo image
+   *   banner: newCoverBlob,  // Wide cover/banner image
    * });
    * ```
    */
@@ -2284,9 +2344,41 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   /**
    * Updates a collection.
    *
+   * Performs a partial update on an existing collection, merging the provided
+   * updates with the existing record. Only specified fields are updated; omitted
+   * fields retain their current values.
+   *
+   * **Note:** The collection `type` field cannot be changed after creation.
+   *
    * @param uri - AT-URI of the collection to update
-   * @param updates - Fields to update
+   * @param updates - Fields to update (partial)
    * @returns Promise resolving to updated collection URI and CID
+   *
+   * @throws {@link ValidationError} if the URI format is invalid or type change attempted
+   * @throws {@link NetworkError} if the collection is not found or update fails
+   *
+   * @example Basic update
+   * ```typescript
+   * const result = await repo.hypercerts.updateCollection(collectionUri, {
+   *   title: "Updated Collection Title",
+   *   shortDescription: "New description for the collection",
+   * });
+   * ```
+   *
+   * @example Update avatar and banner images
+   * ```typescript
+   * const result = await repo.hypercerts.updateCollection(collectionUri, {
+   *   avatar: newLogoBlob,   // Square icon/logo image
+   *   banner: newCoverBlob,  // Wide cover/banner image
+   * });
+   * ```
+   *
+   * @example Add location to existing collection
+   * ```typescript
+   * const result = await repo.hypercerts.updateCollection(collectionUri, {
+   *   location: { value: "Berlin, Germany", name: "Berlin HQ" },
+   * });
+   * ```
    */
   async updateCollection(uri: string, updates: UpdateCollectionParams): Promise<UpdateResult> {
     try {

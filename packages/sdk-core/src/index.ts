@@ -249,3 +249,7 @@ export type {
   PermissionInput,
   Permission,
 } from "./auth/permissions.js";
+
+// Rich Text Utilities
+export { createFacetsFromText, createFacetsFromTextSync, RichText } from "./lib/rich-text.js";
+export type { RichTextResult, AppBskyRichtextFacet } from "./lib/rich-text.js";
