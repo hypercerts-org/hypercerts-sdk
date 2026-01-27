@@ -401,7 +401,7 @@ export class Repository {
    * High-level hypercert operations.
    *
    * Provides a convenient API for creating and managing hypercerts,
-   * including related records like locations, contributions, and evidence.
+   * including related records like locations, contributions, and attachments.
    *
    * @returns {@link HypercertOperations} interface with EventEmitter capabilities
    *

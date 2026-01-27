@@ -168,7 +168,7 @@ export async function attachSidecar(repo: Repository, params: AttachSidecarParam
  * This orchestrates the creation of a main record followed by one or more
  * sidecar records that reference it. This is useful for workflows like:
  * - Creating a project with multiple hypercert claims
- * - Creating a hypercert with evidence and evaluation records
+ * - Creating a hypercert with attachments and evaluation records
  *
  * @param repo - The repository instance
  * @param params - Parameters including the main record and sidecar definitions

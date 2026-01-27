@@ -91,7 +91,6 @@ export type {
   OrganizationOperations,
   CreateHypercertParams,
   CreateHypercertResult,
-  CreateHypercertEvidenceParams,
   CreateOrganizationParams,
   LocationParams,
   ContributionDetailsParams,
@@ -162,7 +161,7 @@ export type {
   BadgeResponse,
   FundingReceipt,
   // SDK-specific types
-  HypercertEvidence,
+  HypercertAttachment,
   HypercertImage,
   HypercertImageRecord,
   BlobRef,
@@ -171,6 +170,9 @@ export type {
   HypercertProjectWithMetadata,
   CreateProjectParams,
   UpdateProjectParams,
+  CreateAttachmentParams,
+  UpdateAttachmentParams,
+  AttachmentParams,
 } from "./services/hypercerts/types.js";
 
 // Re-export ATProto lexicon types

@@ -94,7 +94,7 @@ describe("Repository", () => {
       expect(typeof hypercerts.list).toBe("function");
       expect(typeof hypercerts.delete).toBe("function");
       expect(typeof hypercerts.attachLocation).toBe("function");
-      expect(typeof hypercerts.addEvidence).toBe("function");
+      expect(typeof hypercerts.addAttachment).toBe("function");
       expect(typeof hypercerts.addContribution).toBe("function");
     });
   });

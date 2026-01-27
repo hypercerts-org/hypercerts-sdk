@@ -151,17 +151,12 @@ export type HypercertContributor = OrgHypercertsClaimActivity.Contributor;
 export type HypercertMeasurement = OrgHypercertsClaimMeasurement.Main;
 export type HypercertEvaluation = OrgHypercertsClaimEvaluation.Main;
 /**
- * Hypercert attachment record (formerly evidence).
+ * Hypercert attachment record.
  *
- * Renamed from `HypercertEvidence` in beta.13. Attachments provide
- * commentary, context, evidence, or documentary material related
- * to hypercert records.
+ * Attachments provide commentary, context, evidence, or documentary
+ * material related to hypercert records.
  */
 export type HypercertAttachment = OrgHypercertsClaimAttachment.Main;
-/**
- * @deprecated Use `HypercertAttachment` instead. Evidence was renamed to Attachment in beta.13.
- */
-export type HypercertEvidence = HypercertAttachment;
 export type HypercertCollection = OrgHypercertsClaimCollection.Main;
 
 /**
@@ -499,3 +494,118 @@ export type UpdateMeasurementParams = Partial<Except<CreateMeasurementParams, "s
  * ```
  */
 export type MeasurementParams = string | StrongRef | CreateMeasurementParams;
+
+// ============================================================================
+// Attachment Types
+// ============================================================================
+
+/**
+ * SDK input parameters for creating an attachment.
+ *
+ * Attachments provide commentary, context, evidence, or documentary material
+ * related to hypercert records.
+ *
+ * @remarks
+ * Schema structure (beta.13+):
+ * - `subjects` (array) - one or more subject records this attachment relates to
+ * - `content` (required array) - one or more URIs or blob references
+ * - `contentType` (optional) - type/category of the content
+ * - `location` (optional) - associated geographic location
+ * - Rich text facets support for descriptions
+ *
+ * Both `subjects` and `content` accept single values or arrays for convenience,
+ * and will be normalized to arrays internally.
+ *
+ * @example Single subject with single content
+ * ```typescript
+ * const params: CreateAttachmentParams = {
+ *   subjects: "at://did:plc:abc/org.hypercerts.claim.activity/xyz",
+ *   content: "https://example.com/report.pdf",
+ *   title: "Impact Report",
+ *   contentType: "report"
+ * };
+ * ```
+ *
+ * @example Multiple subjects with mixed content
+ * ```typescript
+ * const params: CreateAttachmentParams = {
+ *   subjects: [
+ *     "at://did:plc:abc/org.hypercerts.claim.activity/xyz",
+ *     { uri: "at://...", cid: "..." }
+ *   ],
+ *   content: [
+ *     "https://example.com/report.pdf",
+ *     new Blob(["data"], { type: "application/pdf" })
+ *   ],
+ *   title: "Multi-source Evidence",
+ *   location: { uri: "at://did:plc:.../app.certified.location/...", cid: "..." }
+ * };
+ * ```
+ *
+ * @example With rich text facets
+ * ```typescript
+ * const params: CreateAttachmentParams = {
+ *   subjects: "at://did:plc:abc/org.hypercerts.claim.activity/xyz",
+ *   content: "https://example.com/report.pdf",
+ *   title: "Report",
+ *   shortDescription: "Report by @alice",
+ *   shortDescriptionFacets: [
+ *     {
+ *       index: { byteStart: 10, byteEnd: 16 },
+ *       features: [{ $type: "app.bsky.richtext.facet#mention", did: "did:plc:alice" }]
+ *     }
+ *   ]
+ * };
+ * ```
+ */
+export type CreateAttachmentParams = OverrideProperties<
+  SetOptional<HypercertAttachment, "$type" | "createdAt">,
+  {
+    /**
+     * Subject(s) this attachment relates to.
+     * Can be:
+     * - Single AT-URI string (will fetch CID to create StrongRef)
+     * - Single StrongRef (uri + cid)
+     * - Array of AT-URIs or StrongRefs
+     *
+     * Will be normalized to an array of StrongRefs internally.
+     */
+    subjects: string | StrongRef | Array<string | StrongRef>;
+
+    /**
+     * Content of the attachment.
+     * Can be:
+     * - Single URI string
+     * - Single Blob (will be uploaded)
+     * - Array of URIs and/or Blobs
+     *
+     * Will be normalized to an array internally.
+     * This field is required.
+     */
+    content: string | Blob | Array<string | Blob>;
+
+    /**
+     * Optional location to attach.
+     * Can be:
+     * - StrongRef to reference existing location (uri + cid)
+     * - string (AT-URI) to reference existing location (CID will be fetched)
+     * - Location object to create a new location record
+     */
+    location?: LocationParams;
+  }
+>;
+
+/**
+ * SDK input parameters for updating an attachment.
+ * All fields are optional for partial updates.
+ */
+export type UpdateAttachmentParams = Partial<CreateAttachmentParams>;
+
+/**
+ * Union type for specifying an attachment reference.
+ * Can be:
+ * - AT-URI string pointing to existing attachment
+ * - StrongRef with uri and cid
+ * - Full attachment params object to create new attachment
+ */
+export type AttachmentParams = string | StrongRef | CreateAttachmentParams;

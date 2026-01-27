@@ -168,15 +168,9 @@ export const HYPERCERT_COLLECTIONS = {
   EVALUATION: EVALUATION_NSID,
 
   /**
-   * Attachment record collection (formerly evidence).
-   * @remarks Renamed from EVIDENCE in beta.13
+   * Attachment record collection.
    */
   ATTACHMENT: ATTACHMENT_NSID,
-
-  /**
-   * @deprecated Use ATTACHMENT instead. Renamed in beta.13.
-   */
-  EVIDENCE: ATTACHMENT_NSID,
 
   /**
    * Collection record collection (groups of hypercerts).
