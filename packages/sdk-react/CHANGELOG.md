@@ -1,5 +1,49 @@
 # @hypercerts-org/sdk-react
 
+## 0.10.0-beta.8
+
+### Minor Changes
+
+- [#120](https://github.com/hypercerts-org/hypercerts-sdk/pull/120)
+  [`2e03d8d`](https://github.com/hypercerts-org/hypercerts-sdk/commit/2e03d8dc3a1fafad03c4f783951bfb48acfb01ab) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Update measurement API to align with lexicon beta.12+ schema
+
+  **Breaking Changes (sdk-core):**
+  - `addMeasurement()` now accepts `CreateMeasurementParams` instead of individual parameters
+  - `subject` field replaces `hypercertUri` and accepts both string AT-URIs and StrongRefs
+  - `unit` is now a required field (e.g., "tons CO2e", "hectares", "%")
+  - `measurers` is now optional instead of required
+  - Field name changes: `methodUri` → `methodURI`, `evidenceUris` → `evidenceURI`
+
+  **Breaking Changes (sdk-react):**
+  - Removed `OrgHypercertsDefs` export (WorkScope types removed from lexicon)
+  - `UpdateHypercertParams.workScope` now accepts `string | StrongRef` (i.e., `string | { uri: string; cid: string }`)
+
+  **New Features:**
+  - Added `updateMeasurement()` method with `UpdateMeasurementParams` type (subject is immutable)
+  - Support for `locations` array to specify where measurements were taken
+  - Added `startDate` and `endDate` for measurement timeframes
+  - Added `methodType` for short methodology identifiers
+  - Rich text support via `comment` and `commentFacets` fields
+
+  **Internal Improvements:**
+  - Added `resolveToStrongRef` utility for handling string/StrongRef conversions
+  - Updated evidence handling to use `HypercertAttachment` schema (beta.13 compatibility)
+  - Improved error messages in URI resolution functions
+
+### Patch Changes
+
+- Updated dependencies
+  [[`320b428`](https://github.com/hypercerts-org/hypercerts-sdk/commit/320b428a073b8f9371f3a224dd7897897ad7efae),
+  [`28a46c8`](https://github.com/hypercerts-org/hypercerts-sdk/commit/28a46c80224633badaddb574971cafc6537edc1c),
+  [`e1ced1e`](https://github.com/hypercerts-org/hypercerts-sdk/commit/e1ced1e53f4f26058f4e4e5c06909563ec3cd49e),
+  [`5be70fa`](https://github.com/hypercerts-org/hypercerts-sdk/commit/5be70faf5728a41477508089cfebef9c26d1362e),
+  [`2354987`](https://github.com/hypercerts-org/hypercerts-sdk/commit/23549875fdd02cb30372109784916b3d5d9ee7c3),
+  [`750cd44`](https://github.com/hypercerts-org/hypercerts-sdk/commit/750cd4429ed4ec2c0d21b4ea60296da87c7cc183),
+  [`2e03d8d`](https://github.com/hypercerts-org/hypercerts-sdk/commit/2e03d8dc3a1fafad03c4f783951bfb48acfb01ab),
+  [`60c3950`](https://github.com/hypercerts-org/hypercerts-sdk/commit/60c3950f596b5ae7080404d66575ecb58861d5c0)]:
+  - @hypercerts-org/sdk-core@0.10.0-beta.7
+
 ## 0.10.0-beta.7
 
 ### Patch Changes

@@ -1,5 +1,195 @@
 # @hypercerts-org/sdk-core
 
+## 0.10.0-beta.7
+
+### Minor Changes
+
+- [#112](https://github.com/hypercerts-org/hypercerts-sdk/pull/112)
+  [`320b428`](https://github.com/hypercerts-org/hypercerts-sdk/commit/320b428a073b8f9371f3a224dd7897897ad7efae) Thanks
+  [@aspiers](https://github.com/aspiers)! - Add comprehensive documentation and tests for collection avatar and banner
+  images
+
+  Collections and projects now support avatar (thumbnail/icon) and banner (header/cover) images. Images can be provided
+  as Blobs for upload or as URI strings for external references.
+
+  **What's Included:**
+  - Comprehensive JSDoc documentation for `HypercertCollection` type explaining avatar and banner usage
+  - Tests for creating collections with avatar/banner using both Blobs and URI strings
+  - Tests for updating collection images (add, update, remove, preserve)
+  - Examples showing avatar/banner in collections and projects
+
+- [#112](https://github.com/hypercerts-org/hypercerts-sdk/pull/112)
+  [`e1ced1e`](https://github.com/hypercerts-org/hypercerts-sdk/commit/e1ced1e53f4f26058f4e4e5c06909563ec3cd49e) Thanks
+  [@aspiers](https://github.com/aspiers)! - Add rich text facet support for activity descriptions (lexicon
+  v0.10.0-beta.7)
+
+  Activities now support rich text annotations (facets) in their descriptions, enabling mentions (@user), URLs, hashtags
+  (#tag), and other inline markup.
+  - Added `shortDescriptionFacets` and `descriptionFacets` fields to `CreateHypercertParams`
+  - Updated `create()` method to include facet fields in hypercert records
+  - Enhanced `HypercertClaim` documentation with comprehensive facet examples
+  - Added examples showing mentions, links, and tag facets with proper byte indexing
+
+- [#115](https://github.com/hypercerts-org/hypercerts-sdk/pull/115)
+  [`5be70fa`](https://github.com/hypercerts-org/hypercerts-sdk/commit/5be70faf5728a41477508089cfebef9c26d1362e) Thanks
+  [@s-adamantine](https://github.com/s-adamantine)! - **BREAKING CHANGE**: Update contribution structure to match
+  lexicon beta.7+ inline contributor format.
+
+  **Old API (lexicon beta.5-beta.6):**
+
+  ```typescript
+  await repo.hypercerts.create({
+    contributions: [
+      {
+        contributors: ["did:plc:contrib1"],
+        role: "Developer",
+        description: "Led backend development",
+      },
+    ],
+  });
+  ```
+
+  **New API (lexicon beta.7+):**
+
+  ```typescript
+  await repo.hypercerts.create({
+    contributions: [
+      {
+        contributors: ["did:plc:contrib1"],
+        contributionDetails: "Developer", // string | StrongRef | CreateContributionDetailsParams
+        weight: "0.75", // optional proportional weight
+      },
+    ],
+  });
+  ```
+
+  **Migration:** Replace `role` and `description` with `contributionDetails`. Optionally add `weight` for proportional
+  attribution.
+
+- [#108](https://github.com/hypercerts-org/hypercerts-sdk/pull/108)
+  [`750cd44`](https://github.com/hypercerts-org/hypercerts-sdk/commit/750cd4429ed4ec2c0d21b4ea60296da87c7cc183) Thanks
+  [@s-adamantine](https://github.com/s-adamantine)! - Support multiple locations for hypercert activity claims
+
+  **Breaking Changes:**
+  - `CreateHypercertParams.location` is now `CreateHypercertParams.locations` (plural, array)
+  - `CreateHypercertResult.locationUri` is now `CreateHypercertResult.locationUris` (plural, array)
+  - `CreateHypercertResult.locationCid` is now `CreateHypercertResult.locationCids` (plural, array)
+
+  **New Functionality:**
+  - Hypercerts can now have multiple locations to support activities spanning multiple places
+  - Each location can be a StrongRef, string URI, or location object
+  - `attachLocation()` now appends to existing locations array instead of replacing
+
+  **Migration:**
+
+  ```typescript
+  // Before (v0.10.0-beta.5 and earlier)
+  await repo.hypercerts.create({
+    ...params,
+    location: {
+      lpVersion: "1.0.0",
+      srs: "EPSG:4326",
+      locationType: "coordinate-decimal",
+      location: "https://example.com/location",
+    },
+  });
+
+  // After (v0.10.0-beta.6+)
+  await repo.hypercerts.create({
+    ...params,
+    locations: [
+      {
+        lpVersion: "1.0.0",
+        srs: "EPSG:4326",
+        locationType: "coordinate-decimal",
+        location: "https://example.com/location",
+      },
+    ],
+  });
+
+  // Now supports multiple locations
+  await repo.hypercerts.create({
+    ...params,
+    locations: [
+      { location: "https://example.com/location1", ... },
+      { location: "https://example.com/location2", ... },
+    ],
+  });
+  ```
+
+- [#120](https://github.com/hypercerts-org/hypercerts-sdk/pull/120)
+  [`2e03d8d`](https://github.com/hypercerts-org/hypercerts-sdk/commit/2e03d8dc3a1fafad03c4f783951bfb48acfb01ab) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Update measurement API to align with lexicon beta.12+ schema
+
+  **Breaking Changes (sdk-core):**
+  - `addMeasurement()` now accepts `CreateMeasurementParams` instead of individual parameters
+  - `subject` field replaces `hypercertUri` and accepts both string AT-URIs and StrongRefs
+  - `unit` is now a required field (e.g., "tons CO2e", "hectares", "%")
+  - `measurers` is now optional instead of required
+  - Field name changes: `methodUri` → `methodURI`, `evidenceUris` → `evidenceURI`
+
+  **Breaking Changes (sdk-react):**
+  - Removed `OrgHypercertsDefs` export (WorkScope types removed from lexicon)
+  - `UpdateHypercertParams.workScope` now accepts `string | StrongRef` (i.e., `string | { uri: string; cid: string }`)
+
+  **New Features:**
+  - Added `updateMeasurement()` method with `UpdateMeasurementParams` type (subject is immutable)
+  - Support for `locations` array to specify where measurements were taken
+  - Added `startDate` and `endDate` for measurement timeframes
+  - Added `methodType` for short methodology identifiers
+  - Rich text support via `comment` and `commentFacets` fields
+
+  **Internal Improvements:**
+  - Added `resolveToStrongRef` utility for handling string/StrongRef conversions
+  - Updated evidence handling to use `HypercertAttachment` schema (beta.13 compatibility)
+  - Improved error messages in URI resolution functions
+
+- [#108](https://github.com/hypercerts-org/hypercerts-sdk/pull/108)
+  [`60c3950`](https://github.com/hypercerts-org/hypercerts-sdk/commit/60c3950f596b5ae7080404d66575ecb58861d5c0) Thanks
+  [@s-adamantine](https://github.com/s-adamantine)! - feat: implement pre-generation of rKeys for activity claims using
+  deterministic content hashing (SHA-256).
+
+  fix: normalize hashInput in `createHypercertRecord()` to use resolved StrongRefs (`locationRef`, `contributorsData`)
+  instead of raw params which may contain non-serializable Blobs or inconsistent formats, ensuring stable rKey
+  generation.
+
+### Patch Changes
+
+- [#112](https://github.com/hypercerts-org/hypercerts-sdk/pull/112)
+  [`28a46c8`](https://github.com/hypercerts-org/hypercerts-sdk/commit/28a46c80224633badaddb574971cafc6537edc1c) Thanks
+  [@aspiers](https://github.com/aspiers)! - Add documentation for collection item weights (lexicon v0.10.0-beta.7)
+
+  Collections now support optional weights on items for proportional attribution. Each item in a collection's `items`
+  array can have an `itemWeight` field (positive number as string) to indicate relative weighting.
+  - Enhanced documentation for `HypercertCollectionItem` type with usage examples
+  - Added examples showing weighted items, nested collections, and basic items
+  - Documented `CollectionItemInput` helper type for SDK operations
+
+- [#119](https://github.com/hypercerts-org/hypercerts-sdk/pull/119)
+  [`2354987`](https://github.com/hypercerts-org/hypercerts-sdk/commit/23549875fdd02cb30372109784916b3d5d9ee7c3) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Fix contributor identity and contribution details to include `$type` for
+  lexicon validation
+
+  **Breaking Context:** The lexicon defines `contributorIdentity` and `contributionDetails` as union types wrapped in
+  `$Typed<>`, which requires `$type: "com.atproto.repo.strongRef"` as a discriminator for validation. Unlike the
+  `rights` field (which uses plain `ComAtprotoRepoStrongRef.Main`), these fields require `$type` to pass validation.
+
+  **Implementation Changes:**
+  - `resolveContributorIdentity()`: Now converts string DIDs to `contributorInformation` records and returns StrongRefs
+    with `$type`
+  - `resolveContributionDetails()`: Added `$type: "com.atproto.repo.strongRef"` to all StrongRef returns
+  - Updated `ResolvedContributorIdentity` and `ResolvedContributionDetails` types to include `$type` in StrongRef
+    objects
+
+  **Test Updates:**
+  - Added mocks for `contributorInformation` record creation when string DIDs are provided (e.g., `"did:plc:contrib1"`)
+  - Updated assertions to expect `$type: "com.atproto.repo.strongRef"` in all contributor and contribution detail
+    StrongRefs
+  - Adjusted mock call indices to account for additional `contributorInformation` record creation calls
+  - Fixed 10 failing tests that were expecting plain `{ uri, cid }` objects instead of properly typed StrongRefs
+
+  This ensures hypercert records with contributors pass lexicon validation and can be created successfully.
+
 ## 0.10.0-beta.6
 
 ### Minor Changes

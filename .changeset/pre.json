@@ -6,14 +6,19 @@
     "@hypercerts-org/sdk-react": "0.10.0"
   },
   "changesets": [
+    "add-collection-avatar-banner-docs",
+    "add-collection-item-weight-docs",
     "add-project-support",
+    "add-rich-text-facets",
     "align-collection-project-types",
     "base-operations",
     "configurable-agent-routing",
     "custom-lexicon-docs",
+    "feat-contribution-weight",
     "five-seas-do",
     "fix-add-evidence",
     "fix-collaborator-permissions-format",
+    "fix-contributor-strongref-types",
     "fix-create-org-params",
     "fix-errant-changelog-versions",
     "fix-hypcertcreation-params",
@@ -36,6 +41,9 @@
     "react-lexicon-registry",
     "record-validation",
     "refactor-location-attachment",
-    "sdk-lexicon-integration"
+    "sdk-lexicon-integration",
+    "support-multiple-locations",
+    "update-measurement-api",
+    "wise-papayas-sing"
   ]
 }
