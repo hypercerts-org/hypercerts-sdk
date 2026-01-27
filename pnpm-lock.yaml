@@ -19,7 +19,7 @@ importers:
         version: 9.39.1
       '@vitest/coverage-v8':
         specifier: ^4.0.6
-        version: 4.0.16(vitest@4.0.16)
+        version: 4.0.16(vitest@4.0.16(@types/node@24.10.1)(@vitest/ui@4.0.16)(jsdom@26.1.0)(yaml@2.8.2))
       '@vitest/ui':
         specifier: ^4.0.6
         version: 4.0.16(vitest@4.0.16)
@@ -63,8 +63,8 @@ importers:
         specifier: ^0.3.12
         version: 0.3.12
       '@hypercerts-org/lexicon':
-        specifier: 0.10.0-beta.11
-        version: 0.10.0-beta.11(@atproto/xrpc@0.7.6)
+        specifier: 0.10.0-beta.13
+        version: 0.10.0-beta.13(@atproto/xrpc@0.7.6)
       eventemitter3:
         specifier: ^5.0.1
         version: 5.0.1
@@ -201,8 +201,8 @@ packages:
   '@atproto/api@0.17.7':
     resolution: {integrity: sha512-V+OJBZq9chcrD21xk1bUa6oc5DSKfQj5DmUPf5rmZncqL1w9ZEbS38H5cMyqqdhfgo2LWeDRdZHD0rvNyJsIaw==}
 
-  '@atproto/common-web@0.4.12':
-    resolution: {integrity: sha512-3aCJemqM/fkHQrVPbTCHCdiVstKFI+2LkFLvUhO6XZP0EqUZa/rg/CIZBKTFUWu9I5iYiaEiXL9VwcDRpEevSw==}
+  '@atproto/common-web@0.4.13':
+    resolution: {integrity: sha512-TewRUyB/dVJ5PtI3QmJzEgT3wDsvpnLJ+48hPl+LuUueJPamZevXKJN6dFjtbKAMFRnl2bKfdsf79qwvdSaLKQ==}
 
   '@atproto/common-web@0.4.5':
     resolution: {integrity: sha512-Tx0xUafLm3vRvOQpbBl5eb9V8xlC7TaRXs6dAulHRkDG3Kb+P9qn3pkDteq+aeMshbVXbVa1rm3Ok4vFyuoyYA==}
@@ -222,20 +222,20 @@ packages:
   '@atproto/lex-data@0.0.1':
     resolution: {integrity: sha512-DrS/8cQcQs3s5t9ELAFNtyDZ8/PdiCx47ALtFEP2GnX2uCBHZRkqWG7xmu6ehjc787nsFzZBvlnz3T/gov5fGA==}
 
-  '@atproto/lex-data@0.0.8':
-    resolution: {integrity: sha512-1Y5tz7BkS7380QuLNXaE8GW8Xba+mRWugt8BKM4BUFYjjUZdmirU8lr72iM4XlEBrzRu8Cfvj+MbsbYaZv+IgA==}
+  '@atproto/lex-data@0.0.9':
+    resolution: {integrity: sha512-1slwe4sG0cyWtsq16+rBoWIxNDqGPkkvN+PV6JuzA7dgUK9bjUmXBGQU4eZlUPSS43X1Nhmr/9VjgKmEzU9vDw==}
 
   '@atproto/lex-json@0.0.1':
     resolution: {integrity: sha512-ivcF7+pDRuD/P97IEKQ/9TruunXj0w58Khvwk3M6psaI5eZT6LRsRZ4cWcKaXiFX4SHnjy+x43g0f7pPtIsERg==}
 
-  '@atproto/lex-json@0.0.8':
-    resolution: {integrity: sha512-w1Qmkae1QhmNz+i1Zm3xr3jp0UPPRENmdlpU0qIrdxWDo9W4Mzkeyc3eSoa+Zs+zN8xkRSQw7RLZte/B7Ipdwg==}
+  '@atproto/lex-json@0.0.9':
+    resolution: {integrity: sha512-Q2v1EVZcnd+ndyZj1r2UlGikA7q6It24CFPLbxokcf5Ba4RBupH8IkkQX7mqUDSRWPgQdmZYIdW9wUln+MKDqw==}
 
   '@atproto/lexicon@0.5.2':
     resolution: {integrity: sha512-lRmJgMA8f5j7VB5Iu5cp188ald5FuI4FlmZ7nn6EBrk1dgOstWVrI5Ft6K3z2vjyLZRG6nzknlsw+tDP63p7bQ==}
 
-  '@atproto/lexicon@0.6.0':
-    resolution: {integrity: sha512-5veb8aD+J5M0qszLJ+73KSFsFrJBgAY/nM1TSAJvGY7fNc9ZAT+PSUlmIyrdye9YznAZ07yktalls/TwNV7cHQ==}
+  '@atproto/lexicon@0.6.1':
+    resolution: {integrity: sha512-/vI1kVlY50Si+5MXpvOucelnYwb0UJ6Qto5mCp+7Q5C+Jtp+SoSykAPVvjVtTnQUH2vrKOFOwpb3C375vSKzXw==}
 
   '@atproto/oauth-client-node@0.3.12':
     resolution: {integrity: sha512-9ejfO1H8qo3EbiAJgxKcdcR5Ay/9hgaC5OdxtTN63bcOrkIhvBN0xpVPGZYLL1iJQyNeK1T5m/LDrv4gUS1B+g==}
@@ -250,8 +250,8 @@ packages:
   '@atproto/syntax@0.4.1':
     resolution: {integrity: sha512-CJdImtLAiFO+0z3BWTtxwk6aY5w4t8orHTMVJgkf++QRJWTxPbIFko/0hrkADB7n2EruDxDSeAgfUGehpH6ngw==}
 
-  '@atproto/syntax@0.4.2':
-    resolution: {integrity: sha512-X9XSRPinBy/0VQ677j8VXlBsYSsUXaiqxWVpGGxJYsAhugdQRb0jqaVKJFtm6RskeNkV6y9xclSUi9UYG/COrA==}
+  '@atproto/syntax@0.4.3':
+    resolution: {integrity: sha512-YoZUz40YAJr5nPwvCDWgodEOlt5IftZqPJvA0JDWjuZKD8yXddTwSzXSaKQAzGOpuM+/A3uXRtPzJJqlScc+iA==}
 
   '@atproto/xrpc@0.7.6':
     resolution: {integrity: sha512-RvCf4j0JnKYWuz3QzsYCntJi3VuiAAybQsMIUw2wLWcHhchO9F7UaBZINLL2z0qc/cYWPv5NSwcVydMseoCZLA==}
@@ -592,8 +592,8 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
 
-  '@hypercerts-org/lexicon@0.10.0-beta.11':
-    resolution: {integrity: sha512-+fbxQ/22qHrJ+l9q4kp/QiC9dKyLFaXbin5WPvbUkeMVHaZyhw2G/GE8O0QWksFNtCdUpDjjD7tWs0AWk934aQ==}
+  '@hypercerts-org/lexicon@0.10.0-beta.13':
+    resolution: {integrity: sha512-QXgHZjn6ngbcmTh3QV/T7yu2sxgeCKURUcOGcXjRoY+M9Gnld40KVsiJ+KFR5iH3sIXOCd5uuo5KAvB1sLpkSg==}
     peerDependencies:
       '@atproto/xrpc': '*'
 
@@ -2308,10 +2308,11 @@ snapshots:
       tlds: 1.261.0
       zod: 3.25.76
 
-  '@atproto/common-web@0.4.12':
+  '@atproto/common-web@0.4.13':
     dependencies:
-      '@atproto/lex-data': 0.0.8
-      '@atproto/lex-json': 0.0.8
+      '@atproto/lex-data': 0.0.9
+      '@atproto/lex-json': 0.0.9
+      '@atproto/syntax': 0.4.3
       zod: 3.25.76
 
   '@atproto/common-web@0.4.5':
@@ -2348,22 +2349,21 @@ snapshots:
       uint8arrays: 3.0.0
       unicode-segmenter: 0.14.0
 
-  '@atproto/lex-data@0.0.8':
+  '@atproto/lex-data@0.0.9':
     dependencies:
-      '@atproto/syntax': 0.4.2
       multiformats: 9.9.0
       tslib: 2.8.1
       uint8arrays: 3.0.0
-      unicode-segmenter: 0.14.5
+      unicode-segmenter: 0.14.0
 
   '@atproto/lex-json@0.0.1':
     dependencies:
       '@atproto/lex-data': 0.0.1
       tslib: 2.8.1
 
-  '@atproto/lex-json@0.0.8':
+  '@atproto/lex-json@0.0.9':
     dependencies:
-      '@atproto/lex-data': 0.0.8
+      '@atproto/lex-data': 0.0.9
       tslib: 2.8.1
 
   '@atproto/lexicon@0.5.2':
@@ -2374,10 +2374,10 @@ snapshots:
       multiformats: 9.9.0
       zod: 3.25.76
 
-  '@atproto/lexicon@0.6.0':
+  '@atproto/lexicon@0.6.1':
     dependencies:
-      '@atproto/common-web': 0.4.12
-      '@atproto/syntax': 0.4.2
+      '@atproto/common-web': 0.4.13
+      '@atproto/syntax': 0.4.3
       iso-datestring-validator: 2.2.2
       multiformats: 9.9.0
       zod: 3.25.76
@@ -2418,7 +2418,9 @@ snapshots:
 
   '@atproto/syntax@0.4.1': {}
 
-  '@atproto/syntax@0.4.2': {}
+  '@atproto/syntax@0.4.3':
+    dependencies:
+      tslib: 2.8.1
 
   '@atproto/xrpc@0.7.6':
     dependencies:
@@ -2771,11 +2773,11 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@hypercerts-org/lexicon@0.10.0-beta.11(@atproto/xrpc@0.7.6)':
+  '@hypercerts-org/lexicon@0.10.0-beta.13(@atproto/xrpc@0.7.6)':
     dependencies:
       '@atcute/bluesky': 3.2.15
       '@atcute/leaflet': 1.0.16
-      '@atproto/lexicon': 0.6.0
+      '@atproto/lexicon': 0.6.1
       '@atproto/xrpc': 0.7.6
       multiformats: 13.4.2
 
@@ -3106,7 +3108,7 @@ snapshots:
       '@typescript-eslint/types': 8.48.0
       eslint-visitor-keys: 4.2.1
 
-  '@vitest/coverage-v8@4.0.16(vitest@4.0.16)':
+  '@vitest/coverage-v8@4.0.16(vitest@4.0.16(@types/node@24.10.1)(@vitest/ui@4.0.16)(jsdom@26.1.0)(yaml@2.8.2))':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
       '@vitest/utils': 4.0.16

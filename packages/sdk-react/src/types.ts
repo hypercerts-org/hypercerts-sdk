@@ -16,10 +16,10 @@ import type {
   HypercertClaim,
   HypercertProject,
   OrganizationInfo,
-  OrgHypercertsDefs,
   Repository,
   RepositoryRole,
   Session,
+  StrongRef,
   UpdateProjectParams,
 } from "@hypercerts-org/sdk-core";
 import type { QueryClient } from "@tanstack/react-query";
@@ -317,12 +317,7 @@ export interface Hypercert extends HypercertClaim {
 export interface UpdateHypercertParams {
   title?: string;
   description?: string;
-  workScope?:
-    | OrgHypercertsDefs.WorkScopeAll
-    | OrgHypercertsDefs.WorkScopeAny
-    | OrgHypercertsDefs.WorkScopeNot
-    | OrgHypercertsDefs.WorkScopeAtom
-    | { $type: string };
+  workScope?: string | StrongRef;
   impactScope?: string;
   workTimeFrameFrom?: string;
   workTimeFrameTo?: string;
@@ -504,7 +499,6 @@ export type {
   HypercertClaim,
   HypercertProject,
   OrganizationInfo,
-  OrgHypercertsDefs,
   Repository,
   RepositoryRole,
   Session,

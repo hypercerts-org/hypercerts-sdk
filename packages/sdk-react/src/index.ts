@@ -159,6 +159,5 @@ export type {
   CreateHypercertParams,
   CreateHypercertResult,
   OrganizationInfo,
-  OrgHypercertsDefs,
   RepositoryRole,
 } from "./types.js";

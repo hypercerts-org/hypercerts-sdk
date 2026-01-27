@@ -18,9 +18,11 @@ import type {
   CreateProjectResult,
   HypercertCollection,
   HypercertClaim,
-  OrgHypercertsDefs,
   UpdateCollectionParams,
   UpdateProjectParams,
+  CreateMeasurementParams,
+  UpdateMeasurementParams,
+  StrongRef,
 } from "../services/hypercerts/types.js";
 import type {
   CreateResult,
@@ -226,16 +228,22 @@ export interface CreateHypercertParams {
 
   /**
    * Scope of work or impact area.
-   * Logical scope of the work using label-based conditions.
    *
-   * @example WorkScopeAll with atom references
+   * Can be either:
+   * - A simple string describing the work scope
+   * - A StrongRef to a work scope logic record for complex nested definitions
+   *
+   * @example Simple string scope
+   * ```typescript
+   * workScope: "Climate Action"
+   * ```
+   *
+   * @example StrongRef to work scope record
+   * ```typescript
+   * workScope: { uri: "at://did:plc:.../org.hypercerts.helper.workScopeTag/...", cid: "..." }
+   * ```
    */
-  workScope?:
-    | OrgHypercertsDefs.WorkScopeAll
-    | OrgHypercertsDefs.WorkScopeAny
-    | OrgHypercertsDefs.WorkScopeNot
-    | OrgHypercertsDefs.WorkScopeAtom
-    | { $type: string };
+  workScope?: string | StrongRef;
 
   /**
    * Start date of the work period.
@@ -837,6 +845,11 @@ export interface HypercertEvents {
    * Emitted when a location is removed from a project.
    */
   locationRemovedFromProject: { projectUri: string };
+
+  /**
+   * Emitted when a measurement is updated.
+   */
+  measurementUpdated: { uri: string; cid: string };
 }
 
 /**
@@ -956,19 +969,66 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
   }): Promise<CreateResult>;
 
   /**
-   * Creates a measurement record for a hypercert.
+   * Creates a measurement record for a hypercert or other subject.
    *
-   * @param params - Measurement parameters
-   * @returns Promise resolving to measurement record result
+   * Measurements quantify the impact claimed with specific metrics,
+   * values, and units.
+   *
+   * @param params - Measurement parameters (see {@link CreateMeasurementParams})
+   * @returns Promise resolving to measurement record URI and CID
+   * @throws {@link ValidationError} if validation fails
+   * @throws {@link NetworkError} if the operation fails
+   *
+   * @example Basic measurement
+   * ```typescript
+   * await repo.hypercerts.addMeasurement({
+   *   subject: hypercertUri,
+   *   metric: "Carbon Offset",
+   *   unit: "tons CO2e",
+   *   value: "150",
+   * });
+   * ```
+   *
+   * @example Full measurement with all options
+   * ```typescript
+   * await repo.hypercerts.addMeasurement({
+   *   subject: "at://...",
+   *   metric: "Forest Area",
+   *   unit: "hectares",
+   *   value: "500",
+   *   startDate: "2024-01-01T00:00:00Z",
+   *   endDate: "2024-12-31T23:59:59Z",
+   *   locations: [{ uri: "at://...", cid: "..." }],
+   *   measurers: ["did:plc:auditor"],
+   *   methodType: "satellite-imagery",
+   *   methodURI: "https://example.com/methodology",
+   *   evidenceURI: ["https://example.com/audit-report"],
+   *   comment: "Verified via satellite imagery",
+   * });
+   * ```
    */
-  addMeasurement(params: {
-    hypercertUri: string;
-    measurers: string[];
-    metric: string;
-    value: string;
-    methodUri?: string;
-    evidenceUris?: string[];
-  }): Promise<CreateResult>;
+  addMeasurement(params: CreateMeasurementParams): Promise<CreateResult>;
+
+  /**
+   * Updates a measurement record.
+   *
+   * Note: The `subject` field is immutable and cannot be changed after creation.
+   *
+   * @param uri - AT-URI of the measurement to update
+   * @param updates - Fields to update (subject is excluded as it's immutable)
+   * @returns Promise resolving to updated measurement URI and CID
+   * @throws {@link ValidationError} if validation fails or URI format is invalid
+   * @throws {@link NetworkError} if the measurement is not found or update fails
+   *
+   * @example Updating a measurement value
+   * ```typescript
+   * await repo.hypercerts.updateMeasurement(
+   *   "at://did:plc:test/org.hypercerts.claim.measurement/xyz",
+   *   { value: "200", comment: "Re-verified measurement" }
+   * );
+   * ```
+   */
+  updateMeasurement(uri: string, updates: UpdateMeasurementParams): Promise<UpdateResult>;
 
   /**
    * Creates an evaluation record.

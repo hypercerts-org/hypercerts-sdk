@@ -114,7 +114,7 @@ export {
   OrgHypercertsClaimContributorInformation,
   OrgHypercertsClaimMeasurement,
   OrgHypercertsClaimEvaluation,
-  OrgHypercertsClaimEvidence,
+  OrgHypercertsClaimAttachment,
   OrgHypercertsClaimCollection,
   OrgHypercertsHelperWorkScopeTag,
   AppCertifiedLocation,
