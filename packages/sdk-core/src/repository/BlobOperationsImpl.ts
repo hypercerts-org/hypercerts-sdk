@@ -58,6 +58,7 @@ export class BlobOperationsImpl implements BlobOperations {
    * @param repoDid - DID of the repository (used for blob retrieval)
    * @param _serverUrl - Server URL (reserved for future use)
    * @param isSDS - Whether this is a Shared Data Server
+   * @param repo - Optional repository instance for referencing back to repository
    *
    * @internal
    */
@@ -66,6 +67,7 @@ export class BlobOperationsImpl implements BlobOperations {
     private repoDid: string,
     private _serverUrl: string,
     private isSDS: boolean,
+    private repo?: unknown,
   ) {}
 
   /**

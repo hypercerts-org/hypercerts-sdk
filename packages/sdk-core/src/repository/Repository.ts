@@ -366,7 +366,7 @@ export class Repository {
    */
   get blobs(): BlobOperations {
     if (!this._blobs) {
-      this._blobs = new BlobOperationsImpl(this.agent, this.repoDid, this.serverUrl, this._isSDS);
+      this._blobs = new BlobOperationsImpl(this.agent, this.repoDid, this.serverUrl, this._isSDS, this);
     }
     return this._blobs;
   }
