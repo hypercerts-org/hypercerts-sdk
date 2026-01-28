@@ -562,6 +562,17 @@ export interface BlobOperations {
  * });
  * ```
  */
+/**
+ * Parameters for creating or updating a profile.
+ */
+export interface ProfileParams {
+  displayName?: string | null;
+  description?: string | null;
+  avatar?: Blob | null;
+  banner?: Blob | null;
+  website?: string | null;
+}
+
 export interface ProfileOperations {
   /**
    * Gets the repository's profile.
@@ -601,6 +612,17 @@ export interface ProfileOperations {
   }>;
 
   /**
+   * Creates a new profile for the repository.
+   *
+   * Use this when no profile exists yet. If a profile already exists,
+   * use {@link update} instead.
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to create result
+   */
+  create(params: ProfileParams): Promise<CreateResult>;
+
+  /**
    * Updates the repository's profile.
    *
    * Pass `null` to clear a field. Omitted fields are unchanged.
@@ -608,13 +630,7 @@ export interface ProfileOperations {
    * @param params - Fields to update
    * @returns Promise resolving to update result
    */
-  update(params: {
-    displayName?: string | null;
-    description?: string | null;
-    avatar?: Blob | null;
-    banner?: Blob | null;
-    website?: string | null;
-  }): Promise<UpdateResult>;
+  update(params: ProfileParams): Promise<UpdateResult>;
 }
 
 /**

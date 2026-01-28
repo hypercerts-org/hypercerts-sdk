@@ -116,16 +116,13 @@ export class BlobOperationsImpl implements BlobOperations {
       const uint8Array = new Uint8Array(arrayBuffer);
       const encoding = blob.type || "application/octet-stream";
 
-      // Use SDS endpoint if we're on an SDS, otherwise use PDS endpoint
-      // Note: PDS uses session auth (no repo param), SDS requires repo param
-      const result = this.isSDS
-        ? await this.agent.com.sds.repo.uploadBlob(uint8Array, {
-            encoding,
-            qp: { repo: this.repoDid },
-          })
-        : await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-            encoding,
-          });
+      // Always use the standard com.atproto.repo.uploadBlob endpoint
+      // SDS servers override this endpoint to handle shared repositories
+      // with the repo parameter, while PDS uses session auth without it
+      const result = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
+        encoding,
+        ...(this.isSDS && { qp: { repo: this.repoDid } }),
+      });
 
       if (!result.success) {
         throw new NetworkError("Failed to upload blob");

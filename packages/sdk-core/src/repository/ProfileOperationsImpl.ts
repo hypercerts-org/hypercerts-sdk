@@ -9,8 +9,8 @@
 
 import type { Agent } from "@atproto/api";
 import { NetworkError } from "../core/errors.js";
-import type { ProfileOperations } from "./interfaces.js";
-import type { UpdateResult } from "./types.js";
+import type { BlobOperations, ProfileOperations, ProfileParams } from "./interfaces.js";
+import type { CreateResult, UpdateResult } from "./types.js";
 
 /**
  * Implementation of profile operations for user profile management.
@@ -59,15 +59,70 @@ export class ProfileOperationsImpl implements ProfileOperations {
    *
    * @param agent - AT Protocol Agent for making API calls
    * @param repoDid - DID of the repository/user
-   * @param _serverUrl - Server URL (reserved for future use)
+   * @param blobs - Blob operations for uploading images
    *
    * @internal
    */
   constructor(
     private agent: Agent,
     private repoDid: string,
-    private _serverUrl: string,
+    private blobs: BlobOperations,
   ) {}
+
+  /**
+   * Applies a simple field (string or null) to the profile.
+   *
+   * @internal
+   */
+  private applySimpleField(result: Record<string, unknown>, field: string, value: string | null | undefined): void {
+    if (value === undefined) return;
+
+    if (value === null) {
+      delete result[field];
+    } else {
+      result[field] = value;
+    }
+  }
+
+  /**
+   * Applies a blob field to the profile, uploading if needed.
+   *
+   * @internal
+   */
+  private async applyBlobField(
+    result: Record<string, unknown>,
+    field: string,
+    blob: Blob | null | undefined,
+  ): Promise<void> {
+    if (blob === undefined) return;
+
+    if (blob === null) {
+      delete result[field];
+    } else {
+      const uploadResult = await this.blobs.upload(blob);
+      result[field] = uploadResult.ref;
+    }
+  }
+
+  /**
+   * Applies profile params to a profile record, handling null values for deletion.
+   *
+   * @internal
+   */
+  private async mergeParamsIntoProfile(
+    profile: Record<string, unknown>,
+    params: ProfileParams,
+  ): Promise<Record<string, unknown>> {
+    const result = { ...profile };
+
+    this.applySimpleField(result, "displayName", params.displayName);
+    this.applySimpleField(result, "description", params.description);
+    this.applySimpleField(result, "website", params.website);
+    await this.applyBlobField(result, "avatar", params.avatar);
+    await this.applyBlobField(result, "banner", params.banner);
+
+    return result;
+  }
 
   /**
    * Gets the repository's profile.
@@ -125,6 +180,66 @@ export class ProfileOperationsImpl implements ProfileOperations {
       if (error instanceof NetworkError) throw error;
       throw new NetworkError(
         `Failed to get profile: ${error instanceof Error ? error.message : "Unknown error"}`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Creates a new profile for the repository.
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to create result with URI and CID
+   * @throws {@link NetworkError} if the creation fails
+   *
+   * @remarks
+   * Use this method when no profile exists yet. If a profile already exists,
+   * use {@link update} instead.
+   *
+   * **Image Handling**: When providing `avatar` or `banner` as a Blob,
+   * the image is automatically uploaded and the blob reference is stored
+   * in the profile.
+   *
+   * @example Create a basic profile
+   * ```typescript
+   * await repo.profile.create({
+   *   displayName: "Alice",
+   *   description: "Building impact certificates",
+   * });
+   * ```
+   *
+   * @example Create a profile with avatar
+   * ```typescript
+   * const avatarBlob = new Blob([avatarData], { type: "image/png" });
+   * await repo.profile.create({
+   *   displayName: "Alice",
+   *   description: "Building impact certificates",
+   *   avatar: avatarBlob,
+   * });
+   * ```
+   */
+  async create(params: ProfileParams): Promise<CreateResult> {
+    try {
+      const profile = await this.mergeParamsIntoProfile({}, params);
+
+      const createParams = {
+        repo: this.repoDid,
+        collection: "app.bsky.actor.profile",
+        rkey: "self",
+        record: profile,
+      };
+
+      const result = await this.agent.com.atproto.repo.createRecord(createParams);
+
+      if (!result.success) {
+        throw new NetworkError("Failed to create profile");
+      }
+
+      return { uri: result.data.uri, cid: result.data.cid };
+    } catch (error) {
+      if (error instanceof NetworkError) throw error;
+      throw new NetworkError(
+        `Failed to create profile: ${error instanceof Error ? error.message : "Unknown error"}`,
         error,
       );
     }
@@ -190,80 +305,28 @@ export class ProfileOperationsImpl implements ProfileOperations {
    * });
    * ```
    */
-  async update(params: {
-    displayName?: string | null;
-    description?: string | null;
-    avatar?: Blob | null;
-    banner?: Blob | null;
-    website?: string | null;
-  }): Promise<UpdateResult> {
+  async update(params: ProfileParams): Promise<UpdateResult> {
     try {
       // Get existing profile record
-      const existing = await this.agent.com.atproto.repo.getRecord({
+      const getParams = {
         repo: this.repoDid,
         collection: "app.bsky.actor.profile",
         rkey: "self",
-      });
+      };
+
+      const existing = await this.agent.com.atproto.repo.getRecord(getParams);
 
       const existingProfile = (existing.data.value as Record<string, unknown>) || {};
+      const updatedProfile = await this.mergeParamsIntoProfile(existingProfile, params);
 
-      // Build updated profile
-      const updatedProfile: Record<string, unknown> = { ...existingProfile };
-
-      if (params.displayName !== undefined) {
-        if (params.displayName === null) {
-          delete updatedProfile.displayName;
-        } else {
-          updatedProfile.displayName = params.displayName;
-        }
-      }
-
-      if (params.description !== undefined) {
-        if (params.description === null) {
-          delete updatedProfile.description;
-        } else {
-          updatedProfile.description = params.description;
-        }
-      }
-
-      // Handle avatar upload
-      if (params.avatar !== undefined) {
-        if (params.avatar === null) {
-          delete updatedProfile.avatar;
-        } else {
-          const arrayBuffer = await params.avatar.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-            encoding: params.avatar.type || "image/jpeg",
-          });
-          if (uploadResult.success) {
-            updatedProfile.avatar = uploadResult.data.blob;
-          }
-        }
-      }
-
-      // Handle banner upload
-      if (params.banner !== undefined) {
-        if (params.banner === null) {
-          delete updatedProfile.banner;
-        } else {
-          const arrayBuffer = await params.banner.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-            encoding: params.banner.type || "image/jpeg",
-          });
-          if (uploadResult.success) {
-            updatedProfile.banner = uploadResult.data.blob;
-          }
-        }
-      }
-
-      const result = await this.agent.com.atproto.repo.putRecord({
+      const putParams = {
         repo: this.repoDid,
         collection: "app.bsky.actor.profile",
         rkey: "self",
         record: updatedProfile,
-      });
+      };
+
+      const result = await this.agent.com.atproto.repo.putRecord(putParams);
 
       if (!result.success) {
         throw new NetworkError("Failed to update profile");

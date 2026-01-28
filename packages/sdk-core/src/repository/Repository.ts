@@ -392,7 +392,7 @@ export class Repository {
    */
   get profile(): ProfileOperations {
     if (!this._profile) {
-      this._profile = new ProfileOperationsImpl(this.agent, this.repoDid, this.serverUrl);
+      this._profile = new ProfileOperationsImpl(this.agent, this.repoDid, this.blobs);
     }
     return this._profile;
   }
@@ -436,13 +436,7 @@ export class Repository {
    */
   get hypercerts(): HypercertOperations {
     if (!this._hypercerts) {
-      this._hypercerts = new HypercertOperationsImpl(
-        this.agent,
-        this.repoDid,
-        this.serverUrl,
-        this._isSDS,
-        this.logger,
-      );
+      this._hypercerts = new HypercertOperationsImpl(this.agent, this.repoDid, this.blobs, this.logger);
     }
     return this._hypercerts;
   }

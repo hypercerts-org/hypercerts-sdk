@@ -194,3 +194,23 @@ export function createMockSession(vi: typeof import("vitest").vi, did: string = 
     fetchHandler: vi.fn(),
   };
 }
+
+/**
+ * Mocked BlobOperations type for testing.
+ */
+export type MockedBlobOperations = {
+  upload: Mock;
+  get: Mock;
+};
+
+/**
+ * Creates a mock BlobOperations for testing ProfileOperationsImpl and HypercertOperationsImpl.
+ *
+ * @param vi - Vitest's vi object (from vitest import)
+ */
+export function createMockBlobOperations(vi: typeof import("vitest").vi): MockedBlobOperations {
+  return {
+    upload: vi.fn(),
+    get: vi.fn(),
+  };
+}

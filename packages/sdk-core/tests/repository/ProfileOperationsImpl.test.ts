@@ -2,15 +2,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
 import { ProfileOperationsImpl } from "../../src/repository/ProfileOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
-import { createMockAgent, TEST_REPO_DID, TEST_PDS_URL } from "../utils/mocks.js";
+import type { BlobOperations } from "../../src/repository/interfaces.js";
+import { createMockAgent, createMockBlobOperations, TEST_REPO_DID } from "../utils/mocks.js";
 
 describe("ProfileOperationsImpl", () => {
   let mockAgent: ReturnType<typeof createMockAgent>;
+  let mockBlobs: ReturnType<typeof createMockBlobOperations>;
   let profileOps: ProfileOperationsImpl;
 
   beforeEach(() => {
     mockAgent = createMockAgent(vi);
-    profileOps = new ProfileOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL);
+    mockBlobs = createMockBlobOperations(vi);
+    profileOps = new ProfileOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, mockBlobs as BlobOperations);
   });
 
   describe("get", () => {
@@ -63,6 +66,126 @@ describe("ProfileOperationsImpl", () => {
       mockAgent.getProfile!.mockRejectedValue(new Error("Profile not found"));
 
       await expect(profileOps.get()).rejects.toThrow(NetworkError);
+    });
+  });
+
+  describe("create", () => {
+    beforeEach(() => {
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/app.bsky.actor.profile/self",
+          cid: "bafyrei123",
+        },
+      });
+    });
+
+    it("should create profile with displayName and description", async () => {
+      const result = await profileOps.create({
+        displayName: "New User",
+        description: "A new profile",
+      });
+
+      expect(result.uri).toBe("at://did:plc:test/app.bsky.actor.profile/self");
+      expect(result.cid).toBe("bafyrei123");
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith({
+        repo: TEST_REPO_DID,
+        collection: "app.bsky.actor.profile",
+        rkey: "self",
+        record: {
+          displayName: "New User",
+          description: "A new profile",
+        },
+      });
+    });
+
+    it("should create profile with avatar", async () => {
+      const avatarBlob = new Blob(["avatar data"], { type: "image/png" });
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "avatar-cid" },
+        mimeType: "image/png",
+        size: 100,
+      });
+
+      await profileOps.create({
+        displayName: "User with Avatar",
+        avatar: avatarBlob,
+      });
+
+      expect(mockBlobs.upload).toHaveBeenCalledWith(avatarBlob);
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            displayName: "User with Avatar",
+            avatar: { $link: "avatar-cid" },
+          }),
+        }),
+      );
+    });
+
+    it("should create profile with banner", async () => {
+      const bannerBlob = new Blob(["banner data"], { type: "image/jpeg" });
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "banner-cid" },
+        mimeType: "image/jpeg",
+        size: 200,
+      });
+
+      await profileOps.create({
+        displayName: "User with Banner",
+        banner: bannerBlob,
+      });
+
+      expect(mockBlobs.upload).toHaveBeenCalledWith(bannerBlob);
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            displayName: "User with Banner",
+            banner: { $link: "banner-cid" },
+          }),
+        }),
+      );
+    });
+
+    it("should create profile with website", async () => {
+      await profileOps.create({
+        displayName: "User",
+        website: "https://example.com",
+      });
+
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            displayName: "User",
+            website: "https://example.com",
+          }),
+        }),
+      );
+    });
+
+    it("should ignore null values when creating", async () => {
+      await profileOps.create({
+        displayName: "User",
+        description: null,
+      });
+
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+      expect(createCall.record.displayName).toBe("User");
+      expect(createCall.record.description).toBeUndefined();
+    });
+
+    it("should throw NetworkError when createRecord returns success: false", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: false,
+      });
+
+      await expect(profileOps.create({ displayName: "New User" })).rejects.toThrow(NetworkError);
+    });
+
+    it("should throw NetworkError when API throws", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockRejectedValue(new Error("Create failed"));
+
+      await expect(profileOps.create({ displayName: "New User" })).rejects.toThrow(NetworkError);
     });
   });
 
@@ -139,22 +262,21 @@ describe("ProfileOperationsImpl", () => {
 
     it("should upload and set avatar", async () => {
       const avatarBlob = new Blob(["avatar data"], { type: "image/jpeg" });
-      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
-        success: true,
-        data: {
-          blob: { ref: { $link: "avatar-cid" }, mimeType: "image/jpeg", size: 100 },
-        },
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "avatar-cid" },
+        mimeType: "image/jpeg",
+        size: 100,
       });
 
       await profileOps.update({
         avatar: avatarBlob,
       });
 
-      expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalled();
+      expect(mockBlobs.upload).toHaveBeenCalledWith(avatarBlob);
       expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
         expect.objectContaining({
           record: expect.objectContaining({
-            avatar: expect.objectContaining({ ref: { $link: "avatar-cid" } }),
+            avatar: { $link: "avatar-cid" },
           }),
         }),
       );
@@ -181,22 +303,21 @@ describe("ProfileOperationsImpl", () => {
 
     it("should upload and set banner", async () => {
       const bannerBlob = new Blob(["banner data"], { type: "image/jpeg" });
-      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
-        success: true,
-        data: {
-          blob: { ref: { $link: "banner-cid" }, mimeType: "image/jpeg", size: 200 },
-        },
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "banner-cid" },
+        mimeType: "image/jpeg",
+        size: 200,
       });
 
       await profileOps.update({
         banner: bannerBlob,
       });
 
-      expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalled();
+      expect(mockBlobs.upload).toHaveBeenCalledWith(bannerBlob);
       expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
         expect.objectContaining({
           record: expect.objectContaining({
-            banner: expect.objectContaining({ ref: { $link: "banner-cid" } }),
+            banner: { $link: "banner-cid" },
           }),
         }),
       );
