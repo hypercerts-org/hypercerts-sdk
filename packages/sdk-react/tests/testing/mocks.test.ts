@@ -165,7 +165,10 @@ describe("createMockHypercert", () => {
     const hc = createMockHypercert();
 
     expect(hc.title).toBe("Mock Hypercert");
-    expect(hc.workScope).toBe("Testing, Environment");
+    expect(hc.workScope).toEqual({
+      $type: "org.hypercerts.claim.activity#workScopeString",
+      scope: "Testing, Environment",
+    });
     expect(hc.$type).toBe("org.hypercerts.claim.activity");
     expect(hc.uri).toContain("at://");
     expect(hc.cid).toBeTruthy();

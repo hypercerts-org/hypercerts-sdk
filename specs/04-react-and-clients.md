@@ -95,18 +95,38 @@ interface UseRepositoryResult {
 
 ### `useProfile`
 
-Profile read + write combined in a single hook.
+Profile read + write combined in a single hook. Returns Certified profiles by default, which include hypercerts-specific
+fields like `pronouns` and `website`.
 
 ```typescript
 interface UseProfileResult {
-  profile: Profile | null;
+  profile: CertifiedProfile | null; // Returns Certified profile
   isLoading: boolean;
   error: Error | null;
 
-  update(params: ProfileUpdate): Promise<void>;
+  update(params: UpdateCertifiedProfileParams): Promise<void>;
   isUpdating: boolean;
 
   refetch(): Promise<void>;
+}
+
+interface CertifiedProfile {
+  handle?: string;
+  displayName?: string;
+  description?: string;
+  avatar?: string; // Blob URL
+  banner?: string; // Blob URL
+  pronouns?: string; // Max 20 graphemes
+  website?: string;
+}
+
+interface UpdateCertifiedProfileParams {
+  displayName?: string | null;
+  description?: string | null;
+  avatar?: Blob | null;
+  banner?: Blob | null;
+  pronouns?: string | null;
+  website?: string | null;
 }
 ```
 
@@ -117,12 +137,26 @@ function ProfileEditor() {
   const { profile, update, isUpdating } = useProfile();
 
   return (
-    <form onSubmit={() => update({ displayName: newName })}>
+    <form onSubmit={() => update({
+      displayName: newName,
+      pronouns: newPronouns,
+      website: newWebsite
+    })}>
       <input defaultValue={profile?.displayName} />
+      <input defaultValue={profile?.pronouns} placeholder="Pronouns" />
+      <input defaultValue={profile?.website} placeholder="Website" />
       <button disabled={isUpdating}>Save</button>
     </form>
   );
 }
+```
+
+**Note**: The `useProfile` hook returns Certified profiles (`app.certified.actor.profile`) which include
+hypercerts-specific fields. For Bluesky profiles, use the core SDK directly:
+
+```typescript
+const repo = useRepository();
+const bskyProfile = await repo.profile.getBskyProfile();
 ```
 
 ### `useOrganizations` / `useOrganization`

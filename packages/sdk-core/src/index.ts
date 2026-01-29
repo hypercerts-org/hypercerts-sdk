@@ -30,6 +30,9 @@ export type {
   ProgressStep,
 } from "./repository/types.js";
 
+// Blob URL Utilities
+export { getBlobUrl, extractCidFromImage } from "./lib/blob-url.js";
+
 // Lexicon Development Utilities
 export {
   parseAtUri,

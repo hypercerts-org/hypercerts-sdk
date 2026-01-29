@@ -4,7 +4,12 @@
  * Re-exports fixtures from sdk-core and adds React-specific fixtures.
  */
 
-import type { Session, CollaboratorPermissions, OrganizationInfo } from "@hypercerts-org/sdk-core";
+import type {
+  Session,
+  CollaboratorPermissions,
+  OrganizationInfo,
+  OrgHypercertsClaimActivity,
+} from "@hypercerts-org/sdk-core";
 import type { Profile, Hypercert } from "../../src/types.js";
 
 /**
@@ -80,21 +85,25 @@ export function createMockHypercert(overrides: Partial<Hypercert> = {}): Hyperce
   const now = new Date();
   const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
-  return {
+  const base: Hypercert = {
     uri: "at://did:plc:test123/org.hypercerts.claim.activity/test-rkey",
     cid: "bafyreitesthypercertcid123456789",
     $type: "org.hypercerts.claim.activity",
     title: "Test Hypercert",
     shortDescription: "A test hypercert",
     description: "A test hypercert for testing purposes",
-    workScope: "Testing, Environment" as Hypercert["workScope"],
+    workScope: {
+      $type: "org.hypercerts.claim.activity#workScopeString",
+      scope: "Testing, Environment",
+    } as unknown as OrgHypercertsClaimActivity.Main["workScope"],
     startDate: yearAgo.toISOString(),
     endDate: now.toISOString(),
     workTimeFrameFrom: yearAgo.toISOString().split("T")[0],
     workTimeFrameTo: now.toISOString().split("T")[0],
     createdAt: now.toISOString(),
-    ...overrides,
   };
+
+  return { ...base, ...overrides };
 }
 
 /**

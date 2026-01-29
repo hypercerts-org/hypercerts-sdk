@@ -32,7 +32,7 @@ describe("BlobOperationsImpl", () => {
 
       const result = await blobOps.upload(mockBlob);
 
-      expect(result.ref).toEqual({ $link: "bafyrei123" });
+      expect(result.ref.toString()).toBe("bafyrei123");
       expect(result.mimeType).toBe("text/plain");
       expect(result.size).toBe(12);
     });
@@ -143,7 +143,7 @@ describe("BlobOperationsImpl", () => {
 
       const result = await sdsBlobOps.upload(mockBlob);
 
-      expect(result.ref).toEqual({ $link: "bafyrei-string-ref" });
+      expect(result.ref).toBe("bafyrei-string-ref");
     });
 
     it("should throw NetworkError when SDS returns non-ok response", async () => {
