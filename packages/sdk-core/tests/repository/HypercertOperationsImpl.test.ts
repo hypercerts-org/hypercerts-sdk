@@ -1001,6 +1001,46 @@ describe("HypercertOperationsImpl", () => {
         },
       });
     });
+
+    it("should attach a location using a simple text string (beta.13+ format)", async () => {
+      const hypercertUri = "at://did:plc:test/org.hypercerts.claim.record/abc";
+      const result = await hypercertOps.attachLocation(hypercertUri, {
+        lpVersion: "1.0.0",
+        locationType: "coordinate-decimal",
+        location: "New York, NY, USA", // Simple text string, not a URL
+        srs: "EPSG:4326",
+        name: "Project Site",
+      });
+
+      expect(result.uri).toContain("location");
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+
+      // Simple text strings get wrapped in URI ref format
+      expect(call.record.location).toEqual({
+        $type: "org.hypercerts.defs#uri",
+        uri: "New York, NY, USA",
+      });
+      expect(call.record.name).toBe("Project Site");
+    });
+
+    it("should attach a location using a geo: URI string", async () => {
+      const hypercertUri = "at://did:plc:test/org.hypercerts.claim.record/abc";
+      const result = await hypercertOps.attachLocation(hypercertUri, {
+        lpVersion: "1.0.0",
+        locationType: "coordinate-decimal",
+        location: "geo:37.7749,-122.4194", // geo: URI scheme
+        srs: "EPSG:4326",
+      });
+
+      expect(result.uri).toContain("location");
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+
+      // geo: URIs also get wrapped in URI ref format
+      expect(call.record.location).toEqual({
+        $type: "org.hypercerts.defs#uri",
+        uri: "geo:37.7749,-122.4194",
+      });
+    });
   });
 
   describe("delete", () => {
@@ -1810,6 +1850,43 @@ describe("HypercertOperationsImpl", () => {
           collection: "app.certified.location",
         }),
       );
+    });
+
+    it("should create a collection with simple text location string (beta.13+ format)", async () => {
+      // Mock createRecord for location
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValueOnce({
+        success: true,
+        data: { uri: "at://did:plc:test/app.certified.location/loc456", cid: "location-cid" },
+      });
+      // Mock createRecord for collection
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValueOnce({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.collection/xyz", cid: "collection-cid" },
+      });
+
+      const result = await hypercertOps.createCollection({
+        title: "My SF Collection",
+        items: [],
+        location: {
+          lpVersion: "1.0",
+          srs: "EPSG:4326",
+          locationType: "coordinate-decimal",
+          location: "San Francisco, CA, USA", // Simple text string, not a URL
+          name: "West Coast Office",
+        },
+      });
+
+      expect(result.uri).toContain("collection");
+      expect(result.record.location?.uri).toBe("at://did:plc:test/app.certified.location/loc456");
+
+      // Verify the location record was created with text string wrapped in URI ref
+      const locationCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+      expect(locationCall.collection).toBe("app.certified.location");
+      expect(locationCall.record.location).toEqual({
+        $type: "org.hypercerts.defs#uri",
+        uri: "San Francisco, CA, USA",
+      });
+      expect(locationCall.record.name).toBe("West Coast Office");
     });
 
     it("should create a collection with weighted items", async () => {
