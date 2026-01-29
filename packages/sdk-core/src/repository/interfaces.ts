@@ -9,6 +9,7 @@
  */
 
 import type { AppBskyRichtextFacet } from "@atproto/api";
+import type { JsonBlobRef } from "@atproto/lexicon";
 import type { EventEmitter } from "eventemitter3";
 import type {
   LocationParams,
@@ -657,6 +658,29 @@ export interface BlobOperations {
  * ```
  */
 /**
+ * Input type for blob fields that accepts either new data or existing references.
+ *
+ * Accepts either:
+ * - A Blob to be uploaded (will be converted to JsonBlobRef)
+ * - An existing JsonBlobRef (used directly without re-uploading)
+ *
+ * This allows reusing previously uploaded blobs without re-uploading them.
+ *
+ * @example Upload new data
+ * ```typescript
+ * const imageBlob = new Blob([imageData], { type: "image/png" });
+ * await repo.profile.update({ avatar: imageBlob });
+ * ```
+ *
+ * @example Reuse an existing blob reference
+ * ```typescript
+ * const existingRef = { $type: "blob", ref: { $link: "bafyrei..." }, mimeType: "image/png", size: 1234 };
+ * await repo.profile.update({ avatar: existingRef });
+ * ```
+ */
+export type BlobInput = Blob | JsonBlobRef;
+
+/**
  * Parameters for creating or updating a profile.
  *
  * Follows the established pattern used in other record creation params
@@ -670,8 +694,18 @@ export interface ProfileParams {
   createdAt?: string;
   displayName?: string | null;
   description?: string | null;
-  avatar?: Blob | null;
-  banner?: Blob | null;
+  /**
+   * Profile avatar image.
+   * Can be a Blob (will be uploaded) or an existing JsonBlobRef (used directly).
+   * Pass null to remove the avatar.
+   */
+  avatar?: BlobInput | null;
+  /**
+   * Profile banner image.
+   * Can be a Blob (will be uploaded) or an existing JsonBlobRef (used directly).
+   * Pass null to remove the banner.
+   */
+  banner?: BlobInput | null;
   website?: string | null;
 }
 
