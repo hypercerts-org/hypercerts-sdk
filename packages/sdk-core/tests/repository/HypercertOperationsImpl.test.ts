@@ -132,17 +132,16 @@ describe("HypercertOperationsImpl", () => {
       expect(hypercertCall.record.descriptionFacets).toBeUndefined();
     });
 
-    it("should create evidence records when provided", async () => {
-      const evidence = [
+    it("should create attachment records when provided", async () => {
+      const attachments = [
         {
-          content: "https://example.com/evidence",
-          title: "Evidence Document",
-          shortDescription: "Supporting evidence",
-          relationType: "supports" as const,
+          content: "https://example.com/attachment",
+          title: "Attachment Document",
+          shortDescription: "Supporting attachment",
         },
       ];
 
-      // Mock getRecord for evidence creation (called by addEvidence)
+      // Mock getRecord for attachment creation (called by addAttachment)
       mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
         success: true,
         data: {
@@ -160,28 +159,26 @@ describe("HypercertOperationsImpl", () => {
       });
 
       // Mock attachment record creation (third createRecord call after rights and hypercert)
-      // Note: In beta.13, evidence was renamed to attachment
       mockAgent.com.atproto.repo.createRecord.mockResolvedValueOnce({
         success: true,
-        data: { uri: "at://did:plc:test/org.hypercerts.claim.attachment/attachment123", cid: "evidence-cid" },
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.attachment/attachment123", cid: "attachment-cid" },
       });
 
       const result = await hypercertOps.create({
         ...validParams,
-        evidence,
+        attachments,
       });
 
-      // Verify evidence records were created
-      expect(result.evidenceUris).toBeDefined();
-      expect(result.evidenceUris).toHaveLength(1);
-      // Note: In beta.13, evidence was renamed to attachment
-      expect(result.evidenceUris?.[0]).toContain("attachment");
+      // Verify attachment records were created
+      expect(result.attachmentUris).toBeDefined();
+      expect(result.attachmentUris).toHaveLength(1);
+      expect(result.attachmentUris?.[0]).toContain("attachment");
 
       // Verify createRecord was called for attachment (3rd call: rights, hypercert, attachment)
       expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledTimes(3);
-      const evidenceCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
-      expect(evidenceCall.collection).toBe("org.hypercerts.claim.attachment");
-      expect(evidenceCall.record.title).toBe("Evidence Document");
+      const attachmentCall = mockAgent.com.atproto.repo.createRecord.mock.calls[2][0];
+      expect(attachmentCall.collection).toBe("org.hypercerts.claim.attachment");
+      expect(attachmentCall.record.title).toBe("Attachment Document");
     });
 
     it("should attach location when provided", async () => {
@@ -1073,12 +1070,12 @@ describe("HypercertOperationsImpl", () => {
     });
   });
 
-  describe("addEvidence", () => {
+  describe("addAttachment", () => {
     beforeEach(() => {
       mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
         success: true,
         data: {
-          uri: "at://did:plc:test/org.hypercerts.claim.record/abc",
+          uri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
           cid: "hypercert-cid",
           value: {
             title: "Test",
@@ -1091,34 +1088,45 @@ describe("HypercertOperationsImpl", () => {
         },
       });
 
-      // Note: In beta.13, evidence was renamed to attachment
       mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
         success: true,
-        data: { uri: "at://did:plc:test/org.hypercerts.claim.attachment/xyz", cid: "evidence-cid" },
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.attachment/xyz", cid: "attachment-cid" },
       });
     });
 
-    it("should add evidence to a hypercert with a URI string", async () => {
-      const result = await hypercertOps.addEvidence({
-        subjectUri: "at://did:plc:test/org.hypercerts.claim.record/abc",
+    it("should add attachment with single subject (string) and single URI content", async () => {
+      const result = await hypercertOps.addAttachment({
+        subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
         title: "Impact Report",
         content: "https://example.com/report.pdf",
       });
 
-      // Note: In beta.13, evidence was renamed to attachment
       expect(result.uri).toContain("attachment");
       expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalled();
       const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-      // Content is now an array in the attachment schema
+
+      // Verify subjects array with StrongRef (includes $type)
+      expect(call.record.subjects).toEqual([
+        {
+          $type: "com.atproto.repo.strongRef",
+          uri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          cid: "hypercert-cid",
+        },
+      ]);
+
+      // Verify content array
       expect(call.record.content).toEqual([
         {
           $type: "org.hypercerts.defs#uri",
           uri: "https://example.com/report.pdf",
         },
       ]);
+
+      // Verify collection is attachment
+      expect(call.collection).toBe("org.hypercerts.claim.attachment");
     });
 
-    it("should add evidence to a hypercert with a Blob upload", async () => {
+    it("should add attachment with single subject (StrongRef) and single Blob content", async () => {
       const blob = new Blob(["evidence data"], { type: "application/pdf" });
       mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
         success: true,
@@ -1127,17 +1135,26 @@ describe("HypercertOperationsImpl", () => {
         },
       });
 
-      const result = await hypercertOps.addEvidence({
-        subjectUri: "at://did:plc:test/org.hypercerts.claim.record/abc",
+      const result = await hypercertOps.addAttachment({
+        subjects: { uri: "at://did:plc:test/org.hypercerts.claim.activity/abc", cid: "hypercert-cid" },
         title: "Impact Report",
         content: blob,
       });
 
-      // Note: In beta.13, evidence was renamed to attachment
       expect(result.uri).toContain("attachment");
       expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalled();
       const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-      // Content is now an array in the attachment schema
+
+      // Verify subjects array (should use provided StrongRef with $type added)
+      expect(call.record.subjects).toEqual([
+        {
+          $type: "com.atproto.repo.strongRef",
+          uri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          cid: "hypercert-cid",
+        },
+      ]);
+
+      // Verify content array with blob
       expect(call.record.content).toEqual([
         {
           $type: "org.hypercerts.defs#smallBlob",
@@ -1146,17 +1163,262 @@ describe("HypercertOperationsImpl", () => {
       ]);
     });
 
-    it("should emit evidenceAdded event", async () => {
-      const handler = vi.fn();
-      hypercertOps.on("evidenceAdded", handler);
+    it("should add attachment with multiple subjects", async () => {
+      // Mock getRecord to return different CIDs for different URIs
+      mockAgent.com.atproto.repo.getRecord.mockImplementation((params) => {
+        const rkey = params.rkey || "";
+        return Promise.resolve({
+          success: true,
+          data: {
+            uri: `at://did:plc:test/org.hypercerts.claim.activity/${rkey}`,
+            cid: `cid-${rkey}`,
+            value: { title: "Test" },
+          },
+        });
+      });
 
-      await hypercertOps.addEvidence({
-        subjectUri: "at://did:plc:test/org.hypercerts.claim.record/abc",
-        title: "Impact Report",
+      const result = await hypercertOps.addAttachment({
+        subjects: [
+          "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          "at://did:plc:test/org.hypercerts.claim.activity/def",
+        ],
+        title: "Multi-subject Attachment",
         content: "https://example.com/report.pdf",
       });
 
-      expect(handler).toHaveBeenCalledWith({ uri: expect.any(String), cid: "evidence-cid" });
+      expect(result.uri).toContain("attachment");
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+
+      // Verify subjects array contains both StrongRefs
+      expect(call.record.subjects).toHaveLength(2);
+      expect(call.record.subjects[0].uri).toContain("abc");
+      expect(call.record.subjects[1].uri).toContain("def");
+    });
+
+    it("should add attachment with multiple content items (mixed URIs and Blobs)", async () => {
+      const blob = new Blob(["evidence data"], { type: "application/pdf" });
+      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
+        success: true,
+        data: {
+          blob: { ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
+        },
+      });
+
+      const result = await hypercertOps.addAttachment({
+        subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        title: "Mixed Content Attachment",
+        content: ["https://example.com/report.pdf", blob],
+      });
+
+      expect(result.uri).toContain("attachment");
+      expect(mockAgent.com.atproto.repo.uploadBlob).toHaveBeenCalled();
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+
+      // Verify content array contains both URI and blob
+      expect(call.record.content).toHaveLength(2);
+      expect(call.record.content[0]).toEqual({
+        $type: "org.hypercerts.defs#uri",
+        uri: "https://example.com/report.pdf",
+      });
+      expect(call.record.content[1]).toEqual({
+        $type: "org.hypercerts.defs#smallBlob",
+        blob: { ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
+      });
+    });
+
+    it("should add attachment with contentType", async () => {
+      const result = await hypercertOps.addAttachment({
+        subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        title: "Image Attachment",
+        content: "https://example.com/image.png",
+        contentType: "image",
+      });
+
+      expect(result.uri).toContain("attachment");
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+
+      // Verify contentType is included
+      expect(call.record.contentType).toBe("image");
+    });
+
+    it("should add attachment with location (StrongRef)", async () => {
+      const result = await hypercertOps.addAttachment({
+        subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        title: "Location-based Attachment",
+        content: "https://example.com/report.pdf",
+        location: { uri: "at://did:plc:test/app.certified.location/loc123", cid: "location-cid" },
+      });
+
+      expect(result.uri).toContain("attachment");
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+
+      // Verify location is included as StrongRef (with $type field)
+      expect(call.record.location).toEqual({
+        $type: "com.atproto.repo.strongRef",
+        uri: "at://did:plc:test/app.certified.location/loc123",
+        cid: "location-cid",
+      });
+    });
+
+    it("should add attachment with location (URI string)", async () => {
+      // Mock getRecord for location lookup
+      const locationGetRecord = vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/app.certified.location/loc123",
+          cid: "location-cid-fetched",
+          value: { name: "Test Location" },
+        },
+      });
+      mockAgent.com.atproto.repo.getRecord.mockImplementation((params) => {
+        if (params.collection === "app.certified.location") {
+          return locationGetRecord(params);
+        }
+        return Promise.resolve({
+          success: true,
+          data: {
+            uri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+            cid: "hypercert-cid",
+            value: { title: "Test" },
+          },
+        });
+      });
+
+      const result = await hypercertOps.addAttachment({
+        subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        title: "Location-based Attachment",
+        content: "https://example.com/report.pdf",
+        location: "at://did:plc:test/app.certified.location/loc123",
+      });
+
+      expect(result.uri).toContain("attachment");
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+
+      // Verify location StrongRef was created from URI (with $type field)
+      expect(call.record.location).toEqual({
+        $type: "com.atproto.repo.strongRef",
+        uri: "at://did:plc:test/app.certified.location/loc123",
+        cid: "location-cid-fetched",
+      });
+    });
+
+    it("should add attachment with location (inline object)", async () => {
+      // Mock createRecord for location creation
+      mockAgent.com.atproto.repo.createRecord.mockImplementation((params) => {
+        if (params.collection === "app.certified.location") {
+          return Promise.resolve({
+            success: true,
+            data: { uri: "at://did:plc:test/app.certified.location/new123", cid: "new-location-cid" },
+          });
+        }
+        // For attachment creation
+        if (params.collection === "org.hypercerts.claim.attachment") {
+          return Promise.resolve({
+            success: true,
+            data: { uri: "at://did:plc:test/org.hypercerts.claim.attachment/xyz", cid: "attachment-cid" },
+          });
+        }
+        // Default fallback
+        return Promise.resolve({
+          success: true,
+          data: { uri: "at://did:plc:test/unknown/123", cid: "unknown-cid" },
+        });
+      });
+
+      const result = await hypercertOps.addAttachment({
+        subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        title: "Location-based Attachment",
+        content: "https://example.com/report.pdf",
+        location: {
+          lpVersion: "1.0.0",
+          srs: "EPSG:4326",
+          locationType: "coordinate-decimal",
+          location: "https://location-uri.com",
+          name: "San Francisco",
+        },
+      });
+
+      expect(result.uri).toContain("attachment");
+      const attachmentCall = mockAgent.com.atproto.repo.createRecord.mock.calls.find(
+        (call) => call[0].collection === "org.hypercerts.claim.attachment",
+      );
+
+      // Verify location was created and StrongRef was added (without $type in return from createLocationRecord)
+      expect(attachmentCall?.[0].record.location).toEqual({
+        uri: "at://did:plc:test/app.certified.location/new123",
+        cid: "new-location-cid",
+      });
+    });
+
+    it("should add attachment with rich text facets", async () => {
+      const shortDescriptionFacets = [
+        {
+          index: { byteStart: 0, byteEnd: 6 },
+          features: [{ $type: "app.bsky.richtext.facet#mention" as const, did: "did:plc:alice" as const }],
+        },
+      ];
+      const descriptionFacets = [
+        {
+          index: { byteStart: 0, byteEnd: 20 },
+          features: [{ $type: "app.bsky.richtext.facet#link" as const, uri: "https://example.com" as const }],
+        },
+      ];
+
+      const result = await hypercertOps.addAttachment({
+        subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        title: "Attachment with Facets",
+        shortDescription: "@alice check this",
+        description: "https://example.com",
+        content: "https://example.com/report.pdf",
+        shortDescriptionFacets,
+        descriptionFacets,
+      });
+
+      expect(result.uri).toContain("attachment");
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+
+      // Verify facets are included
+      expect(call.record.shortDescriptionFacets).toEqual(shortDescriptionFacets);
+      expect(call.record.descriptionFacets).toEqual(descriptionFacets);
+    });
+
+    it("should not include removed fields (relationType, contributors, locations)", async () => {
+      const result = await hypercertOps.addAttachment({
+        subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        title: "Clean Attachment",
+        content: "https://example.com/report.pdf",
+      });
+
+      expect(result.uri).toContain("attachment");
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+
+      // Verify removed fields are not present
+      expect(call.record.relationType).toBeUndefined();
+      expect(call.record.contributors).toBeUndefined();
+      expect(call.record.locations).toBeUndefined();
+    });
+
+    it("should throw ValidationError when content is missing", async () => {
+      await expect(
+        hypercertOps.addAttachment({
+          subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          title: "Invalid Attachment",
+          // @ts-expect-error - testing missing required field
+          content: undefined,
+        }),
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it("should throw NetworkError when subject fetch fails", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockRejectedValue(new Error("Network error"));
+
+      await expect(
+        hypercertOps.addAttachment({
+          subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          title: "Attachment",
+          content: "https://example.com/report.pdf",
+        }),
+      ).rejects.toThrow(NetworkError);
     });
   });
 

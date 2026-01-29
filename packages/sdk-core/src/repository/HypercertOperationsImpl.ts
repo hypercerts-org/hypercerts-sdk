@@ -36,9 +36,9 @@ import {
   type UpdateProjectParams,
   type CreateMeasurementParams,
   type UpdateMeasurementParams,
+  type CreateAttachmentParams,
 } from "../services/hypercerts/types.js";
 import type {
-  CreateHypercertEvidenceParams,
   LocationParams,
   CreateHypercertParams,
   CreateHypercertResult,
@@ -470,38 +470,38 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Creates evidence records with progress tracking.
+   * Creates attachment records and returns their URIs.
    *
-   * @param hypercertUri - URI of the hypercert
-   * @param evidenceItems - Array of evidence data (without subjectUri)
+   * @param hypercertUri - URI of the parent hypercert
+   * @param attachmentItems - Array of attachment items to create
    * @param onProgress - Optional progress callback
-   * @returns Promise resolving to array of evidence URIs
+   * @returns Promise resolving to array of attachment URIs
    * @internal
    */
-  private async createEvidenceWithProgress(
+  private async createAttachmentsWithProgress(
     hypercertUri: string,
-    evidenceItems: Array<Omit<CreateHypercertEvidenceParams, "subjectUri">>,
+    attachmentItems: Array<Omit<CreateAttachmentParams, "subjects">>,
     onProgress?: (step: ProgressStep) => void,
   ): Promise<string[]> {
-    this.emitProgress(onProgress, { name: "addEvidence", status: "start" });
+    this.emitProgress(onProgress, { name: "addAttachment", status: "start" });
     try {
-      const evidenceUris = await Promise.all(
-        evidenceItems.map((evidence) =>
-          this.addEvidence({
-            subjectUri: hypercertUri,
-            ...evidence,
-          } as CreateHypercertEvidenceParams).then((result) => result.uri),
+      const attachmentUris = await Promise.all(
+        attachmentItems.map((attachment) =>
+          this.addAttachment({
+            ...attachment,
+            subjects: hypercertUri,
+          } as CreateAttachmentParams).then((result) => result.uri),
         ),
       );
       this.emitProgress(onProgress, {
-        name: "addEvidence",
+        name: "addAttachment",
         status: "success",
-        data: { count: evidenceUris.length },
+        data: { count: attachmentUris.length },
       });
-      return evidenceUris;
+      return attachmentUris;
     } catch (error) {
-      this.emitProgress(onProgress, { name: "addEvidence", status: "error", error: error as Error });
-      this.logger?.warn(`Failed to create evidence: ${error instanceof Error ? error.message : "Unknown"}`);
+      this.emitProgress(onProgress, { name: "addAttachment", status: "error", error: error as Error });
+      this.logger?.warn(`Failed to create attachments: ${error instanceof Error ? error.message : "Unknown"}`);
       throw error;
     }
   }
@@ -534,7 +534,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * - `createHypercert`: Main hypercert record creation
    * - `attachLocation`: Location record creation
    * - `createContributions`: Contribution records creation
-   * - `addEvidence`: Evidence records creation
+   * - `addAttachment`: Attachment records creation
    *
    * @example Minimal hypercert
    * ```typescript
@@ -569,7 +569,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *     { contributors: ["did:plc:org1"], role: "coordinator" },
    *     { contributors: ["did:plc:org2"], role: "implementer" },
    *   ],
-   *   evidence: [{ uri: "https://...", description: "Satellite data" }],
+   *   attachments: [{ uri: "https://...", description: "Satellite data" }],
    *   onProgress: console.log,
    * });
    * ```
@@ -621,10 +621,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       result.hypercertUri = hypercertUri;
       result.hypercertCid = hypercertCid;
 
-      // Step 6: Add evidence records if provided
-      if (params.evidence && params.evidence.length > 0) {
+      // Step 6: Add attachment records if provided
+      if (params.attachments && params.attachments.length > 0) {
         try {
-          result.evidenceUris = await this.createEvidenceWithProgress(hypercertUri, params.evidence, params.onProgress);
+          result.attachmentUris = await this.createAttachmentsWithProgress(
+            hypercertUri,
+            params.attachments,
+            params.onProgress,
+          );
         } catch {
           // Error already logged and progress emitted
         }
@@ -1020,7 +1024,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Check if an AttachLocationParams is the object form (not a StrongRef or string).
+   * Check if an AttachLocationParams is the object form (not a StrongRef or string or Blob).
    * @internal
    */
   private isLocationObject(location: LocationParams): location is CreateLocationParams {
@@ -1029,7 +1033,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       !("uri" in location) &&
       !("cid" in location) &&
       location !== null &&
-      !Array.isArray(location)
+      !Array.isArray(location) &&
+      !(location instanceof Blob)
     );
   }
 
@@ -1101,62 +1106,136 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * TODO: Match Attachment Lexicon
-   * Adds evidence to any subject via the subject ref.
+   * Resolves attachment subjects to an array of StrongRefs.
+   * Accepts single or multiple subjects and normalizes to StrongRef array.
    *
-   * @param evidence - HypercertEvidenceInput
-   * @returns Promise resolving to update result
+   * @param subjectsInput - Single subject or array of subjects (URI strings or StrongRefs)
+   * @returns Promise resolving to array of StrongRefs
+   * @throws {@link ValidationError} if subject format is invalid
+   * @throws {@link NetworkError} if fetching subject record fails
+   * @internal
+   */
+  private async resolveAttachmentSubjects(
+    subjectsInput: string | StrongRef | Array<string | StrongRef>,
+  ): Promise<StrongRef[]> {
+    const subjectsArray = Array.isArray(subjectsInput) ? subjectsInput : [subjectsInput];
+
+    return await Promise.all(subjectsArray.map((subject) => this.resolveToStrongRef(subject)));
+  }
+
+  /**
+   * Resolves attachment content items to an array of URI or Blob references.
+   * Accepts single or multiple content items and normalizes to array.
+   * Uploads Blob content and formats URI content.
+   *
+   * @param contentInput - Single content item or array (URI strings or Blobs)
+   * @returns Promise resolving to array of URI refs or Blob refs
+   * @throws {@link NetworkError} if blob upload fails
+   * @internal
+   */
+  private async resolveAttachmentContent(contentInput: string | Blob | Array<string | Blob>) {
+    const contentArray = Array.isArray(contentInput) ? contentInput : [contentInput];
+
+    return await Promise.all(contentArray.map((item) => this.resolveUriOrBlob(item, "application/octet-stream")));
+  }
+
+  /**
+   * Builds an attachment record from resolved components.
+   *
+   * @param subjects - Resolved subject StrongRefs
+   * @param content - Resolved content items (URI or Blob refs)
+   * @param locationRef - Optional resolved location StrongRef
+   * @param rest - Remaining attachment parameters (title, description, etc.)
+   * @returns Fully constructed attachment record
+   * @internal
+   */
+  private buildAttachmentRecord(
+    subjects: StrongRef[],
+    content: Awaited<ReturnType<typeof this.resolveAttachmentContent>>,
+    locationRef: StrongRef | undefined,
+    rest: Omit<CreateAttachmentParams, "subjects" | "content" | "location">,
+  ): HypercertAttachment {
+    const createdAt = new Date().toISOString();
+
+    return {
+      ...rest,
+      $type: rest.$type ?? HYPERCERT_COLLECTIONS.ATTACHMENT,
+      createdAt: rest.createdAt ?? createdAt,
+      subjects,
+      content,
+      ...(locationRef && { location: locationRef }),
+    } as HypercertAttachment;
+  }
+
+  /**
+   * Adds an attachment to any subject record.
+   *
+   * Attachments provide commentary, context, evidence, or documentary material
+   * related to hypercert records.
+   *
+   * @param attachment - Attachment parameters
+   * @returns Promise resolving to attachment record URI and CID
    * @throws {@link ValidationError} if validation fails
    * @throws {@link NetworkError} if the operation fails
    *
-   * @example
+   * @example Single subject with URI content
    * ```typescript
-   * await repo.hypercerts.addEvidence({
-   *   subjectUri: "at://did:plc:u7h3dstby64di67bxaotzxcz/org.hypercerts.claim.activity/3mbvv5d7ixh2g"
-   *   content: Blob,
-   *   title: "Meeting Notes",
-   *   shortDescription: "Meetings notes from the 3rd of December 2025",
-   *   description: "The meeting with the board of directors and audience on 2025 in regards to the ecological landscape",
-   *   relationType: "supports",
-   * })
+   * await repo.hypercerts.addAttachment({
+   *   subjects: "at://did:plc:u7h3dstby64di67bxaotzxcz/org.hypercerts.claim.activity/3mbvv5d7ixh2g",
+   *   content: "https://example.com/report.pdf",
+   *   title: "Impact Report",
+   *   contentType: "report"
+   * });
+   * ```
+   *
+   * @example Multiple subjects with mixed content
+   * ```typescript
+   * await repo.hypercerts.addAttachment({
+   *   subjects: [
+   *     "at://did:plc:abc/org.hypercerts.claim.activity/xyz",
+   *     { uri: "at://...", cid: "..." }
+   *   ],
+   *   content: [
+   *     "https://example.com/report.pdf",
+   *     new Blob(["data"], { type: "application/pdf" })
+   *   ],
+   *   title: "Multi-source Evidence",
+   *   location: { uri: "at://...", cid: "..." }
+   * });
    * ```
    */
-  async addEvidence(evidence: CreateHypercertEvidenceParams): Promise<UpdateResult> {
+  async addAttachment(attachment: CreateAttachmentParams): Promise<UpdateResult> {
     try {
-      const { subjectUri, content, ...rest } = evidence;
-      const subject = await this.get(subjectUri);
-      const createdAt = new Date().toISOString();
+      const { subjects: subjectsInput, content: contentInput, location: locationInput, ...rest } = attachment;
 
-      const evidenceContent = await this.resolveUriOrBlob(content, "application/octet-stream");
-      // Note: In beta.13, evidence was renamed to attachment with schema changes
-      // - subject -> subjects (array)
-      // - content is now an array
-      // This is a temporary fix to maintain backward compatibility
-      // and since evidence is no longer available in the lexicons
-      const evidenceRecord: HypercertAttachment = {
-        ...rest,
-        $type: HYPERCERT_COLLECTIONS.ATTACHMENT,
-        createdAt,
-        content: [evidenceContent], // content is now an array
-        subjects: [{ uri: subject.uri, cid: subject.cid }], // subject -> subjects array
-      };
-      const validation = validate(evidenceRecord, HYPERCERT_COLLECTIONS.ATTACHMENT, "main", false);
+      if (!contentInput) {
+        throw new ValidationError("content is required for attachments");
+      }
+      const [subjects, content, locationRef] = await Promise.all([
+        this.resolveAttachmentSubjects(subjectsInput),
+        this.resolveAttachmentContent(contentInput),
+        locationInput ? this.resolveLocation(locationInput) : Promise.resolve(undefined),
+      ]);
+      const attachmentRecord = this.buildAttachmentRecord(subjects, content, locationRef, rest);
+      const validation = validate(attachmentRecord, HYPERCERT_COLLECTIONS.ATTACHMENT, "main", false);
       if (!validation.success) {
-        throw new ValidationError(`Invalid evidence record: ${validation.error?.message}`);
+        throw new ValidationError(`Invalid attachment record: ${validation.error?.message}`);
       }
       const result = await this.agent.com.atproto.repo.createRecord({
         repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.EVIDENCE,
-        record: evidenceRecord,
+        collection: HYPERCERT_COLLECTIONS.ATTACHMENT,
+        record: attachmentRecord,
       });
+
       if (!result.success) {
-        throw new NetworkError(`Failed to add evidence`);
+        throw new NetworkError(`Failed to add attachment`);
       }
-      this.emit("evidenceAdded", { uri: result.data.uri, cid: result.data.cid });
+      this.emit("attachmentAdded", { uri: result.data.uri, cid: result.data.cid });
+
       return { uri: result.data.uri, cid: result.data.cid };
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
-      throw new NetworkError(`Failed to add evidence: ${error instanceof Error ? error.message : "Unknown"}`, error);
+      throw new NetworkError(`Failed to add attachment: ${error instanceof Error ? error.message : "Unknown"}`, error);
     }
   }
 

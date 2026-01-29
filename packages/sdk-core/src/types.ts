@@ -79,7 +79,6 @@ export type {
   HypercertCollection,
   HypercertCollectionItem,
   HypercertWorkScopeTag,
-  HypercertEvidence,
   HypercertImage,
   HypercertImageRecord,
   HypercertWithMetadata,
