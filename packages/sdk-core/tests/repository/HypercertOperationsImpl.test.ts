@@ -994,7 +994,8 @@ describe("HypercertOperationsImpl", () => {
       expect(call.record.location).toEqual({
         $type: "org.hypercerts.defs#smallBlob", // Your code wraps it in smallBlob
         blob: {
-          // The actual blob data is nested here
+          // The actual blob data is nested here with $type: "blob" for AT Protocol compliance
+          $type: "blob",
           ref: { $link: "blob-cid" },
           mimeType: "application/geo+json",
           size: 100,
@@ -1203,7 +1204,7 @@ describe("HypercertOperationsImpl", () => {
       expect(call.record.content).toEqual([
         {
           $type: "org.hypercerts.defs#smallBlob",
-          blob: { ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
+          blob: { $type: "blob", ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
         },
       ]);
     });
@@ -1266,7 +1267,7 @@ describe("HypercertOperationsImpl", () => {
       });
       expect(call.record.content[1]).toEqual({
         $type: "org.hypercerts.defs#smallBlob",
-        blob: { ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
+        blob: { $type: "blob", ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
       });
     });
 
@@ -2053,29 +2054,18 @@ describe("HypercertOperationsImpl", () => {
       const logoBlob = new Blob(["logo"], { type: "image/png" });
       const headerBlob = new Blob(["header"], { type: "image/jpeg" });
 
-      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValueOnce({
-        success: true,
-        data: {
-          blob: {
-            $type: "blob",
-            ref: { $link: "bafyrei-logo" },
-            mimeType: "image/png",
-            size: 150,
-          },
-        },
-      });
-
-      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValueOnce({
-        success: true,
-        data: {
-          blob: {
-            $type: "blob",
-            ref: { $link: "bafyrei-header" },
-            mimeType: "image/jpeg",
-            size: 250,
-          },
-        },
-      });
+      // Mock blob uploads via BlobOperations (not agent.uploadBlob)
+      mockBlobs.upload
+        .mockResolvedValueOnce({
+          ref: { $link: "bafyrei-logo" },
+          mimeType: "image/png",
+          size: 150,
+        })
+        .mockResolvedValueOnce({
+          ref: { $link: "bafyrei-header" },
+          mimeType: "image/jpeg",
+          size: 250,
+        });
 
       mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
         success: true,
@@ -2091,6 +2081,7 @@ describe("HypercertOperationsImpl", () => {
       });
 
       expect(result.uri).toContain("collection");
+      expect(mockBlobs.upload).toHaveBeenCalledTimes(2);
       expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
         expect.objectContaining({
           record: expect.objectContaining({
@@ -2098,9 +2089,15 @@ describe("HypercertOperationsImpl", () => {
             type: "project",
             avatar: expect.objectContaining({
               $type: "org.hypercerts.defs#smallImage",
+              image: expect.objectContaining({
+                $type: "blob",
+              }),
             }),
             banner: expect.objectContaining({
               $type: "org.hypercerts.defs#largeImage",
+              image: expect.objectContaining({
+                $type: "blob",
+              }),
             }),
           }),
         }),
@@ -2683,7 +2680,7 @@ describe("HypercertOperationsImpl", () => {
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
         expect(createCall.record.avatar).toEqual({
           $type: "org.hypercerts.defs#smallImage",
-          image: { ref: { $link: "avatar-cid" }, mimeType: "image/png", size: 100 },
+          image: { $type: "blob", ref: { $link: "avatar-cid" }, mimeType: "image/png", size: 100 },
         });
       });
 
@@ -2705,7 +2702,7 @@ describe("HypercertOperationsImpl", () => {
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
         expect(createCall.record.banner).toEqual({
           $type: "org.hypercerts.defs#largeImage",
-          image: { ref: { $link: "banner-cid" }, mimeType: "image/jpeg", size: 200 },
+          image: { $type: "blob", ref: { $link: "banner-cid" }, mimeType: "image/jpeg", size: 200 },
         });
       });
 
@@ -3220,7 +3217,7 @@ describe("HypercertOperationsImpl", () => {
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
         expect(putCall.record.avatar).toEqual({
           $type: "org.hypercerts.defs#smallImage",
-          image: { ref: { $link: "new-avatar-cid" }, mimeType: "image/png", size: 150 },
+          image: { $type: "blob", ref: { $link: "new-avatar-cid" }, mimeType: "image/png", size: 150 },
         });
       });
 
