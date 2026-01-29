@@ -92,16 +92,29 @@ pnpm clean                # Remove build artifacts
 
 ### Package-specific commands
 
+**Prefer running commands from within the package directory** (cleaner output, easier to pass args):
+
 ```bash
 # sdk-core
-pnpm --filter @hypercerts-org/sdk-core build
-pnpm --filter @hypercerts-org/sdk-core test
-pnpm --filter @hypercerts-org/sdk-core lint
+cd packages/sdk-core
+pnpm test                    # Run all tests
+pnpm test SomeFile           # Run specific test file
+pnpm build
+pnpm lint
 
 # sdk-react
+cd packages/sdk-react
+pnpm test
+pnpm build
+pnpm typecheck
+pnpm lint
+```
+
+Alternative using `--filter` from repository root (useful for CI/scripts):
+
+```bash
+pnpm --filter @hypercerts-org/sdk-core test
 pnpm --filter @hypercerts-org/sdk-react build
-pnpm --filter @hypercerts-org/sdk-react typecheck
-pnpm --filter @hypercerts-org/sdk-react lint
 ```
 
 ## Architecture
@@ -382,9 +395,11 @@ The repository has Git hooks that ensure code quality:
 # ... edit files ...
 
 # 2. Run tests for affected packages
-pnpm --filter @hypercerts-org/sdk-core test
+cd packages/sdk-core
+pnpm test
 
-# 3. Verify the build works
+# 3. Verify the build works (from repo root)
+cd ../..
 pnpm build
 
 # 4. Stage changes
@@ -461,3 +476,30 @@ git commit -m "chore: add changeset for project operations"
 
 - Source maps are generated for all builds
 - Coverage reports in `packages/sdk-core/coverage/`
+
+## Landing the Plane (Session Completion)
+
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+
+**MANDATORY WORKFLOW:**
+
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **PUSH TO REMOTE** - This is MANDATORY:
+   ```bash
+   git pull --rebase
+   bd sync
+   git push
+   git status  # MUST show "up to date with origin"
+   ```
+5. **Clean up** - Clear stashes, prune remote branches
+6. **Verify** - All changes committed AND pushed
+7. **Hand off** - Provide context for next session
+
+**CRITICAL RULES:**
+
+- Work is NOT complete until `git push` succeeds
+- NEVER stop before pushing - that leaves work stranded locally
+- NEVER say "ready to push when you are" - YOU must push
+- If push fails, resolve and retry until it succeeds

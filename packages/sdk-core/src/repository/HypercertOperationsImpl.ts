@@ -39,6 +39,7 @@ import {
   type CreateAttachmentParams,
 } from "../services/hypercerts/types.js";
 import type {
+  BlobOperations,
   LocationParams,
   CreateHypercertParams,
   CreateHypercertResult,
@@ -50,6 +51,7 @@ import type {
   ResolvedContributorIdentity,
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
+import { uploadResultToBlobRef } from "./types.js";
 import { $Typed } from "@atproto/api";
 import { sha256Hash } from "../lib/crypto.js";
 
@@ -106,7 +108,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *
    * @param agent - AT Protocol Agent for making API calls
    * @param repoDid - DID of the repository to operate on
-   * @param _serverUrl - Server URL (reserved for future use)
+   * @param blobs - Blob operations for uploading images and files
    * @param logger - Optional logger for debugging
    *
    * @internal
@@ -114,7 +116,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   constructor(
     private agent: Agent,
     private repoDid: string,
-    private _serverUrl: string,
+    private blobs: BlobOperations,
     private logger?: LoggerInterface,
   ) {
     super();
@@ -138,25 +140,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Helper function to upload a blob to the repository, returns a blob reference
+   * Converts a blob upload result to JsonBlobRef format.
    *
-   * @param content - Blob to upload
-   * @param fallbackContentType | if content.type is empty,we use this
-   * @returns BlobRef
-   * @throws {@link NetworkError} if upload fails
+   * @param uploadResult - Result from BlobOperations.upload()
+   * @returns JsonBlobRef formatted for records
    * @internal
    */
-
-  private async handleBlobUpload(content: Blob, fallbackContentType: string) {
-    const arrayBuffer = await content.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-      encoding: content.type || fallbackContentType,
-    });
-    if (!uploadResult.success) {
-      throw new NetworkError("Failed to upload blob");
-    }
-    return uploadResult.data.blob;
+  private blobToJsonRef(uploadResult: { ref: { $link: string }; mimeType: string; size: number }): JsonBlobRef {
+    return uploadResultToBlobRef(uploadResult);
   }
 
   /**
@@ -174,26 +165,13 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   ): Promise<JsonBlobRef | undefined> {
     this.emitProgress(onProgress, { name: "uploadImage", status: "start" });
     try {
-      const arrayBuffer = await image.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-        encoding: image.type || "image/jpeg",
+      const uploadResult = await this.blobs.upload(image);
+      this.emitProgress(onProgress, {
+        name: "uploadImage",
+        status: "success",
+        data: { size: image.size },
       });
-      if (uploadResult.success) {
-        const blobRef: JsonBlobRef = {
-          $type: "blob",
-          ref: { $link: uploadResult.data.blob.ref.toString() },
-          mimeType: uploadResult.data.blob.mimeType,
-          size: uploadResult.data.blob.size,
-        };
-        this.emitProgress(onProgress, {
-          name: "uploadImage",
-          status: "success",
-          data: { size: image.size },
-        });
-        return blobRef;
-      }
-      throw new NetworkError("Image upload succeeded but returned no blob reference");
+      return this.blobToJsonRef(uploadResult);
     } catch (error) {
       this.emitProgress(onProgress, { name: "uploadImage", status: "error", error: error as Error });
       throw new NetworkError(`Failed to upload image: ${error instanceof Error ? error.message : "Unknown"}`, error);
@@ -723,19 +701,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         if (params.image === null) {
           // Remove image
         } else {
-          const arrayBuffer = await params.image.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          const uploadResult = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-            encoding: params.image.type || "image/jpeg",
-          });
-          if (uploadResult.success) {
-            recordForUpdate.image = {
-              $type: "blob",
-              ref: uploadResult.data.blob.ref,
-              mimeType: uploadResult.data.blob.mimeType,
-              size: uploadResult.data.blob.size,
-            };
-          }
+          const uploadResult = await this.blobs.upload(params.image);
+          recordForUpdate.image = this.blobToJsonRef(uploadResult);
         }
       } else if (existingRecord.image) {
         // Preserve existing image
@@ -980,7 +947,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @returns Promise resolving to either a URI ref or blob ref
    * @internal
    */
-  private async resolveUriOrBlob(content: string | Blob, fallbackMimeType: string) {
+  private async resolveUriOrBlob(content: string | Blob, _fallbackMimeType: string) {
     if (typeof content === "string") {
       const uriRef = {
         $type: "org.hypercerts.defs#uri",
@@ -989,12 +956,11 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       return uriRef;
     }
 
-    const uploadedBlob = await this.handleBlobUpload(content, fallbackMimeType);
-    const blobRef = {
-      $type: "org.hypercerts.defs#smallBlob",
-      blob: uploadedBlob,
-    } satisfies $Typed<OrgHypercertsDefs.SmallBlob>;
-    return blobRef;
+    const uploadResult = await this.blobs.upload(content);
+    return {
+      $type: "org.hypercerts.defs#smallBlob" as const,
+      blob: uploadResult,
+    };
   }
 
   private async resolveCollectionImageInput(input: string | Blob): Promise<NonNullable<HypercertCollection["avatar"]>>;
@@ -1007,14 +973,27 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       return { $type: "org.hypercerts.defs#uri" as const, uri: input };
     }
 
-    const blob = await this.handleBlobUpload(input, "image/jpeg");
+    const uploadResult = await this.blobs.upload(input);
     if (isBanner) {
-      return { $type: "org.hypercerts.defs#largeImage" as const, image: blob };
+      return { $type: "org.hypercerts.defs#largeImage" as const, image: uploadResult };
     }
 
-    return { $type: "org.hypercerts.defs#smallImage" as const, image: blob };
+    return { $type: "org.hypercerts.defs#smallImage" as const, image: uploadResult };
   }
 
+  /**
+   * Resolves a location value to the appropriate lexicon format.
+   *
+   * Handles three input formats:
+   * - **string** - Wrapped in `{ $type: "org.hypercerts.defs#uri", uri: ... }`
+   *   This supports both free-form text ("New York, NY") and URLs
+   * - **Blob** - Uploaded and wrapped in `{ $type: "org.hypercerts.defs#smallBlob", blob: ... }`
+   * - **Structured object** - Passed through unchanged (already in lexicon format)
+   *
+   * @param location - Location value in any supported format
+   * @returns Promise resolving to lexicon-compliant location value
+   * @internal
+   */
   private async resolveLocationValue(location: string | Blob | HypercertLocation["location"]) {
     if (typeof location === "string" || location instanceof Blob) {
       return this.resolveUriOrBlob(location, "application/geo+json");
@@ -1855,18 +1834,24 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * Creates a collection of hypercerts.
    *
    * Collections group related hypercerts with optional weights
-   * for relative importance.
+   * for relative importance. Collections can have visual branding
+   * with avatar (icon/logo) and banner (cover) images.
    *
    * @param params - Collection parameters
    * @param params.title - Collection title
    * @param params.items - Array of hypercert references with weights
    * @param params.shortDescription - Optional short description
-   * @param params.banner - Optional cover image blob
+   * @param params.description - Optional full description
+   * @param params.avatar - Optional avatar image (icon/logo) for the collection.
+   *   Can be a Blob, URI string, or image record object. Recommended: square aspect ratio.
+   * @param params.banner - Optional banner image (cover) for the collection.
+   *   Can be a Blob, URI string, or image record object. Recommended: 3:1 aspect ratio.
+   * @param params.location - Optional location reference or inline location data
    * @returns Promise resolving to collection record URI and CID
    * @throws {@link ValidationError} if validation fails
    * @throws {@link NetworkError} if the operation fails
    *
-   * @example
+   * @example Basic collection with items
    * ```typescript
    * const collection = await repo.hypercerts.createCollection({
    *   title: "Climate Projects 2024",
@@ -1876,7 +1861,27 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *     { itemIdentifier: { uri: hypercert2Uri, cid: hypercert2Cid }, itemWeight: "0.3" },
    *     { itemIdentifier: { uri: hypercert3Uri, cid: hypercert3Cid }, itemWeight: "0.2" },
    *   ],
-   *   banner: coverImageBlob,
+   * });
+   * ```
+   *
+   * @example Collection with avatar and banner images
+   * ```typescript
+   * const collection = await repo.hypercerts.createCollection({
+   *   title: "Reforestation Initiative",
+   *   shortDescription: "Tree planting projects worldwide",
+   *   description: "A collection of verified reforestation hypercerts...",
+   *   avatar: logoBlob,    // Square icon/logo image
+   *   banner: coverBlob,   // Wide cover/banner image
+   *   items: [...],
+   * });
+   * ```
+   *
+   * @example Collection with location
+   * ```typescript
+   * const collection = await repo.hypercerts.createCollection({
+   *   title: "Amazon Basin Projects",
+   *   items: [...],
+   *   location: { value: "Amazon Rainforest, Brazil", name: "Amazon Basin" },
    * });
    * ```
    */
@@ -2053,7 +2058,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param params - Project creation parameters
    * @returns Promise resolving to created project URI and CID with optional location URI
    *
-   * @example
+   * @throws {@link ValidationError} if validation fails
+   * @throws {@link NetworkError} if the operation fails
+   *
+   * @example Basic project with items
    * ```typescript
    * const result = await repo.hypercerts.createProject({
    *   title: "Climate Impact 2024",
@@ -2064,6 +2072,26 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *   ]
    * });
    * console.log(`Created project: ${result.uri}`);
+   * ```
+   *
+   * @example Project with avatar and banner
+   * ```typescript
+   * const result = await repo.hypercerts.createProject({
+   *   title: "Ocean Cleanup Initiative",
+   *   shortDescription: "Removing plastic from oceans",
+   *   avatar: logoBlob,    // Square icon/logo for the project
+   *   banner: coverBlob,   // Wide cover/banner image
+   *   items: [...],
+   * });
+   * ```
+   *
+   * @example Project with location
+   * ```typescript
+   * const result = await repo.hypercerts.createProject({
+   *   title: "Amazon Reforestation",
+   *   items: [...],
+   *   location: { value: "Amazon Basin, Brazil", name: "Amazon Rainforest" },
+   * });
    * ```
    */
   async createProject(params: CreateProjectParams): Promise<CreateProjectResult> {
@@ -2197,17 +2225,28 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * Updates an existing project.
    *
    * A project is a collection with type='project'. This method delegates to
-   * updateCollection and handles the avatar field.
+   * updateCollection after verifying the record is a project.
    *
    * @param uri - AT-URI of the project to update
-   * @param updates - Fields to update
+   * @param updates - Fields to update (partial)
    * @returns Promise resolving to updated project URI and CID
    *
-   * @example
+   * @throws {@link ValidationError} if the URI format is invalid or record is not a project
+   * @throws {@link NetworkError} if the project is not found or update fails
+   *
+   * @example Basic update
    * ```typescript
    * const result = await repo.hypercerts.updateProject(projectUri, {
    *   title: "Updated Project Title",
-   *   shortDescription: "New description"
+   *   shortDescription: "New description",
+   * });
+   * ```
+   *
+   * @example Update avatar and banner images
+   * ```typescript
+   * const result = await repo.hypercerts.updateProject(projectUri, {
+   *   avatar: newLogoBlob,   // Square icon/logo image
+   *   banner: newCoverBlob,  // Wide cover/banner image
    * });
    * ```
    */
@@ -2284,9 +2323,41 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   /**
    * Updates a collection.
    *
+   * Performs a partial update on an existing collection, merging the provided
+   * updates with the existing record. Only specified fields are updated; omitted
+   * fields retain their current values.
+   *
+   * **Note:** The collection `type` field cannot be changed after creation.
+   *
    * @param uri - AT-URI of the collection to update
-   * @param updates - Fields to update
+   * @param updates - Fields to update (partial)
    * @returns Promise resolving to updated collection URI and CID
+   *
+   * @throws {@link ValidationError} if the URI format is invalid or type change attempted
+   * @throws {@link NetworkError} if the collection is not found or update fails
+   *
+   * @example Basic update
+   * ```typescript
+   * const result = await repo.hypercerts.updateCollection(collectionUri, {
+   *   title: "Updated Collection Title",
+   *   shortDescription: "New description for the collection",
+   * });
+   * ```
+   *
+   * @example Update avatar and banner images
+   * ```typescript
+   * const result = await repo.hypercerts.updateCollection(collectionUri, {
+   *   avatar: newLogoBlob,   // Square icon/logo image
+   *   banner: newCoverBlob,  // Wide cover/banner image
+   * });
+   * ```
+   *
+   * @example Add location to existing collection
+   * ```typescript
+   * const result = await repo.hypercerts.updateCollection(collectionUri, {
+   *   location: { value: "Berlin, Germany", name: "Berlin HQ" },
+   * });
+   * ```
    */
   async updateCollection(uri: string, updates: UpdateCollectionParams): Promise<UpdateResult> {
     try {
@@ -2564,8 +2635,39 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   /**
    * Creates an app.certified.location record.
    *
-   * @param location - Location parameters
-   * @returns Promise resolving to location record URI and CID
+   * The `location` field in the params accepts multiple formats:
+   * - **Simple string** - Free-form text like "New York, NY, USA" (wrapped in URI ref)
+   * - **URL string** - External location data like "https://example.com/location.geojson"
+   * - **Blob** - Binary data (e.g., GeoJSON file) that will be uploaded
+   * - **Structured object** - Full lexicon-defined location object
+   *
+   * @param location - Location parameters (see {@link CreateLocationParams})
+   * @returns Promise resolving to StrongRef with location record URI and CID
+   *
+   * @example Simple text location
+   * ```typescript
+   * const ref = await this.createLocationRecord({
+   *   lpVersion: "1.0.0",
+   *   srs: "EPSG:4326",
+   *   locationType: "coordinate-decimal",
+   *   location: "San Francisco, CA, USA",  // Wrapped in URI ref
+   *   name: "Project Site",
+   * });
+   * ```
+   *
+   * @example GeoJSON blob upload
+   * ```typescript
+   * const geojsonBlob = new Blob([JSON.stringify(geojson)], { type: "application/geo+json" });
+   * const ref = await this.createLocationRecord({
+   *   lpVersion: "1.0.0",
+   *   srs: "EPSG:4326",
+   *   locationType: "geojson",
+   *   location: geojsonBlob,  // Uploaded and stored as blob ref
+   *   name: "Protected Area",
+   * });
+   * ```
+   *
+   * @internal
    */
   private async createLocationRecord(location: CreateLocationParams): Promise<StrongRef> {
     if (!location.srs) {

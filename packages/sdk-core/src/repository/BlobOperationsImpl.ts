@@ -57,6 +57,7 @@ export class BlobOperationsImpl implements BlobOperations {
    * @param agent - AT Protocol Agent for making API calls
    * @param repoDid - DID of the repository (used for blob retrieval)
    * @param _serverUrl - Server URL (reserved for future use)
+   * @param isSDS - Whether this is a Shared Data Server
    *
    * @internal
    */
@@ -64,6 +65,7 @@ export class BlobOperationsImpl implements BlobOperations {
     private agent: Agent,
     private repoDid: string,
     private _serverUrl: string,
+    private isSDS: boolean,
   ) {}
 
   /**
@@ -112,9 +114,16 @@ export class BlobOperationsImpl implements BlobOperations {
     try {
       const arrayBuffer = await blob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
+      const encoding = blob.type || "application/octet-stream";
+
+      // Use SDS endpoint if available, otherwise use standard PDS endpoint
+      // SDS has a dedicated uploadBlob endpoint that accepts the repo param
+      if (this.isSDS) {
+        return await this.uploadViaSDS(uint8Array, encoding);
+      }
 
       const result = await this.agent.com.atproto.repo.uploadBlob(uint8Array, {
-        encoding: blob.type || "application/octet-stream",
+        encoding,
       });
 
       if (!result.success) {
@@ -133,6 +142,54 @@ export class BlobOperationsImpl implements BlobOperations {
         error,
       );
     }
+  }
+
+  /**
+   * Uploads a blob via the SDS-specific XRPC endpoint.
+   *
+   * Uses the agent's fetch handler directly since `com.sds.repo.uploadBlob`
+   * is not a registered XRPC namespace on the standard AT Protocol Agent.
+   * This follows the same pattern used by CollaboratorOperationsImpl and
+   * OrganizationOperationsImpl for SDS-specific endpoints.
+   *
+   * @param data - Binary data to upload
+   * @param encoding - MIME type of the data
+   * @returns Promise resolving to blob reference and metadata
+   * @throws {@link NetworkError} if the upload fails
+   * @internal
+   */
+  private async uploadViaSDS(
+    data: Uint8Array,
+    encoding: string,
+  ): Promise<{ ref: { $link: string }; mimeType: string; size: number }> {
+    const url = `/xrpc/com.sds.repo.uploadBlob?repo=${encodeURIComponent(this.repoDid)}`;
+    const response = await this.agent.fetchHandler(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": encoding,
+      },
+      body: data as unknown as BodyInit,
+    });
+
+    if (!response.ok) {
+      throw new NetworkError(`SDS blob upload failed: ${response.statusText}`);
+    }
+
+    const result = (await response.json()) as {
+      blob: {
+        ref: { $link: string } | string;
+        mimeType: string;
+        size: number;
+      };
+    };
+
+    const ref = typeof result.blob.ref === "string" ? result.blob.ref : result.blob.ref.$link;
+
+    return {
+      ref: { $link: ref },
+      mimeType: result.blob.mimeType,
+      size: result.blob.size,
+    };
   }
 
   /**
