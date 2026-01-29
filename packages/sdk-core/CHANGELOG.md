@@ -1,5 +1,101 @@
 # @hypercerts-org/sdk-core
 
+## 0.10.0-beta.8
+
+### Minor Changes
+
+- [#122](https://github.com/hypercerts-org/hypercerts-sdk/pull/122)
+  [`48da647`](https://github.com/hypercerts-org/hypercerts-sdk/commit/48da647d06bc6592b5b4aa48c56d6d17a7ade47f) Thanks
+  [@aspiers](https://github.com/aspiers)! - Add RichText utility functions for auto-detecting facets from text
+
+  New utility functions to simplify creating rich text facets:
+  - `createFacetsFromText(text, agent?)` - async function that auto-detects URLs, hashtags, and @mentions. If an agent
+    is provided, resolves mentions to DIDs.
+  - `createFacetsFromTextSync(text)` - sync function for fast detection without mention resolution
+  - Re-exports `RichText` class from `@atproto/api` for advanced use cases
+
+- [#121](https://github.com/hypercerts-org/hypercerts-sdk/pull/121)
+  [`0d250f3`](https://github.com/hypercerts-org/hypercerts-sdk/commit/0d250f32f34fd21111baa97e8947cd4a08aab643) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Rename evidence records to attachments and update schema to match lexicon
+  changes
+
+  **Breaking Changes:**
+
+  **API Symbol Renames:**
+  - `addEvidence()` → `addAttachment()`
+  - `CreateHypercertEvidenceParams` → `CreateAttachmentParams`
+  - `evidenceUris` → `attachmentUris` in create results
+  - `evidenceAdded` → `attachmentAdded` event
+  - Evidence type exports replaced with Attachment equivalents
+
+  **Schema Field Changes:**
+
+  **Subject Fields:**
+  - `subjectUri` (string) → `subjects` (array of StrongRefs or a single uri or StrongRef)
+  - `subject` (StrongRef) → `subjects` (array of StrongRefs or a single uri or StrongRef)
+
+  **Content Fields:**
+  - `content` (string | Blob) | Array<(string | Blob)> → `content` (required array of URI/Blob refs)
+  - Content is now required and can be an array with multiple items or a single item. SDK will convert to an array
+
+  **Removed Fields:**
+  - `relationType` - removed from attachment schema
+  - `contributors` - removed from attachment schema
+  - `locations` - removed from attachment schema
+
+  **Payload Mapping Examples:**
+
+  ```typescript
+  // Old evidence payload
+  {
+    subjectUri: "at://did:plc:abc/org.hypercerts.claim.activity/xyz",
+    content: "https://example.com/report.pdf",
+    title: "Report",
+    relationType: "supports"
+  }
+
+  // New attachment payload
+  {
+    subjects: "at://did:plc:abc/org.hypercerts.claim.activity/xyz",
+    content: "https://example.com/report.pdf",
+    title: "Report"
+    // relationType removed
+  }
+  // or arrays:
+  {
+    subjects: ["at://did:plc:abc/org.hypercerts.claim.activity/xyz", "at://did:plc:abc/org.hypercerts.claim.activity/zyx"]
+    content: ["https://reportfile.com/pdf", File]
+  }
+  ```
+
+- [#122](https://github.com/hypercerts-org/hypercerts-sdk/pull/122)
+  [`df35089`](https://github.com/hypercerts-org/hypercerts-sdk/commit/df35089657960cb42e4a7ced68165f4a2cdaa904) Thanks
+  [@aspiers](https://github.com/aspiers)! - Fix SDS blob uploads, add profile creation, and refactor blob operations
+
+  **BREAKING:** `HypercertOperationsImpl` and `ProfileOperationsImpl` constructors now require a `BlobOperations`
+  instance instead of a server URL.
+  - Route SDS blob uploads to `com.sds.repo.uploadBlob` with repo query parameter, and PDS blob uploads to standard
+    `com.atproto.repo.uploadBlob`
+  - Remove incorrect SDS routing logic from profile operations (profiles use standard ATProto endpoints on both PDS and
+    SDS)
+  - DRY blob uploads: extract shared `BlobOperations` interface and use dependency injection in both
+    `ProfileOperationsImpl` and `HypercertOperationsImpl`
+  - Refactor `applyParamsToProfile` to eliminate code duplication with helper methods
+  - Add `create()` method to `ProfileOperationsImpl` for creating new profiles
+  - Fix collection blob upload tests to mock `BlobOperations.upload` instead of `agent.uploadBlob`
+
+### Patch Changes
+
+- [#122](https://github.com/hypercerts-org/hypercerts-sdk/pull/122)
+  [`da60509`](https://github.com/hypercerts-org/hypercerts-sdk/commit/da605096c5775fcd5ea16d072174d1607899332d) Thanks
+  [@aspiers](https://github.com/aspiers)! - Enhance JSDoc documentation for collection and project methods
+
+  Added comprehensive JSDoc with examples for:
+  - `createCollection()` - examples for basic collections, avatar/banner images, and locations
+  - `updateCollection()` - examples for updating title, images, and adding locations
+  - `createProject()` - examples for basic projects, avatar/banner, and locations
+  - `updateProject()` - examples for updating project images
+
 ## 0.10.0-beta.7
 
 ### Minor Changes
