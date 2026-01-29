@@ -92,16 +92,29 @@ pnpm clean                # Remove build artifacts
 
 ### Package-specific commands
 
+**Prefer running commands from within the package directory** (cleaner output, easier to pass args):
+
 ```bash
 # sdk-core
-pnpm --filter @hypercerts-org/sdk-core build
-pnpm --filter @hypercerts-org/sdk-core test
-pnpm --filter @hypercerts-org/sdk-core lint
+cd packages/sdk-core
+pnpm test                    # Run all tests
+pnpm test SomeFile           # Run specific test file
+pnpm build
+pnpm lint
 
 # sdk-react
+cd packages/sdk-react
+pnpm test
+pnpm build
+pnpm typecheck
+pnpm lint
+```
+
+Alternative using `--filter` from repository root (useful for CI/scripts):
+
+```bash
+pnpm --filter @hypercerts-org/sdk-core test
 pnpm --filter @hypercerts-org/sdk-react build
-pnpm --filter @hypercerts-org/sdk-react typecheck
-pnpm --filter @hypercerts-org/sdk-react lint
 ```
 
 ## Architecture
@@ -382,9 +395,11 @@ The repository has Git hooks that ensure code quality:
 # ... edit files ...
 
 # 2. Run tests for affected packages
-pnpm --filter @hypercerts-org/sdk-core test
+cd packages/sdk-core
+pnpm test
 
-# 3. Verify the build works
+# 3. Verify the build works (from repo root)
+cd ../..
 pnpm build
 
 # 4. Stage changes
