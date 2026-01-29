@@ -30,7 +30,6 @@ import {
   type CreateLocationParams,
   type HypercertMeasurement,
   type HypercertRights,
-  type JsonBlobRef,
   type OrgHypercertsDefs,
   type StrongRef,
   type UpdateCollectionParams,
@@ -52,7 +51,6 @@ import type {
   ResolvedContributorIdentity,
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
-import { blobRefToJson } from "./types.js";
 import { $Typed } from "@atproto/api";
 import { sha256Hash } from "../lib/crypto.js";
 
@@ -141,17 +139,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Converts a BlobRef to JsonBlobRef format.
-   *
-   * @param blobRef - BlobRef from BlobOperations.upload()
-   * @returns JsonBlobRef formatted for records
-   * @internal
-   */
-  private blobToJsonRef(blobRef: BlobRef): JsonBlobRef {
-    return blobRefToJson(blobRef);
-  }
-
-  /**
    * Uploads an image blob and returns a blob reference.
    *
    * @param image - Image blob to upload
@@ -160,10 +147,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @throws {@link NetworkError} if upload fails
    * @internal
    */
-  private async uploadImageBlob(
-    image: Blob,
-    onProgress?: (step: ProgressStep) => void,
-  ): Promise<JsonBlobRef | undefined> {
+  private async uploadImageBlob(image: Blob, onProgress?: (step: ProgressStep) => void): Promise<BlobRef | undefined> {
     this.emitProgress(onProgress, { name: "uploadImage", status: "start" });
     try {
       const uploadResult = await this.blobs.upload(image);
@@ -173,7 +157,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         status: "success",
         data: { size: image.size },
       });
-      return this.blobToJsonRef(uploadResult);
+      return uploadResult;
     } catch (error) {
       this.emitProgress(onProgress, { name: "uploadImage", status: "error", error: error as Error });
       throw new NetworkError(`Failed to upload image: ${error instanceof Error ? error.message : "Unknown"}`, error);
@@ -252,7 +236,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     params: CreateHypercertParams,
     rightsUri: string,
     rightsCid: string,
-    imageBlobRef: JsonBlobRef | undefined,
+    imageBlobRef: BlobRef | undefined,
     locationRefs: Array<{ uri: string; cid: string }> | undefined,
     contributorsData:
       | Array<{
@@ -704,7 +688,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           // Remove image
         } else {
           const uploadResult = await this.blobs.upload(params.image);
-          recordForUpdate.image = this.blobToJsonRef(uploadResult);
+          recordForUpdate.image = uploadResult;
         }
       } else if (existingRecord.image) {
         // Preserve existing image
@@ -961,7 +945,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     const uploadResult = await this.blobs.upload(content);
     return {
       $type: "org.hypercerts.defs#smallBlob" as const,
-      blob: this.blobToJsonRef(uploadResult),
+      blob: uploadResult,
     };
   }
 
@@ -977,13 +961,12 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
     const uploadResult = await this.blobs.upload(input);
     console.log("resolveCollectionImageInput uploadResult", uploadResult);
-    const blobRef = this.blobToJsonRef(uploadResult);
-    console.log("resolveCollectionImageInput blobRef", blobRef);
+    // console.log("resolveCollectionImageInput blobRef", blobRef);
     if (isBanner) {
-      return { $type: "org.hypercerts.defs#largeImage" as const, image: blobRef };
+      return { $type: "org.hypercerts.defs#largeImage" as const, image: uploadResult };
     }
 
-    return { $type: "org.hypercerts.defs#smallImage" as const, image: blobRef };
+    return { $type: "org.hypercerts.defs#smallImage" as const, image: uploadResult };
   }
 
   /**
@@ -1420,7 +1403,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         };
 
         // Handle image upload if it's a Blob
-        let imageRef: JsonBlobRef | string | undefined;
+        let imageRef: BlobRef | string | undefined;
         if (image instanceof Blob) {
           const uploadResult = await this.uploadImageBlob(image, onProgress);
           imageRef = uploadResult;
@@ -1563,7 +1546,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   async addContributorInformation(params: {
     identifier: string;
     displayName?: string;
-    image?: JsonBlobRef | string;
+    image?: BlobRef | string;
     [key: string]: unknown;
   }): Promise<CreateResult> {
     try {
