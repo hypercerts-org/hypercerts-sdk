@@ -281,37 +281,62 @@ export type { OrgHypercertsClaimCollection as CollectionLexicon } from "@hyperce
 export type CollectionItemInput = SetOptional<OrgHypercertsClaimCollection.Item, "$type">;
 
 /**
- * Parameters for specifying a location in collection/project operations.
- * Supports three ways to specify location:
+ * Parameters for creating a location record.
  *
- * 1. **StrongRef** - Direct reference with uri and cid (no record creation)
- * 2. **AT-URI string** - Reference to existing location record
- * 3. **Location object** - Full location data (lpVersion, srs, locationType, location, etc.)
- *    with optional `$type` and `createdAt` fields
- *    where-as location field can be a Blob (e.g., GeoJSON) that will be uploaded
+ * The `location` field accepts multiple formats:
+ * - **Simple string** - Free-form text like "New York, NY, USA" (wrapped in URI ref)
+ * - **URL string** - External location data like "https://example.com/location.geojson"
+ * - **Blob** - Binary data (e.g., GeoJSON file) that will be uploaded
+ * - **Structured object** - Full lexicon-defined location object
  *
- * @example Using a StrongRef (no record creation)
+ * @example Simple text location (beta.13+)
  * ```typescript
- * const location: AttachLocationParams = { uri: "at://did:plc:test/app.certified.location/abc", cid: "bafyrei..." };
- * ```
- *
- * @example Using an AT-URI (fetches existing record)
- * ```typescript
- * const location: AttachLocationParams = "at://did:plc:test/app.certified.location/xyz";
- * ```
- *
- * @example Using a location object
- * ```typescript
- * const location: AttachLocationParams = {
+ * const location: CreateLocationParams = {
  *   lpVersion: "1.0.0",
  *   srs: "EPSG:4326",
  *   locationType: "coordinate-decimal",
- *   location: "https://locationuri.com",
+ *   location: "New York, NY, USA",  // Simple string - wrapped in URI ref
+ *   name: "Project Site",
+ * };
+ * ```
+ *
+ * @example URL reference
+ * ```typescript
+ * const location: CreateLocationParams = {
+ *   lpVersion: "1.0.0",
+ *   srs: "EPSG:4326",
+ *   locationType: "coordinate-decimal",
+ *   location: "https://example.com/location.geojson",
+ *   name: "San Francisco",
+ * };
+ * ```
+ *
+ * @example Blob upload (GeoJSON file)
+ * ```typescript
+ * const geojsonBlob = new Blob([JSON.stringify(geojsonData)], { type: "application/geo+json" });
+ * const location: CreateLocationParams = {
+ *   lpVersion: "1.0.0",
+ *   srs: "EPSG:4326",
+ *   locationType: "geojson",
+ *   location: geojsonBlob,  // Will be uploaded and stored as blob ref
+ *   name: "Protected Area",
+ * };
+ * ```
+ *
+ * @example Structured location object
+ * ```typescript
+ * const location: CreateLocationParams = {
+ *   lpVersion: "1.0.0",
+ *   srs: "EPSG:4326",
+ *   locationType: "coordinate-decimal",
+ *   location: {
+ *     $type: "org.hypercerts.defs#uri",
+ *     uri: "geo:37.7749,-122.4194"
+ *   },
  *   name: "San Francisco",
  * };
  * ```
  */
-
 export type CreateLocationParams = OverrideProperties<
   SetOptional<HypercertLocation, "$type" | "createdAt">,
   {
@@ -319,6 +344,35 @@ export type CreateLocationParams = OverrideProperties<
   }
 >;
 
+/**
+ * Union type for specifying a location in SDK methods.
+ *
+ * Accepts three forms:
+ * 1. **string** - AT-URI pointing to an existing location record
+ * 2. **StrongRef** - Direct reference with uri and cid
+ * 3. **CreateLocationParams** - Location object to create a new record
+ *
+ * @example Using an AT-URI (fetches existing record)
+ * ```typescript
+ * const location: LocationParams = "at://did:plc:test/app.certified.location/xyz";
+ * ```
+ *
+ * @example Using a StrongRef (no record fetch needed)
+ * ```typescript
+ * const location: LocationParams = { uri: "at://did:plc:test/app.certified.location/abc", cid: "bafyrei..." };
+ * ```
+ *
+ * @example Using CreateLocationParams (creates new record)
+ * ```typescript
+ * const location: LocationParams = {
+ *   lpVersion: "1.0.0",
+ *   srs: "EPSG:4326",
+ *   locationType: "coordinate-decimal",
+ *   location: "San Francisco, CA, USA",
+ *   name: "Project Headquarters",
+ * };
+ * ```
+ */
 export type LocationParams = StrongRef | string | CreateLocationParams;
 
 /**

@@ -981,6 +981,19 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     return { $type: "org.hypercerts.defs#smallImage" as const, image: uploadResult };
   }
 
+  /**
+   * Resolves a location value to the appropriate lexicon format.
+   *
+   * Handles three input formats:
+   * - **string** - Wrapped in `{ $type: "org.hypercerts.defs#uri", uri: ... }`
+   *   This supports both free-form text ("New York, NY") and URLs
+   * - **Blob** - Uploaded and wrapped in `{ $type: "org.hypercerts.defs#smallBlob", blob: ... }`
+   * - **Structured object** - Passed through unchanged (already in lexicon format)
+   *
+   * @param location - Location value in any supported format
+   * @returns Promise resolving to lexicon-compliant location value
+   * @internal
+   */
   private async resolveLocationValue(location: string | Blob | HypercertLocation["location"]) {
     if (typeof location === "string" || location instanceof Blob) {
       return this.resolveUriOrBlob(location, "application/geo+json");
@@ -2622,8 +2635,39 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   /**
    * Creates an app.certified.location record.
    *
-   * @param location - Location parameters
-   * @returns Promise resolving to location record URI and CID
+   * The `location` field in the params accepts multiple formats:
+   * - **Simple string** - Free-form text like "New York, NY, USA" (wrapped in URI ref)
+   * - **URL string** - External location data like "https://example.com/location.geojson"
+   * - **Blob** - Binary data (e.g., GeoJSON file) that will be uploaded
+   * - **Structured object** - Full lexicon-defined location object
+   *
+   * @param location - Location parameters (see {@link CreateLocationParams})
+   * @returns Promise resolving to StrongRef with location record URI and CID
+   *
+   * @example Simple text location
+   * ```typescript
+   * const ref = await this.createLocationRecord({
+   *   lpVersion: "1.0.0",
+   *   srs: "EPSG:4326",
+   *   locationType: "coordinate-decimal",
+   *   location: "San Francisco, CA, USA",  // Wrapped in URI ref
+   *   name: "Project Site",
+   * });
+   * ```
+   *
+   * @example GeoJSON blob upload
+   * ```typescript
+   * const geojsonBlob = new Blob([JSON.stringify(geojson)], { type: "application/geo+json" });
+   * const ref = await this.createLocationRecord({
+   *   lpVersion: "1.0.0",
+   *   srs: "EPSG:4326",
+   *   locationType: "geojson",
+   *   location: geojsonBlob,  // Uploaded and stored as blob ref
+   *   name: "Protected Area",
+   * });
+   * ```
+   *
+   * @internal
    */
   private async createLocationRecord(location: CreateLocationParams): Promise<StrongRef> {
     if (!location.srs) {
