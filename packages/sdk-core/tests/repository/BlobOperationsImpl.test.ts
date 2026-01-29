@@ -1,8 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
+import { BlobRef, jsonStringToLex } from "@atproto/lexicon";
 import { BlobOperationsImpl } from "../../src/repository/BlobOperationsImpl.js";
 import { NetworkError, ValidationError } from "../../src/core/errors.js";
 import { createMockAgent, TEST_REPO_DID, TEST_PDS_URL, TEST_SDS_URL } from "../utils/mocks.js";
+
+/**
+ * Helper to create a BlobRef with a proper CID object for testing.
+ * Uses jsonStringToLex to parse AT Protocol wire format into a BlobRef instance.
+ */
+function createTestBlobRef(cid: string, mimeType: string, size: number): BlobRef {
+  const json = JSON.stringify({
+    $type: "blob",
+    ref: { $link: cid },
+    mimeType,
+    size,
+  });
+  return jsonStringToLex(json) as BlobRef;
+}
+
+// Valid CID for testing - must be a real base32-encoded CIDv1
+const TEST_VALID_CID = "bafyreie5cvv4h45feadgeuwhbcutmh6t2ceseocckahdoe6uat64zmz454";
 
 describe("BlobOperationsImpl", () => {
   let mockAgent: ReturnType<typeof createMockAgent>;
@@ -36,31 +54,26 @@ describe("BlobOperationsImpl", () => {
   describe("upload", () => {
     it("should upload a blob successfully", async () => {
       const mockBlob = new Blob(["test content"], { type: "text/plain" });
-      const mockCID = {
-        toString: () => "bafyrei123",
-      };
+      // Create a proper BlobRef with a CID object (as XRPC would return)
+      const mockBlobRef = createTestBlobRef(TEST_VALID_CID, "text/plain", 12);
       mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
         success: true,
         data: {
-          blob: {
-            ref: mockCID,
-            mimeType: "text/plain",
-            size: 12,
-          },
+          blob: mockBlobRef,
         },
       });
 
       const result = await blobOps.upload(mockBlob);
 
-      // BlobRef stores CID as string
-      expect(result.ref.toString()).toBe("bafyrei123");
+      // Result should be a BlobRef instance with proper CID object
+      expect(result).toBeInstanceOf(BlobRef);
+      expect(result.ref.toString()).toBe(TEST_VALID_CID);
       expect(result.mimeType).toBe("text/plain");
       expect(result.size).toBe(12);
-      // Note: BlobRef.ipld() returns ref as a string, not { $link: ... }
-      // Use blobRefToJson() for AT Protocol record format with { $link: ... }
-      expect(result.ipld()).toEqual({
+      // BlobRef.toJSON() produces AT Protocol wire format with { $link: ... }
+      expect(result.toJSON()).toEqual({
         $type: "blob",
-        ref: "bafyrei123",
+        ref: { $link: TEST_VALID_CID },
         mimeType: "text/plain",
         size: 12,
       });
@@ -68,14 +81,11 @@ describe("BlobOperationsImpl", () => {
 
     it("should use blob type as encoding", async () => {
       const mockBlob = new Blob(["image data"], { type: "image/png" });
+      const mockBlobRef = createTestBlobRef(TEST_VALID_CID, "image/png", 100);
       mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
         success: true,
         data: {
-          blob: {
-            ref: { $link: "bafyrei123" },
-            mimeType: "image/png",
-            size: 100,
-          },
+          blob: mockBlobRef,
         },
       });
 
@@ -88,14 +98,11 @@ describe("BlobOperationsImpl", () => {
 
     it("should default to application/octet-stream for blobs without type", async () => {
       const mockBlob = new Blob(["data"]);
+      const mockBlobRef = createTestBlobRef(TEST_VALID_CID, "application/octet-stream", 4);
       mockAgent.com.atproto.repo.uploadBlob.mockResolvedValue({
         success: true,
         data: {
-          blob: {
-            ref: { $link: "bafyrei123" },
-            mimeType: "application/octet-stream",
-            size: 4,
-          },
+          blob: mockBlobRef,
         },
       });
 
@@ -136,7 +143,8 @@ describe("BlobOperationsImpl", () => {
         ok: true,
         json: async () => ({
           blob: {
-            ref: { $link: "bafyrei-sds-123" },
+            $type: "blob",
+            ref: { $link: TEST_VALID_CID },
             mimeType: "image/png",
             size: 12,
           },
@@ -145,18 +153,10 @@ describe("BlobOperationsImpl", () => {
 
       const result = await sdsBlobOps.upload(mockBlob);
 
-      // BlobRef stores CID as string
-      expect(result.ref.toString()).toBe("bafyrei-sds-123");
+      // BlobRef stores CID as CID object, toString() returns the string
+      expect(result.ref.toString()).toBe(TEST_VALID_CID);
       expect(result.mimeType).toBe("image/png");
       expect(result.size).toBe(12);
-      // Note: BlobRef.ipld() returns ref as a string, not { $link: ... }
-      // Use blobRefToJson() for AT Protocol record format with { $link: ... }
-      expect(result.ipld()).toEqual({
-        $type: "blob",
-        ref: "bafyrei-sds-123",
-        mimeType: "image/png",
-        size: 12,
-      });
       expect(mockAgent.fetchHandler).toHaveBeenCalledWith(
         `/xrpc/com.sds.repo.uploadBlob?repo=${encodeURIComponent(TEST_REPO_DID)}`,
         expect.objectContaining({
@@ -166,13 +166,14 @@ describe("BlobOperationsImpl", () => {
       );
     });
 
-    it("should handle string blob ref from SDS", async () => {
+    it("should handle blob ref with $type from SDS", async () => {
       const mockBlob = new Blob(["test"], { type: "text/plain" });
       mockAgent.fetchHandler.mockResolvedValue({
         ok: true,
         json: async () => ({
           blob: {
-            ref: "bafyrei-string-ref",
+            $type: "blob",
+            ref: { $link: TEST_VALID_CID },
             mimeType: "text/plain",
             size: 4,
           },
@@ -181,8 +182,8 @@ describe("BlobOperationsImpl", () => {
 
       const result = await sdsBlobOps.upload(mockBlob);
 
-      // BlobRef stores CID as string
-      expect(result.ref.toString()).toBe("bafyrei-string-ref");
+      // BlobRef stores CID as CID object
+      expect(result.ref.toString()).toBe(TEST_VALID_CID);
     });
 
     it("should throw NetworkError when SDS returns non-ok response", async () => {
@@ -208,7 +209,8 @@ describe("BlobOperationsImpl", () => {
         ok: true,
         json: async () => ({
           blob: {
-            ref: { $link: "bafyrei-sds" },
+            $type: "blob",
+            ref: { $link: TEST_VALID_CID },
             mimeType: "image/jpeg",
             size: 4,
           },

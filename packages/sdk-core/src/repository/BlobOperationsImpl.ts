@@ -8,6 +8,7 @@
  */
 
 import { Agent, BlobRef } from "@atproto/api";
+import { jsonStringToLex } from "@atproto/lexicon";
 import { NetworkError, ValidationError } from "../core/errors.js";
 import { isValidDid } from "../core/types.js";
 import type { BlobOperations } from "./interfaces.js";
@@ -137,7 +138,9 @@ export class BlobOperationsImpl implements BlobOperations {
         throw new NetworkError("Failed to upload blob");
       }
 
-      return new BlobRef(result.data.blob.ref.toString(), result.data.blob.mimeType, result.data.blob.size);
+      // Return the BlobRef directly - it already has a proper CID object
+      // from XRPC response parsing via jsonStringToLex
+      return result.data.blob;
     } catch (error) {
       if (error instanceof NetworkError) throw error;
       throw new NetworkError(
@@ -175,24 +178,12 @@ export class BlobOperationsImpl implements BlobOperations {
       throw new NetworkError(`SDS blob upload failed: ${response.statusText}`);
     }
 
-    const result = (await response.json()) as {
-      blob: {
-        ref: { $link: string } | string;
-        mimeType: string;
-        size: number;
-      };
-    };
-    console.log("uploadViaSDS response from uploadBlob XRPC call", JSON.stringify(result, null, 2));
+    // Parse response using jsonStringToLex to get a proper BlobRef with CID object
+    // We use response.json() then stringify to get a string for jsonStringToLex
+    const jsonData = await response.json();
+    const result = jsonStringToLex(JSON.stringify(jsonData)) as { blob: BlobRef };
 
-    const ref = typeof result.blob.ref === "string" ? result.blob.ref : result.blob.ref.$link;
-    console.log("uploadViaSDS ref for new BlobRef", JSON.stringify(ref, null, 2));
-
-    return new BlobRef(ref, result.blob.mimeType, result.blob.size);
-    // return {
-    //   ref: { $link: ref },
-    //   mimeType: result.blob.mimeType,
-    //   size: result.blob.size,
-    // };
+    return result.blob;
   }
 
   /**
