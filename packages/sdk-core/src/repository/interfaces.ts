@@ -8,7 +8,7 @@
  * @packageDocumentation
  */
 
-import type { AppBskyRichtextFacet } from "@atproto/api";
+import type { AppBskyRichtextFacet, BlobRef } from "@atproto/api";
 import type { JsonBlobRef } from "@atproto/lexicon";
 import type { EventEmitter } from "eventemitter3";
 import type {
@@ -593,24 +593,7 @@ export interface BlobOperations {
    * @param blob - The blob to upload
    * @returns Promise resolving to blob reference and metadata
    */
-  upload(blob: Blob): Promise<{
-    /**
-     * Blob reference to use in records.
-     *
-     * Contains `$link` property with the CID.
-     */
-    ref: { $link: string };
-
-    /**
-     * MIME type of the uploaded blob.
-     */
-    mimeType: string;
-
-    /**
-     * Size of the blob in bytes.
-     */
-    size: number;
-  }>;
+  upload(blob: Blob): Promise<BlobRef>;
 
   /**
    * Retrieves a blob by its CID.

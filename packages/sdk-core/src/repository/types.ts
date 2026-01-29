@@ -3,7 +3,7 @@
  * @packageDocumentation
  */
 
-import type { JsonBlobRef } from "@atproto/lexicon";
+import { BlobRef, type JsonBlobRef } from "@atproto/lexicon";
 import type { CollaboratorPermissions } from "../core/types.js";
 
 // ============================================================================
@@ -116,28 +116,22 @@ export interface ProgressStep {
 // ============================================================================
 
 /**
- * Result from BlobOperations.upload()
- */
-export interface BlobUploadResult {
-  ref: { $link: string };
-  mimeType: string;
-  size: number;
-}
-
-/**
- * Converts a blob upload result to JsonBlobRef format.
+ * Converts a BlobRef to JsonBlobRef format.
  *
  * AT Protocol requires blob fields to include the full structure:
  * `{ $type: "blob", ref: { $link }, mimeType, size }`
  *
- * @param uploadResult - Result from BlobOperations.upload()
+ * Note: BlobRef.ipld() returns `ref` as a string, but records require
+ * `ref: { $link: string }` format, so we construct it manually.
+ *
+ * @param blobRef - BlobRef from BlobOperations.upload()
  * @returns JsonBlobRef formatted for records
  */
-export function uploadResultToBlobRef(uploadResult: BlobUploadResult): JsonBlobRef {
+export function blobRefToJson(blobRef: BlobRef): JsonBlobRef {
   return {
     $type: "blob",
-    ref: uploadResult.ref,
-    mimeType: uploadResult.mimeType,
-    size: uploadResult.size,
+    ref: { $link: blobRef.ref.toString() },
+    mimeType: blobRef.mimeType,
+    size: blobRef.size,
   };
 }

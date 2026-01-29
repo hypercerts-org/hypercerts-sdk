@@ -14,6 +14,7 @@ import { EventEmitter } from "eventemitter3";
 import { NetworkError, ValidationError } from "../errors.js";
 import type { LoggerInterface } from "../core/interfaces.js";
 import {
+  BlobRef,
   HYPERCERT_COLLECTIONS,
   type CreateCollectionParams,
   type CreateCollectionResult,
@@ -51,7 +52,7 @@ import type {
   ResolvedContributorIdentity,
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
-import { uploadResultToBlobRef } from "./types.js";
+import { blobRefToJson } from "./types.js";
 import { $Typed } from "@atproto/api";
 import { sha256Hash } from "../lib/crypto.js";
 
@@ -140,14 +141,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Converts a blob upload result to JsonBlobRef format.
+   * Converts a BlobRef to JsonBlobRef format.
    *
-   * @param uploadResult - Result from BlobOperations.upload()
+   * @param blobRef - BlobRef from BlobOperations.upload()
    * @returns JsonBlobRef formatted for records
    * @internal
    */
-  private blobToJsonRef(uploadResult: { ref: { $link: string }; mimeType: string; size: number }): JsonBlobRef {
-    return uploadResultToBlobRef(uploadResult);
+  private blobToJsonRef(blobRef: BlobRef): JsonBlobRef {
+    return blobRefToJson(blobRef);
   }
 
   /**

@@ -12,7 +12,7 @@ import type { JsonBlobRef } from "@atproto/lexicon";
 import { NetworkError } from "../core/errors.js";
 import type { BlobInput, BlobOperations, ProfileOperations, ProfileParams } from "./interfaces.js";
 import type { CreateResult, UpdateResult } from "./types.js";
-import { uploadResultToBlobRef } from "./types.js";
+import { blobRefToJson } from "./types.js";
 
 /**
  * Implementation of profile operations for user profile management.
@@ -142,8 +142,8 @@ export class ProfileOperationsImpl implements ProfileOperations {
       result[field] = input;
     } else {
       // Upload new blob
-      const uploadResult = await this.blobs.upload(input);
-      result[field] = uploadResultToBlobRef(uploadResult);
+      const blobRef = await this.blobs.upload(input);
+      result[field] = blobRefToJson(blobRef);
     }
   }
 

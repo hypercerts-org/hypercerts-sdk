@@ -1,4 +1,4 @@
-import type { LexiconDoc } from "@atproto/lexicon";
+import { BlobRef, type LexiconDoc } from "@atproto/lexicon";
 import type { Session } from "../../src/core/types.js";
 
 /**
@@ -65,7 +65,7 @@ export function createMockLexicon(id: string): LexiconDoc {
 }
 
 /**
- * Create a mock blob reference
+ * Create a mock blob reference (JSON format)
  */
 export function createMockBlobRef(): {
   $type: string;
@@ -79,4 +79,15 @@ export function createMockBlobRef(): {
     mimeType: "image/png",
     size: 1024,
   };
+}
+
+/**
+ * Create a mock BlobRef instance (class instance with .ipld() method)
+ */
+export function createMockBlobRefInstance(
+  cid: string = "bafyrei...",
+  mimeType: string = "image/png",
+  size: number = 1024,
+): BlobRef {
+  return new BlobRef(cid, mimeType, size);
 }

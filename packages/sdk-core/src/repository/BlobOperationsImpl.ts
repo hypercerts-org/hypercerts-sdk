@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 
-import type { Agent } from "@atproto/api";
+import { Agent, BlobRef } from "@atproto/api";
 import { NetworkError, ValidationError } from "../core/errors.js";
 import { isValidDid } from "../core/types.js";
 import type { BlobOperations } from "./interfaces.js";
@@ -117,7 +117,7 @@ export class BlobOperationsImpl implements BlobOperations {
    * });
    * ```
    */
-  async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; size: number }> {
+  async upload(blob: Blob): Promise<BlobRef> {
     try {
       const arrayBuffer = await blob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
@@ -137,11 +137,7 @@ export class BlobOperationsImpl implements BlobOperations {
         throw new NetworkError("Failed to upload blob");
       }
 
-      return {
-        ref: { $link: result.data.blob.ref.toString() },
-        mimeType: result.data.blob.mimeType,
-        size: result.data.blob.size,
-      };
+      return new BlobRef(result.data.blob.ref.toString(), result.data.blob.mimeType, result.data.blob.size);
     } catch (error) {
       if (error instanceof NetworkError) throw error;
       throw new NetworkError(
@@ -165,10 +161,7 @@ export class BlobOperationsImpl implements BlobOperations {
    * @throws {@link NetworkError} if the upload fails
    * @internal
    */
-  private async uploadViaSDS(
-    data: Uint8Array,
-    encoding: string,
-  ): Promise<{ ref: { $link: string }; mimeType: string; size: number }> {
+  private async uploadViaSDS(data: Uint8Array, encoding: string): Promise<BlobRef> {
     const url = `/xrpc/com.sds.repo.uploadBlob?repo=${encodeURIComponent(this.repoDid)}`;
     const response = await this.agent.fetchHandler(url, {
       method: "POST",
@@ -189,14 +182,17 @@ export class BlobOperationsImpl implements BlobOperations {
         size: number;
       };
     };
+    console.log("the result", JSON.stringify(result, null, 2));
 
     const ref = typeof result.blob.ref === "string" ? result.blob.ref : result.blob.ref.$link;
+    console.log("the ref", JSON.stringify(ref, null, 2));
 
-    return {
-      ref: { $link: ref },
-      mimeType: result.blob.mimeType,
-      size: result.blob.size,
-    };
+    return new BlobRef(ref, result.blob.mimeType, result.blob.size);
+    // return {
+    //   ref: { $link: ref },
+    //   mimeType: result.blob.mimeType,
+    //   size: result.blob.size,
+    // };
   }
 
   /**

@@ -4,6 +4,7 @@ import { ProfileOperationsImpl } from "../../src/repository/ProfileOperationsImp
 import { NetworkError } from "../../src/core/errors.js";
 import type { BlobOperations, BlobInput } from "../../src/repository/interfaces.js";
 import { createMockAgent, createMockBlobOperations, TEST_REPO_DID } from "../utils/mocks.js";
+import { createMockBlobRefInstance } from "../utils/repository-fixtures.js";
 
 describe("ProfileOperationsImpl", () => {
   let mockAgent: ReturnType<typeof createMockAgent>;
@@ -105,11 +106,7 @@ describe("ProfileOperationsImpl", () => {
 
     it("should create profile with avatar", async () => {
       const avatarBlob = new Blob(["avatar data"], { type: "image/png" });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "avatar-cid" },
-        mimeType: "image/png",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRefInstance("avatar-cid", "image/png", 100));
 
       await profileOps.create({
         displayName: "User with Avatar",
@@ -129,11 +126,7 @@ describe("ProfileOperationsImpl", () => {
 
     it("should create profile with banner", async () => {
       const bannerBlob = new Blob(["banner data"], { type: "image/jpeg" });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "banner-cid" },
-        mimeType: "image/jpeg",
-        size: 200,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRefInstance("banner-cid", "image/jpeg", 200));
 
       await profileOps.create({
         displayName: "User with Banner",
@@ -316,11 +309,7 @@ describe("ProfileOperationsImpl", () => {
 
     it("should upload and set avatar", async () => {
       const avatarBlob = new Blob(["avatar data"], { type: "image/jpeg" });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "avatar-cid" },
-        mimeType: "image/jpeg",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRefInstance("avatar-cid", "image/jpeg", 100));
 
       await profileOps.update({
         avatar: avatarBlob,
@@ -357,11 +346,7 @@ describe("ProfileOperationsImpl", () => {
 
     it("should upload and set banner", async () => {
       const bannerBlob = new Blob(["banner data"], { type: "image/jpeg" });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "banner-cid" },
-        mimeType: "image/jpeg",
-        size: 200,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRefInstance("banner-cid", "image/jpeg", 200));
 
       await profileOps.update({
         banner: bannerBlob,
@@ -451,11 +436,7 @@ describe("ProfileOperationsImpl", () => {
         size: 4096,
       };
 
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "new-avatar-cid" },
-        mimeType: "image/png",
-        size: 1024,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRefInstance("new-avatar-cid", "image/png", 1024));
 
       await profileOps.update({
         avatar: avatarBlob, // Upload this
@@ -484,11 +465,7 @@ describe("ProfileOperationsImpl", () => {
         size: 1024,
       };
 
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "uploaded-cid" },
-        mimeType: "image/png",
-        size: 1024,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRefInstance("uploaded-cid", "image/png", 1024));
 
       await profileOps.update({
         avatar: malformedRef as unknown as BlobInput,
@@ -506,11 +483,7 @@ describe("ProfileOperationsImpl", () => {
         size: 1024,
       };
 
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "uploaded-cid" },
-        mimeType: "image/png",
-        size: 1024,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRefInstance("uploaded-cid", "image/png", 1024));
 
       await profileOps.update({
         avatar: malformedRef as unknown as BlobInput,
@@ -528,11 +501,7 @@ describe("ProfileOperationsImpl", () => {
         size: 1024,
       };
 
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "uploaded-cid" },
-        mimeType: "image/png",
-        size: 1024,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRefInstance("uploaded-cid", "image/png", 1024));
 
       await profileOps.update({
         avatar: malformedRef as unknown as BlobInput,
@@ -550,11 +519,7 @@ describe("ProfileOperationsImpl", () => {
         size: 1024,
       };
 
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "uploaded-cid" },
-        mimeType: "image/png",
-        size: 1024,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRefInstance("uploaded-cid", "image/png", 1024));
 
       await profileOps.update({
         avatar: malformedRef as unknown as BlobInput,

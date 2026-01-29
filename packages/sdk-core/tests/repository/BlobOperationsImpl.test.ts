@@ -52,9 +52,18 @@ describe("BlobOperationsImpl", () => {
 
       const result = await blobOps.upload(mockBlob);
 
-      expect(result.ref).toEqual({ $link: "bafyrei123" });
+      // BlobRef stores CID as string
+      expect(result.ref.toString()).toBe("bafyrei123");
       expect(result.mimeType).toBe("text/plain");
       expect(result.size).toBe(12);
+      // Note: BlobRef.ipld() returns ref as a string, not { $link: ... }
+      // Use blobRefToJson() for AT Protocol record format with { $link: ... }
+      expect(result.ipld()).toEqual({
+        $type: "blob",
+        ref: "bafyrei123",
+        mimeType: "text/plain",
+        size: 12,
+      });
     });
 
     it("should use blob type as encoding", async () => {
@@ -136,9 +145,18 @@ describe("BlobOperationsImpl", () => {
 
       const result = await sdsBlobOps.upload(mockBlob);
 
-      expect(result.ref).toEqual({ $link: "bafyrei-sds-123" });
+      // BlobRef stores CID as string
+      expect(result.ref.toString()).toBe("bafyrei-sds-123");
       expect(result.mimeType).toBe("image/png");
       expect(result.size).toBe(12);
+      // Note: BlobRef.ipld() returns ref as a string, not { $link: ... }
+      // Use blobRefToJson() for AT Protocol record format with { $link: ... }
+      expect(result.ipld()).toEqual({
+        $type: "blob",
+        ref: "bafyrei-sds-123",
+        mimeType: "image/png",
+        size: 12,
+      });
       expect(mockAgent.fetchHandler).toHaveBeenCalledWith(
         `/xrpc/com.sds.repo.uploadBlob?repo=${encodeURIComponent(TEST_REPO_DID)}`,
         expect.objectContaining({
@@ -163,7 +181,8 @@ describe("BlobOperationsImpl", () => {
 
       const result = await sdsBlobOps.upload(mockBlob);
 
-      expect(result.ref).toEqual({ $link: "bafyrei-string-ref" });
+      // BlobRef stores CID as string
+      expect(result.ref.toString()).toBe("bafyrei-string-ref");
     });
 
     it("should throw NetworkError when SDS returns non-ok response", async () => {
