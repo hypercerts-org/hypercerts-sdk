@@ -447,7 +447,7 @@ export class ATProtoSDK {
    * @example Using default PDS
    * ```typescript
    * const repo = sdk.repository(session);
-   * const profile = await repo.profile.get();
+   * const profile = await repo.profile.getBskyProfile();
    * ```
    *
    * @example Using configured SDS

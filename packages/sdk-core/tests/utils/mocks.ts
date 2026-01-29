@@ -1,6 +1,8 @@
 import type { SessionStore, StateStore, CacheInterface, LoggerInterface } from "../../src/core/interfaces.js";
 import type { NodeSavedSession, NodeSavedState } from "@atproto/oauth-client-node";
 import type { Mock } from "vitest";
+import { BlobRef } from "@atproto/lexicon";
+import { CID } from "multiformats/cid";
 
 /**
  * In-memory session store for testing
@@ -215,4 +217,48 @@ export function createMockBlobOperations(vi: typeof import("vitest").vi): Mocked
     upload: vi.fn(),
     get: vi.fn(),
   };
+}
+
+/**
+ * Creates a mock BlobRef for testing blob upload operations.
+ * Returns a BlobRef instance with a proper ipld() method, compatible
+ * with @atproto/api expectations.
+ *
+ * @param options - Optional configuration for customizing the BlobRef
+ * @param options.cid - Custom CID string (defaults to a valid test CID)
+ * @param options.mimeType - MIME type of the blob (defaults to "image/png")
+ * @param options.size - Size of the blob in bytes (defaults to 100)
+ * @returns BlobRef instance that can be used with mockBlobs.upload
+ *
+ * @example
+ * ```typescript
+ * // Use defaults (image/png, size 100)
+ * mockBlobs.upload.mockResolvedValue(createMockBlobRef());
+ *
+ * // Custom MIME type for GeoJSON
+ * mockBlobs.upload.mockResolvedValue(
+ *   createMockBlobRef({ mimeType: "application/geo+json" })
+ * );
+ *
+ * // Custom size for banner
+ * mockBlobs.upload.mockResolvedValue(
+ *   createMockBlobRef({ mimeType: "image/jpeg", size: 200 })
+ * );
+ *
+ * // Sequential uploads
+ * mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef());
+ * mockBlobs.upload.mockResolvedValueOnce(
+ *   createMockBlobRef({ mimeType: "image/jpeg", size: 200 })
+ * );
+ * ```
+ */
+export function createMockBlobRef(options?: { cid?: string; mimeType?: string; size?: number }): BlobRef {
+  const {
+    cid = "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku",
+    mimeType = "image/png",
+    size = 100,
+  } = options || {};
+
+  const mockCid = CID.parse(cid);
+  return new BlobRef(mockCid, mimeType, size);
 }

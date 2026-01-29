@@ -1,55 +1,74 @@
 /**
- * ProfileOperationsImpl - User profile operations.
+ * ProfileOperationsImpl - User profile operations supporting dual profiles.
  *
- * This module provides the implementation for AT Protocol profile
- * management, including fetching and updating user profiles.
+ * This module provides operations for managing AT Protocol profiles:
+ * - Bluesky profiles (app.bsky.actor.profile) - Simple profiles with CDN images
+ * - Certified profiles (app.certified.actor.profile) - Hypercerts profiles with pronouns/website
  *
  * @packageDocumentation
  */
 
-import type { Agent } from "@atproto/api";
-import { NetworkError } from "../core/errors.js";
-import type { BlobOperations, ProfileOperations, ProfileParams } from "./interfaces.js";
-import type { CreateResult, UpdateResult } from "./types.js";
-import { uploadResultToBlobRef } from "./types.js";
+import type { Agent, AppBskyActorDefs } from "@atproto/api";
+import { NetworkError, ValidationError } from "../core/errors.js";
+import { HYPERCERT_COLLECTIONS } from "../lexicons.js";
+import { extractCidFromImage, getBlobUrl } from "../lib/blob-url.js";
+import { AppCertifiedActorProfile, type HypercertImageRecord } from "../services/hypercerts/types.js";
+import { validate } from "@hypercerts-org/lexicon";
+import type {
+  BlobOperations,
+  BskyProfile,
+  CertifiedProfile,
+  CreateBskyProfileParams,
+  CreateCertifiedProfileParams,
+  ProfileOperations,
+  UpdateBskyProfileParams,
+  UpdateCertifiedProfileParams,
+} from "./interfaces.js";
+import { type CreateResult, type UpdateResult } from "./types.js";
+import { AppBskyActorProfile } from "@atproto/api";
+
+type ProfileCollection = typeof BSKY_PROFILE_NSID | typeof CERTIFIED_PROFILE_NSID;
+const BSKY_PROFILE_NSID = HYPERCERT_COLLECTIONS.BSKY_PROFILE;
+const CERTIFIED_PROFILE_NSID = HYPERCERT_COLLECTIONS.CERTIFIED_PROFILE;
+
+/** Profile record key (always "self" for the user's own profile) */
+const PROFILE_RKEY = "self";
 
 /**
- * Implementation of profile operations for user profile management.
+ * Implementation of profile operations supporting dual profiles.
  *
- * Profiles in AT Protocol are stored as records in the `app.bsky.actor.profile`
- * collection with the special rkey "self". This class provides a convenient
- * API for reading and updating profile data.
+ * This class provides operations for both Bluesky and Certified profiles:
+ * - Bluesky profiles: Simple AT Protocol profiles with avatar/banner as CDN URLs
+ * - Certified profiles: Hypercerts profiles hypercerts image format
  *
  * @remarks
  * This class is typically not instantiated directly. Access it through
  * {@link Repository.profile}.
  *
- * **Profile Fields**:
- * - `handle`: Read-only, managed by the PDS
- * - `displayName`: User's display name (max 64 chars typically)
- * - `description`: Profile bio (max 256 chars typically)
- * - `avatar`: Profile picture blob reference
- * - `banner`: Banner image blob reference
- * - `website`: User's website URL (may not be available on all servers)
+ * **Profile Types**:
+ * - `app.bsky.actor.profile`: Standard Bluesky profile, images are simple blob refs
+ * - `app.certified.actor.profile`: Hypercerts profile, images wrapped in smallImage/largeImage. Omits some bsky profile properties like pinnedPost labels etc
  *
  * @example
  * ```typescript
- * // Get profile
- * const profile = await repo.profile.get();
- * console.log(`${profile.displayName} (@${profile.handle})`);
+ * // Get Bluesky profile
+ * const bskyProfile = await repo.profile.getBskyProfile();
+ * console.log(bskyProfile.displayName);
+ * console.log(bskyProfile.avatar); // CDN URL
  *
- * // Update profile
- * await repo.profile.update({
- *   displayName: "New Name",
- *   description: "Updated bio",
+ * // Get Certified profile
+ * const certifiedProfile = await repo.profile.getCertifiedProfile();
+ * console.log(certifiedProfile.pronouns); // "she/her"
+ * console.log(certifiedProfile.avatar); // Blob URL
+ *
+ * // Create/update profiles
+ * await repo.profile.createBskyProfile({ displayName: "Alice" });
+ * await repo.profile.updateBskyProfile({ description: "New bio" });
+ *
+ * await repo.profile.createCertifiedProfile({
+ *   displayName: "Alice",
+ *   pronouns: "she/her",
  * });
- *
- * // Update with new avatar
- * const avatarBlob = new Blob([imageData], { type: "image/png" });
- * await repo.profile.update({ avatar: avatarBlob });
- *
- * // Remove a field
- * await repo.profile.update({ website: null });
  * ```
  *
  * @internal
@@ -61,6 +80,7 @@ export class ProfileOperationsImpl implements ProfileOperations {
    * @param agent - AT Protocol Agent for making API calls
    * @param repoDid - DID of the repository/user
    * @param blobs - Blob operations for uploading images
+   * @param pdsUrl - PDS URL for constructing blob URLs
    *
    * @internal
    */
@@ -68,176 +88,133 @@ export class ProfileOperationsImpl implements ProfileOperations {
     private agent: Agent,
     private repoDid: string,
     private blobs: BlobOperations,
+    private pdsUrl: string,
   ) {}
 
   /**
-   * Applies a simple field (string or null) to the profile.
+   * Converts a Hypercert image record to a URL string.
+   *
+   * - URI format: returns the URI string directly
+   * - Blob format (smallImage/largeImage): constructs blob URL using PDS
+   *
+   * @param image - Hypercert image record
+   * @returns URL string
+   * @throws {Error} If image format is invalid or blob CID cannot be extracted
    *
    * @internal
    */
-  private applySimpleField(result: Record<string, unknown>, field: string, value: string | null | undefined): void {
+  private imageToUrl(image: HypercertImageRecord): string {
+    const result = extractCidFromImage(image);
+    if (!result) {
+      throw new Error("Unable to extract CID or URI from image record");
+    }
+    if (result.startsWith("http://") || result.startsWith("https://")) {
+      return result;
+    }
+
+    // Otherwise, it's a CID - construct blob URL
+    return getBlobUrl(this.pdsUrl, this.repoDid, result);
+  }
+
+  /**
+   * Applies an image field (avatar/banner) with format-specific wrapping.
+   *
+   * - null: removes the field
+   * - undefined: no change
+   * - Blob: uploads and wraps according to collection format
+   *
+   * @param result - The profile record being built
+   * @param field - Field name ("avatar" or "banner")
+   * @param value - Blob to upload, null to remove, or undefined to skip
+   * @param collection - Profile collection NSID (determines image wrapping format)
+   *
+   * @internal
+   */
+  private async applyImageField(
+    result: Record<string, unknown>,
+    field: string,
+    value: Blob | null | undefined,
+    collection: ProfileCollection,
+  ): Promise<void> {
     if (value === undefined) return;
 
     if (value === null) {
       delete result[field];
+      return;
+    }
+
+    const blobRef = await this.blobs.upload(value);
+
+    // Bsky profiles use simple blob refs, Certified profiles wrap in smallImage/largeImage
+    if (collection === BSKY_PROFILE_NSID) {
+      result[field] = blobRef;
     } else {
-      result[field] = value;
+      const isLargeImage = field === "banner";
+      result[field] = {
+        $type: isLargeImage ? "org.hypercerts.defs#largeImage" : "org.hypercerts.defs#smallImage",
+        image: blobRef,
+      };
     }
   }
 
   /**
-   * Applies a blob field to the profile, uploading if needed.
+   * Validates a profile record against the appropriate lexicon schema.
    *
+   * @param profile - The profile record to validate
+   * @param collection - Profile collection NSID (determines validation schema)
+   * @throws {ValidationError} If validation fails
    * @internal
    */
-  private async applyBlobField(
-    result: Record<string, unknown>,
-    field: string,
-    blob: Blob | null | undefined,
-  ): Promise<void> {
-    if (blob === undefined) return;
-
-    if (blob === null) {
-      delete result[field];
-    } else {
-      const uploadResult = await this.blobs.upload(blob);
-      result[field] = uploadResultToBlobRef(uploadResult);
-    }
-  }
-
-  /**
-   * Applies profile params to a profile record, handling null values for deletion.
-   *
-   * Ensures $type and createdAt are always present on the record, using
-   * nullish coalescing to allow callers to override defaults.
-   *
-   * @internal
-   */
-  private async mergeParamsIntoProfile(
-    profile: Record<string, unknown>,
-    params: ProfileParams,
-  ): Promise<Record<string, unknown>> {
-    const result = { ...profile };
-
-    // Ensure $type and createdAt are always present
-    result.$type = params.$type ?? (result.$type as string | undefined) ?? "app.bsky.actor.profile";
-    result.createdAt = params.createdAt ?? (result.createdAt as string | undefined) ?? new Date().toISOString();
-
-    this.applySimpleField(result, "displayName", params.displayName);
-    this.applySimpleField(result, "description", params.description);
-    this.applySimpleField(result, "website", params.website);
-    await this.applyBlobField(result, "avatar", params.avatar);
-    await this.applyBlobField(result, "banner", params.banner);
-
-    return result;
-  }
-
-  /**
-   * Gets the repository's profile.
-   *
-   * @returns Promise resolving to profile data
-   * @throws {@link NetworkError} if the profile cannot be fetched
-   *
-   * @remarks
-   * This method fetches the full profile using the `getProfile` API,
-   * which includes resolved information like follower counts on some
-   * servers. For hypercerts SDK usage, the basic profile fields are
-   * returned.
-   *
-   * **Note**: The `website` field may not be available on all AT Protocol
-   * servers. Standard Bluesky profiles don't include this field.
-   *
-   * @example
-   * ```typescript
-   * const profile = await repo.profile.get();
-   *
-   * console.log(`Handle: @${profile.handle}`);
-   * console.log(`Name: ${profile.displayName || "(not set)"}`);
-   * console.log(`Bio: ${profile.description || "(no bio)"}`);
-   *
-   * if (profile.avatar) {
-   *   // Avatar is a URL or blob reference
-   *   console.log(`Avatar: ${profile.avatar}`);
-   * }
-   * ```
-   */
-  async get(): Promise<{
-    handle: string;
-    displayName?: string;
-    description?: string;
-    avatar?: string;
-    banner?: string;
-    website?: string;
-  }> {
-    try {
-      const result = await this.agent.getProfile({ actor: this.repoDid });
-
-      if (!result.success) {
-        throw new NetworkError("Failed to get profile");
+  private validateProfileRecord(profile: Record<string, unknown>, collection: ProfileCollection): void {
+    if (collection === CERTIFIED_PROFILE_NSID) {
+      const validation = validate(profile, CERTIFIED_PROFILE_NSID, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid profile record: ${validation.error?.message}`);
       }
-
-      return {
-        handle: result.data.handle,
-        displayName: result.data.displayName,
-        description: result.data.description,
-        avatar: result.data.avatar,
-        banner: result.data.banner,
-        // Note: website may not be available in standard profile
-      };
-    } catch (error) {
-      if (error instanceof NetworkError) throw error;
-      throw new NetworkError(
-        `Failed to get profile: ${error instanceof Error ? error.message : "Unknown error"}`,
-        error,
-      );
+    }
+    if (collection === BSKY_PROFILE_NSID) {
+      const validation = AppBskyActorProfile.validateMain(profile);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid profile record: ${validation.error?.message}`);
+      }
     }
   }
 
   /**
-   * Creates a new profile for the repository.
+   * Creates a profile record with lexicon validation.
    *
-   * @param params - Profile fields to set
+   * @param collection - NSID of the collection (Bsky or Certified profile)
+   * @param params - Profile creation parameters
    * @returns Promise resolving to create result with URI and CID
-   * @throws {@link NetworkError} if the creation fails
-   *
-   * @remarks
-   * Use this method when no profile exists yet. If a profile already exists,
-   * use {@link update} instead.
-   *
-   * **Image Handling**: When providing `avatar` or `banner` as a Blob,
-   * the image is automatically uploaded and the blob reference is stored
-   * in the profile.
-   *
-   * @example Create a basic profile
-   * ```typescript
-   * await repo.profile.create({
-   *   displayName: "Alice",
-   *   description: "Building impact certificates",
-   * });
-   * ```
-   *
-   * @example Create a profile with avatar
-   * ```typescript
-   * const avatarBlob = new Blob([avatarData], { type: "image/png" });
-   * await repo.profile.create({
-   *   displayName: "Alice",
-   *   description: "Building impact certificates",
-   *   avatar: avatarBlob,
-   * });
-   * ```
+   * @throws {ValidationError} if validation fails
+   * @throws {NetworkError} if creation fails
+   * @internal
    */
-  async create(params: ProfileParams): Promise<CreateResult> {
+  private async createProfileRecord(
+    collection: ProfileCollection,
+    params: CreateBskyProfileParams | CreateCertifiedProfileParams,
+  ): Promise<CreateResult> {
     try {
-      const profile = await this.mergeParamsIntoProfile({}, params);
+      const { avatar, banner, $type, createdAt, ...otherFields } = params;
 
-      const createParams = {
-        repo: this.repoDid,
-        collection: "app.bsky.actor.profile",
-        rkey: "self",
-        record: profile,
+      const profile: Record<string, unknown> = {
+        $type: $type ?? collection,
+        createdAt: createdAt ?? new Date().toISOString(),
+        ...otherFields,
       };
 
-      const result = await this.agent.com.atproto.repo.createRecord(createParams);
+      await this.applyImageField(profile, "avatar", avatar, collection);
+      await this.applyImageField(profile, "banner", banner, collection);
+
+      // Validate profile record against lexicon schema
+      this.validateProfileRecord(profile, collection);
+
+      const result = await this.agent.com.atproto.repo.createRecord({
+        repo: this.repoDid,
+        collection,
+        rkey: PROFILE_RKEY,
+        record: profile,
+      });
 
       if (!result.success) {
         throw new NetworkError("Failed to create profile");
@@ -245,7 +222,7 @@ export class ProfileOperationsImpl implements ProfileOperations {
 
       return { uri: result.data.uri, cid: result.data.cid };
     } catch (error) {
-      if (error instanceof NetworkError) throw error;
+      if (error instanceof NetworkError || error instanceof ValidationError) throw error;
       throw new NetworkError(
         `Failed to create profile: ${error instanceof Error ? error.message : "Unknown error"}`,
         error,
@@ -254,91 +231,54 @@ export class ProfileOperationsImpl implements ProfileOperations {
   }
 
   /**
-   * Updates the repository's profile.
+   * Updates a profile record with proper null handling and validation.
    *
-   * @param params - Fields to update. Pass `null` to remove a field.
-   *                 Omitted fields are preserved from the existing profile.
-   * @returns Promise resolving to update result with new URI and CID
-   * @throws {@link NetworkError} if the update fails
-   *
-   * @remarks
-   * This method performs a read-modify-write operation:
-   * 1. Fetches the existing profile record
-   * 2. Merges in the provided updates
-   * 3. Writes the updated profile back
-   *
-   * **Image Handling**: When providing `avatar` or `banner` as a Blob,
-   * the image is automatically uploaded and the blob reference is stored
-   * in the profile.
-   *
-   * **Field Removal**: Pass `null` to explicitly remove a field. Omitting
-   * a field (not including it in params) preserves the existing value.
-   *
-   * @example Update display name and bio
-   * ```typescript
-   * await repo.profile.update({
-   *   displayName: "Alice",
-   *   description: "Building impact certificates",
-   * });
-   * ```
-   *
-   * @example Update avatar image
-   * ```typescript
-   * // From a file input
-   * const file = document.getElementById("avatar").files[0];
-   * await repo.profile.update({ avatar: file });
-   *
-   * // From raw data
-   * const response = await fetch("https://example.com/my-avatar.png");
-   * const blob = await response.blob();
-   * await repo.profile.update({ avatar: blob });
-   * ```
-   *
-   * @example Remove description
-   * ```typescript
-   * // Removes the description field entirely
-   * await repo.profile.update({ description: null });
-   * ```
-   *
-   * @example Multiple updates at once
-   * ```typescript
-   * const newAvatar = new Blob([avatarData], { type: "image/png" });
-   * const newBanner = new Blob([bannerData], { type: "image/jpeg" });
-   *
-   * await repo.profile.update({
-   *   displayName: "New Name",
-   *   description: "New bio",
-   *   avatar: newAvatar,
-   *   banner: newBanner,
-   * });
-   * ```
+   * @param collection - NSID of the collection (Bsky or Certified profile)
+   * @param params - Profile update parameters (partial, with null for deletions)
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} if profile not found or update fails
+   * @throws {ValidationError} if validation fails
+   * @internal
    */
-  async update(params: ProfileParams): Promise<UpdateResult> {
+  private async updateProfileRecord(
+    collection: ProfileCollection,
+    params: UpdateBskyProfileParams | UpdateCertifiedProfileParams,
+  ): Promise<UpdateResult> {
     try {
-      // Get existing profile record
-      const getParams = {
+      const existing = await this.agent.com.atproto.repo.getRecord({
         repo: this.repoDid,
-        collection: "app.bsky.actor.profile",
-        rkey: "self",
-      };
-
-      const existing = await this.agent.com.atproto.repo.getRecord(getParams);
+        collection,
+        rkey: PROFILE_RKEY,
+      });
 
       if (!existing.success) {
-        throw new NetworkError("Profile not found. Use create() for new profiles.");
+        throw new NetworkError("Profile not found");
+      }
+      const { avatar, banner, ...otherFields } = params;
+      const updatedProfile: Record<string, unknown> = {
+        ...existing.data.value,
+      };
+      // Apply non-image field updates, handling null deletions
+      for (const [key, value] of Object.entries(otherFields)) {
+        if (value === null) {
+          delete updatedProfile[key];
+        } else if (value !== undefined) {
+          updatedProfile[key] = value;
+        }
       }
 
-      const existingProfile = (existing.data.value as Record<string, unknown>) || {};
-      const updatedProfile = await this.mergeParamsIntoProfile(existingProfile, params);
+      await this.applyImageField(updatedProfile, "avatar", avatar, collection);
+      await this.applyImageField(updatedProfile, "banner", banner, collection);
 
-      const putParams = {
+      // Validate updated record against lexicon schema
+      this.validateProfileRecord(updatedProfile, collection);
+
+      const result = await this.agent.com.atproto.repo.putRecord({
         repo: this.repoDid,
-        collection: "app.bsky.actor.profile",
-        rkey: "self",
+        collection,
+        rkey: PROFILE_RKEY,
         record: updatedProfile,
-      };
-
-      const result = await this.agent.com.atproto.repo.putRecord(putParams);
+      });
 
       if (!result.success) {
         throw new NetworkError("Failed to update profile");
@@ -346,11 +286,318 @@ export class ProfileOperationsImpl implements ProfileOperations {
 
       return { uri: result.data.uri, cid: result.data.cid };
     } catch (error) {
-      if (error instanceof NetworkError) throw error;
+      if (error instanceof NetworkError || error instanceof ValidationError) throw error;
       throw new NetworkError(
         `Failed to update profile: ${error instanceof Error ? error.message : "Unknown error"}`,
         error,
       );
     }
+  }
+
+  /**
+   * Upserts a profile record (creates if missing, updates if exists).
+   *
+   * @param collection - NSID of the collection (Bsky or Certified profile)
+   * @param params - Profile fields to set
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {ValidationError} if validation fails
+   * @throws {NetworkError} if operation fails
+   * @internal
+   */
+  private async upsertProfileRecord(
+    collection: ProfileCollection,
+    params: CreateBskyProfileParams | CreateCertifiedProfileParams,
+  ): Promise<UpdateResult> {
+    try {
+      // Check if profile exists
+      const existing = await this.agent.com.atproto.repo.getRecord({
+        repo: this.repoDid,
+        collection,
+        rkey: PROFILE_RKEY,
+      });
+
+      if (!existing.success) {
+        return this.createProfileRecord(collection, params);
+      }
+
+      const { avatar, banner, ...otherFields } = params;
+
+      const updatedProfile: Record<string, unknown> = {
+        ...existing.data.value,
+      };
+
+      for (const [key, value] of Object.entries(otherFields)) {
+        // ignotre these since profile already created
+        if (["$type", "createdAt"].includes(key)) continue;
+        if (value === null) {
+          delete updatedProfile[key];
+        } else if (value !== undefined) {
+          updatedProfile[key] = value;
+        }
+      }
+
+      await this.applyImageField(updatedProfile, "avatar", avatar, collection);
+      await this.applyImageField(updatedProfile, "banner", banner, collection);
+
+      this.validateProfileRecord(updatedProfile, collection);
+
+      const result = await this.agent.com.atproto.repo.putRecord({
+        repo: this.repoDid,
+        collection,
+        rkey: PROFILE_RKEY,
+        record: updatedProfile,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to upsert profile");
+      }
+
+      return { uri: result.data.uri, cid: result.data.cid };
+    } catch (error) {
+      if (error instanceof NetworkError || error instanceof ValidationError) throw error;
+      throw new NetworkError(
+        `Failed to upsert profile: ${error instanceof Error ? error.message : "Unknown error"}`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Gets Bluesky profile (app.bsky.actor.profile).
+   *
+   * @returns Promise resolving to Bluesky profile data
+   * @throws {NetworkError} If profile cannot be fetched
+   *
+   * @example
+   * ```typescript
+   * const bskyProfile = await repo.profile.getBskyProfile();
+   * console.log(bskyProfile.displayName); // "Alice"
+   * console.log(bskyProfile.avatar); // "https://cdn.bsky.app/..."
+   * ```
+   */
+  async getBskyProfile(): Promise<BskyProfile> {
+    try {
+      const profileResult = await this.agent.getProfile({ actor: this.repoDid });
+
+      if (!profileResult.success) {
+        throw new NetworkError("Failed to get Bluesky profile");
+      }
+
+      return profileResult.data as AppBskyActorDefs.ProfileViewDetailed;
+    } catch (error) {
+      if (error instanceof NetworkError) throw error;
+      throw new NetworkError(
+        `Failed to get Bluesky profile: ${error instanceof Error ? error.message : "Unknown error"}`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Gets Certified profile (app.certified.actor.profile).
+   *
+   * Returns the profile record with avatar and banner converted to blob URLs.
+   * Includes the user's handle fetched from getProfile(). If getProfile() fails,
+   * handle is set to empty string.
+   *
+   * @returns Promise resolving to Certified profile data, or null if no profile exists
+   * @throws {NetworkError} If profile fetch fails due to network/server issues
+   *
+   * @example
+   * ```typescript
+   * const certifiedProfile = await repo.profile.getCertifiedProfile();
+   * if (certifiedProfile) {
+   *   console.log(certifiedProfile.displayName); // "Alice"
+   *   console.log(certifiedProfile.pronouns); // "she/her"
+   *   console.log(certifiedProfile.avatar); // "https://pds.../xrpc/..."
+   * } else {
+   *   console.log("User hasn't created a certified profile yet");
+   * }
+   * ```
+   */
+  async getCertifiedProfile(): Promise<CertifiedProfile | null> {
+    try {
+      // Fetch handle from Bluesky profile (non-blocking)
+      let handle = "";
+      try {
+        const profileResult = await this.agent.getProfile({ actor: this.repoDid });
+        if (profileResult.success) {
+          handle = (profileResult.data as { handle: string }).handle;
+        }
+      } catch {
+        // Ignore error, use empty string for handle
+        handle = "";
+      }
+
+      // Fetch certified profile record
+      const recordResult = await this.agent.com.atproto.repo.getRecord({
+        repo: this.repoDid,
+        collection: CERTIFIED_PROFILE_NSID,
+        rkey: PROFILE_RKEY,
+      });
+
+      if (!recordResult.success) {
+        return null;
+      }
+
+      const profileRecord = recordResult.data.value as AppCertifiedActorProfile.Main;
+
+      let avatar: string | undefined;
+      let banner: string | undefined;
+
+      if (profileRecord.avatar) {
+        avatar = this.imageToUrl(profileRecord.avatar as HypercertImageRecord);
+      }
+
+      if (profileRecord.banner) {
+        banner = this.imageToUrl(profileRecord.banner as HypercertImageRecord);
+      }
+
+      return {
+        ...profileRecord,
+        handle,
+        avatar,
+        banner,
+      };
+    } catch (error) {
+      // Check for RecordNotFoundError from AT Protocol SDK
+      if (error && typeof error === "object" && "error" in error && error.error === "RecordNotFound") {
+        return null;
+      }
+
+      // Actual network/server errors still throw
+      if (error instanceof NetworkError) throw error;
+      throw new NetworkError(
+        `Failed to get Certified profile: ${error instanceof Error ? error.message : "Unknown error"}`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Creates Bluesky profile (app.bsky.actor.profile).
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to create result with URI and CID
+   * @throws {NetworkError} If creation fails
+   *
+   * @example
+   * ```typescript
+   * await repo.profile.createBskyProfile({
+   *   displayName: "Alice",
+   *   description: "Building impact certificates",
+   * });
+   * ```
+   */
+  async createBskyProfile(params: CreateBskyProfileParams): Promise<CreateResult> {
+    return this.createProfileRecord(BSKY_PROFILE_NSID, params);
+  }
+
+  /**
+   * Updates Bluesky profile (app.bsky.actor.profile).
+   *
+   * @param params - Fields to update (pass null to remove)
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} If update fails
+   *
+   * @example
+   * ```typescript
+   * await repo.profile.updateBskyProfile({
+   *   displayName: "New Name",
+   *   description: null,  // Remove description
+   * });
+   * ```
+   */
+  async updateBskyProfile(params: UpdateBskyProfileParams): Promise<UpdateResult> {
+    return this.updateProfileRecord(BSKY_PROFILE_NSID, params);
+  }
+
+  /**
+   * Creates Certified profile (app.certified.actor.profile).
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to create result with URI and CID
+   * @throws {NetworkError} If creation fails
+   *
+   * @example
+   * ```typescript
+   * await repo.profile.createCertifiedProfile({
+   *   displayName: "Alice",
+   *   description: "Building impact certificates",
+   *   pronouns: "she/her",
+   *   website: "https://alice.com",
+   * });
+   * ```
+   */
+  async createCertifiedProfile(params: CreateCertifiedProfileParams): Promise<CreateResult> {
+    return this.createProfileRecord(CERTIFIED_PROFILE_NSID, params);
+  }
+
+  /**
+   * Updates Certified profile (app.certified.actor.profile).
+   *
+   * @param params - Fields to update (pass null to remove)
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} If update fails
+   *
+   * @example
+   * ```typescript
+   * await repo.profile.updateCertifiedProfile({
+   *   displayName: "New Name",
+   *   pronouns: null,  // Remove pronouns
+   * });
+   * ```
+   */
+  async updateCertifiedProfile(params: UpdateCertifiedProfileParams): Promise<UpdateResult> {
+    return this.updateProfileRecord(CERTIFIED_PROFILE_NSID, params);
+  }
+
+  /**
+   * Upserts Bluesky profile (creates if missing, updates if exists).
+   *
+   * Automatically detects whether the profile exists and creates or updates accordingly.
+   * This is the recommended method for most use cases.
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} If operation fails
+   * @throws {ValidationError} If validation fails
+   *
+   * @example
+   * ```typescript
+   * // Works whether profile exists or not
+   * await repo.profile.upsertBskyProfile({
+   *   displayName: "Alice",
+   *   description: "Building on AT Protocol",
+   * });
+   * ```
+   */
+  async upsertBskyProfile(params: CreateBskyProfileParams): Promise<UpdateResult> {
+    return this.upsertProfileRecord(BSKY_PROFILE_NSID, params);
+  }
+
+  /**
+   * Upserts Certified profile (creates if missing, updates if exists).
+   *
+   * Automatically detects whether the profile exists and creates or updates accordingly.
+   * This is the recommended method for most use cases.
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} If operation fails
+   * @throws {ValidationError} If validation fails
+   *
+   * @example
+   * ```typescript
+   * // Works whether profile exists or not
+   * await repo.profile.upsertCertifiedProfile({
+   *   displayName: "Alice",
+   *   pronouns: "she/her",
+   *   website: "https://alice.com",
+   * });
+   * ```
+   */
+  async upsertCertifiedProfile(params: CreateCertifiedProfileParams): Promise<UpdateResult> {
+    return this.upsertProfileRecord(CERTIFIED_PROFILE_NSID, params);
   }
 }

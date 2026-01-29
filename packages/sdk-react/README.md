@@ -96,7 +96,7 @@ const atproto = createATProtoReact({ config, queryClient });
 
 ```
 useAuth()              → session, status, login, logout, refresh
-useProfile(did?)       → profile, update, isLoading
+useProfile(did?)       → profile, save, isSaving, isLoading
 useRepository(opts?)   → repository, isSDS, serverUrl
 useOrganizations()     → organizations, create (SDS only)
 useOrganization(did)   → organization (SDS only)
@@ -104,6 +104,43 @@ useCollaborators(did)  → collaborators, grant, revoke (SDS only)
 useHypercerts(did?)    → hypercerts, create, fetchNextPage
 useHypercert(uri)      → hypercert, update, remove
 ```
+
+### useProfile
+
+The `useProfile` hook manages Certified profile data using an upsert pattern:
+
+```typescript
+function ProfileEditor() {
+  const { profile, save, isSaving, isLoading } = useProfile();
+
+  // Profile may be null if user hasn't created one yet
+  if (isLoading) return <div>Loading...</div>;
+
+  return (
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      save({
+        displayName: "Alice",
+        description: "Climate researcher",
+        pronouns: "she/her",
+        website: "https://alice.com",
+      });
+    }}>
+      <input defaultValue={profile?.displayName ?? ""} />
+      <button type="submit" disabled={isSaving}>
+        {profile ? "Update" : "Create"} Profile
+      </button>
+    </form>
+  );
+}
+```
+
+**Key features:**
+
+- Returns `null` when profile doesn't exist (not an error)
+- `save()` uses upsert pattern (creates if missing, updates if exists)
+- Automatically invalidates profile cache on save
+- Handles blob uploads for avatar/banner
 
 ## Query Keys
 
