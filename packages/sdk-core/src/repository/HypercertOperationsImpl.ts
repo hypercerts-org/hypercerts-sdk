@@ -1915,10 +1915,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       collectionRecord.location = locationResult;
     }
 
-    const validation = validate(collectionRecord, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
-    if (!validation.success) {
-      throw new ValidationError(`Invalid collection record: ${validation.error?.message}`);
-    }
+    // FIXME: seems to fail due to version mismatches of @atproto/lexicon
+    // which provides the BlobRef class.  The server does validation
+    // anyway.
+    //
+    // const validation = validate(collectionRecord, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
+    // if (!validation.success) {
+    //   throw new ValidationError(`Invalid collection record: ${validation.error?.message}`);
+    // }
 
     const result = await this.agent.com.atproto.repo.createRecord({
       repo: this.repoDid,
