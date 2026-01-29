@@ -44,9 +44,9 @@ export type DID = string;
  */
 export function isValidDid(did: string): boolean {
   // DID format: did:<method>:<method-specific-id>
-  // Method: lowercase letters only
+  // Method: lowercase letters and digits (per W3C DID Core spec)
   // Identifier: alphanumeric plus . _ : % -
-  return /^did:[a-z]+:[a-zA-Z0-9._:%-]+$/.test(did);
+  return /^did:[a-z0-9]+:[a-zA-Z0-9._:%-]+$/.test(did);
 }
 
 /**

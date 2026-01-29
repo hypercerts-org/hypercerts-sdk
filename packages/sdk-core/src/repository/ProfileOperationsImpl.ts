@@ -93,20 +93,28 @@ export class ProfileOperationsImpl implements ProfileOperations {
   /**
    * Checks if a value is an existing JsonBlobRef.
    *
-   * JsonBlobRef has the structure: { $type: "blob", ref: { $link }, mimeType, size }
+   * JsonBlobRef has the structure: { $type: "blob", ref: { $link: string }, mimeType, size }
    *
    * @internal
    */
   private isJsonBlobRef(value: unknown): value is JsonBlobRef {
-    return (
-      typeof value === "object" &&
-      value !== null &&
-      "$type" in value &&
-      (value as Record<string, unknown>).$type === "blob" &&
-      "ref" in value &&
-      "mimeType" in value &&
-      "size" in value
-    );
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+
+    const record = value as Record<string, unknown>;
+
+    if (record.$type !== "blob" || !("ref" in record) || !("mimeType" in record) || !("size" in record)) {
+      return false;
+    }
+
+    const ref = record.ref;
+    if (typeof ref !== "object" || ref === null) {
+      return false;
+    }
+
+    const refRecord = ref as Record<string, unknown>;
+    return typeof refRecord.$link === "string";
   }
 
   /**

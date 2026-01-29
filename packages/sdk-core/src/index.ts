@@ -99,6 +99,7 @@ export type {
   ContributorIdentityParams,
   CreateContributorInformationParams,
   ResolvedContributorIdentity,
+  BlobInput,
 } from "./repository/interfaces.js";
 
 // ============================================================================

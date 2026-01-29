@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
 import { ProfileOperationsImpl } from "../../src/repository/ProfileOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
-import type { BlobOperations } from "../../src/repository/interfaces.js";
+import type { BlobOperations, BlobInput } from "../../src/repository/interfaces.js";
 import { createMockAgent, createMockBlobOperations, TEST_REPO_DID } from "../utils/mocks.js";
 
 describe("ProfileOperationsImpl", () => {
@@ -474,6 +474,94 @@ describe("ProfileOperationsImpl", () => {
           }),
         }),
       );
+    });
+
+    it("should treat malformed blob ref (missing $link) as regular Blob and upload", async () => {
+      const malformedRef = {
+        $type: "blob" as const,
+        ref: {}, // Missing $link
+        mimeType: "image/png",
+        size: 1024,
+      };
+
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "uploaded-cid" },
+        mimeType: "image/png",
+        size: 1024,
+      });
+
+      await profileOps.update({
+        avatar: malformedRef as unknown as BlobInput,
+      });
+
+      // Should upload because it's not a valid JsonBlobRef
+      expect(mockBlobs.upload).toHaveBeenCalledWith(malformedRef);
+    });
+
+    it("should treat malformed blob ref (ref is not an object) as regular Blob and upload", async () => {
+      const malformedRef = {
+        $type: "blob" as const,
+        ref: "string-instead-of-object",
+        mimeType: "image/png",
+        size: 1024,
+      };
+
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "uploaded-cid" },
+        mimeType: "image/png",
+        size: 1024,
+      });
+
+      await profileOps.update({
+        avatar: malformedRef as unknown as BlobInput,
+      });
+
+      // Should upload because it's not a valid JsonBlobRef
+      expect(mockBlobs.upload).toHaveBeenCalledWith(malformedRef);
+    });
+
+    it("should treat malformed blob ref (ref is null) as regular Blob and upload", async () => {
+      const malformedRef = {
+        $type: "blob" as const,
+        ref: null,
+        mimeType: "image/png",
+        size: 1024,
+      };
+
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "uploaded-cid" },
+        mimeType: "image/png",
+        size: 1024,
+      });
+
+      await profileOps.update({
+        avatar: malformedRef as unknown as BlobInput,
+      });
+
+      // Should upload because it's not a valid JsonBlobRef
+      expect(mockBlobs.upload).toHaveBeenCalledWith(malformedRef);
+    });
+
+    it("should treat malformed blob ref (missing mimeType) as regular Blob and upload", async () => {
+      const malformedRef = {
+        $type: "blob" as const,
+        ref: { $link: "some-cid" },
+        // Missing mimeType
+        size: 1024,
+      };
+
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "uploaded-cid" },
+        mimeType: "image/png",
+        size: 1024,
+      });
+
+      await profileOps.update({
+        avatar: malformedRef as unknown as BlobInput,
+      });
+
+      // Should upload because it's not a valid JsonBlobRef
+      expect(mockBlobs.upload).toHaveBeenCalledWith(malformedRef);
     });
 
     it("should throw NetworkError when getRecord returns success: false", async () => {
