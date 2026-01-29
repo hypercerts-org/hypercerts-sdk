@@ -167,6 +167,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     this.emitProgress(onProgress, { name: "uploadImage", status: "start" });
     try {
       const uploadResult = await this.blobs.upload(image);
+      console.log("uploadImageBlob uploadResult:", uploadResult);
       this.emitProgress(onProgress, {
         name: "uploadImage",
         status: "success",
@@ -975,7 +976,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     }
 
     const uploadResult = await this.blobs.upload(input);
+    console.log("resolveCollectionImageInput uploadResult", uploadResult);
     const blobRef = this.blobToJsonRef(uploadResult);
+    console.log("resolveCollectionImageInput blobRef", blobRef);
     if (isBanner) {
       return { $type: "org.hypercerts.defs#largeImage" as const, image: blobRef };
     }
@@ -1917,6 +1920,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
     if (params.banner) {
       collectionRecord.banner = await this.resolveCollectionImageInput(params.banner, true);
+      console.log("set collectionRecord.banner to", collectionRecord.banner);
     }
 
     if (params.items !== undefined) {

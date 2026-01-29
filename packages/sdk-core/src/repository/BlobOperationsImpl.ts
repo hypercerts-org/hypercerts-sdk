@@ -182,10 +182,10 @@ export class BlobOperationsImpl implements BlobOperations {
         size: number;
       };
     };
-    console.log("the result", JSON.stringify(result, null, 2));
+    console.log("uploadViaSDS response from uploadBlob XRPC call", JSON.stringify(result, null, 2));
 
     const ref = typeof result.blob.ref === "string" ? result.blob.ref : result.blob.ref.$link;
-    console.log("the ref", JSON.stringify(ref, null, 2));
+    console.log("uploadViaSDS ref for new BlobRef", JSON.stringify(ref, null, 2));
 
     return new BlobRef(ref, result.blob.mimeType, result.blob.size);
     // return {
