@@ -30,6 +30,18 @@ describe("isValidDid", () => {
     it("should accept DID with hyphens and underscores", () => {
       expect(isValidDid("did:example:my-test_id")).toBe(true);
     });
+
+    it("should accept DID with method containing digits", () => {
+      expect(isValidDid("did:key2:abc123")).toBe(true);
+    });
+
+    it("should accept DID with method containing multiple digits", () => {
+      expect(isValidDid("did:btc1:xyz789")).toBe(true);
+    });
+
+    it("should accept DID with method that is all digits", () => {
+      expect(isValidDid("did:123:identifier")).toBe(true);
+    });
   });
 
   describe("invalid DIDs", () => {
@@ -55,10 +67,6 @@ describe("isValidDid", () => {
 
     it("should reject method with uppercase letters", () => {
       expect(isValidDid("did:PLC:abc123")).toBe(false);
-    });
-
-    it("should reject method with numbers", () => {
-      expect(isValidDid("did:plc2:abc123")).toBe(false);
     });
 
     it("should reject random URL", () => {
