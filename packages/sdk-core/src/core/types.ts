@@ -26,7 +26,7 @@ export type DID = string;
  * Validates that a string is a valid DID format.
  *
  * DIDs must follow the format: `did:<method>:<method-specific-id>`
- * where method is lowercase letters and the identifier contains
+ * where method is lowercase letters and digits, and the identifier contains
  * alphanumeric characters plus `.`, `_`, `:`, `%`, and `-`.
  *
  * @param did - The string to validate
