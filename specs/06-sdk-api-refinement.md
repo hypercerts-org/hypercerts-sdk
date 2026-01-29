@@ -319,13 +319,14 @@ await collaborators.grant({ repo, userDid, ... });   // Object
 await records.create({ repo, collection, ... });     // Object with redundant repo
 
 // AFTER: Consistent (repo implicit)
-await repo.profile.get();                            // No params needed
+await repo.profile.getBskyProfile();                 // No params needed
+await repo.profile.getCertifiedProfile();            // Hypercerts-specific
 await repo.collaborators.list();                     // No params needed
 await repo.collaborators.grant({ userDid, role });   // Object, no repo
 await repo.records.create({ collection, record });   // Object, no repo
 
 // For operations on different DID
-await repo.repo(otherDid).profile.get();
+await repo.repo(otherDid).profile.getBskyProfile();
 ```
 
 ## 5. Smart Defaults

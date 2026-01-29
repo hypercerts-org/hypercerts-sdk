@@ -160,7 +160,9 @@ export interface Profile {
   handle: string;
   displayName?: string;
   description?: string;
+  /** Avatar image URL. */
   avatar?: string;
+  /** Banner image URL. */
   banner?: string;
   website?: string;
   followersCount?: number;

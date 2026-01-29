@@ -80,10 +80,10 @@ export function useProfile(did?: string): UseProfileResult {
     queryFn: async (): Promise<Profile | null> => {
       if (!repository) return null;
 
-      const profileData = await repository.profile.get();
+      const profileData = await repository.profile.getCertifiedProfile();
 
       return {
-        handle: profileData.handle,
+        handle: profileData.handle ?? "",
         displayName: profileData.displayName,
         description: profileData.description,
         avatar: profileData.avatar,
@@ -102,7 +102,7 @@ export function useProfile(did?: string): UseProfileResult {
         throw new Error("Repository not available");
       }
 
-      await repository.profile.update({
+      await repository.profile.updateCertifiedProfile({
         displayName: params.displayName,
         description: params.description,
         avatar: params.avatar,

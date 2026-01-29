@@ -73,6 +73,7 @@ import {
   ATTACHMENT_LEXICON_JSON,
   MEASUREMENT_LEXICON_JSON,
   RIGHTS_LEXICON_JSON,
+  ACTOR_PROFILE_LEXICON_JSON,
   BADGE_AWARD_LEXICON_JSON,
   BADGE_DEFINITION_LEXICON_JSON,
   BADGE_RESPONSE_LEXICON_JSON,
@@ -93,6 +94,7 @@ import {
   BADGE_RESPONSE_NSID,
   FUNDING_RECEIPT_NSID,
   WORK_SCOPE_TAG_NSID,
+  ACTOR_PROFILE_NSID,
 } from "@hypercerts-org/lexicon";
 
 // Export LexiconRegistry for custom lexicon management
@@ -116,6 +118,7 @@ export const HYPERCERT_LEXICONS: LexiconDoc[] = [
   ATTACHMENT_LEXICON_JSON as LexiconDoc,
   MEASUREMENT_LEXICON_JSON as LexiconDoc,
   RIGHTS_LEXICON_JSON as LexiconDoc,
+  ACTOR_PROFILE_LEXICON_JSON as LexiconDoc,
   BADGE_AWARD_LEXICON_JSON as LexiconDoc,
   BADGE_DEFINITION_LEXICON_JSON as LexiconDoc,
   BADGE_RESPONSE_LEXICON_JSON as LexiconDoc,
@@ -203,4 +206,14 @@ export const HYPERCERT_COLLECTIONS = {
    * For defining reusable work scope atoms.
    */
   WORK_SCOPE_TAG: WORK_SCOPE_TAG_NSID,
+
+  /**
+   * Bluesky profile collection (app.bsky.actor.profile).
+   */
+  BSKY_PROFILE: "app.bsky.actor.profile",
+
+  /**
+   * Certified profile collection (app.certified.actor.profile).
+   */
+  CERTIFIED_PROFILE: ACTOR_PROFILE_NSID,
 } as const;

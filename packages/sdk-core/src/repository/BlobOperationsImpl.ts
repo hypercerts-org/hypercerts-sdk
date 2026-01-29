@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 
-import type { Agent } from "@atproto/api";
+import type { Agent, BlobRef } from "@atproto/api";
 import { NetworkError } from "../core/errors.js";
 import type { BlobOperations } from "./interfaces.js";
 
@@ -110,7 +110,7 @@ export class BlobOperationsImpl implements BlobOperations {
    * });
    * ```
    */
-  async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; size: number }> {
+  async upload(blob: Blob): Promise<BlobRef> {
     try {
       const arrayBuffer = await blob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
@@ -130,11 +130,7 @@ export class BlobOperationsImpl implements BlobOperations {
         throw new NetworkError("Failed to upload blob");
       }
 
-      return {
-        ref: { $link: result.data.blob.ref.toString() },
-        mimeType: result.data.blob.mimeType,
-        size: result.data.blob.size,
-      };
+      return result.data.blob;
     } catch (error) {
       if (error instanceof NetworkError) throw error;
       throw new NetworkError(
@@ -161,7 +157,7 @@ export class BlobOperationsImpl implements BlobOperations {
   private async uploadViaSDS(
     data: Uint8Array,
     encoding: string,
-  ): Promise<{ ref: { $link: string }; mimeType: string; size: number }> {
+  ): Promise<BlobRef> {
     const url = `/xrpc/com.sds.repo.uploadBlob?repo=${encodeURIComponent(this.repoDid)}`;
     const response = await this.agent.fetchHandler(url, {
       method: "POST",
@@ -175,21 +171,9 @@ export class BlobOperationsImpl implements BlobOperations {
       throw new NetworkError(`SDS blob upload failed: ${response.statusText}`);
     }
 
-    const result = (await response.json()) as {
-      blob: {
-        ref: { $link: string } | string;
-        mimeType: string;
-        size: number;
-      };
-    };
-
-    const ref = typeof result.blob.ref === "string" ? result.blob.ref : result.blob.ref.$link;
-
-    return {
-      ref: { $link: ref },
-      mimeType: result.blob.mimeType,
-      size: result.blob.size,
-    };
+    const result = (await response.json()) 
+    
+    return result.blob
   }
 
   /**

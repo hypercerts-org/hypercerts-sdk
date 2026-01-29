@@ -3,7 +3,7 @@ import type { Agent } from "@atproto/api";
 import { HypercertOperationsImpl } from "../../src/repository/HypercertOperationsImpl.js";
 import { NetworkError, ValidationError } from "../../src/core/errors.js";
 import type { BlobOperations } from "../../src/repository/interfaces.js";
-import { createMockAgent, createMockBlobOperations, TEST_REPO_DID } from "../utils/mocks.js";
+import { createMockAgent, createMockBlobOperations, createMockBlobRef, TEST_REPO_DID } from "../utils/mocks.js";
 
 /**
  * Create a simple string work scope for testing.
@@ -78,11 +78,7 @@ describe("HypercertOperationsImpl", () => {
 
     it("should upload image and include in hypercert", async () => {
       const imageBlob = new Blob(["image data"], { type: "image/png" });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "image-cid" },
-        mimeType: "image/png",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRef());
 
       await hypercertOps.create({
         ...validParams,
@@ -867,11 +863,7 @@ describe("HypercertOperationsImpl", () => {
 
     it("should upload new image", async () => {
       const imageBlob = new Blob(["new image"], { type: "image/png" });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "new-image-cid" },
-        mimeType: "image/png",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRef());
 
       await hypercertOps.update({
         uri: "at://did:plc:test/org.hypercerts.claim.record/abc123",
@@ -973,11 +965,7 @@ describe("HypercertOperationsImpl", () => {
       const blob = new Blob([JSON.stringify({ type: "Point", coordinates: [0, 0] })], {
         type: "application/geo+json",
       });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "blob-cid" },
-        mimeType: "application/geo+json",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRef({ mimeType: "application/geo+json" }));
 
       const result = await hypercertOps.attachLocation(hypercertUri, {
         lpVersion: "1.0.0",
@@ -991,15 +979,17 @@ describe("HypercertOperationsImpl", () => {
 
       // Check the location record that was created
       const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-      expect(call.record.location).toEqual({
+      expect(call.record.location).toMatchObject({
         $type: "org.hypercerts.defs#smallBlob", // Your code wraps it in smallBlob
         blob: {
           // The actual blob data is nested here
-          ref: { $link: "blob-cid" },
+          $type: "blob",
           mimeType: "application/geo+json",
           size: 100,
         },
       });
+      // Check that ref exists and has the right structure
+      expect(call.record.location.blob.ref).toBeDefined();
     });
 
     it("should attach a location using a simple text string (beta.13+ format)", async () => {
@@ -1174,11 +1164,7 @@ describe("HypercertOperationsImpl", () => {
 
     it("should add attachment with single subject (StrongRef) and single Blob content", async () => {
       const blob = new Blob(["evidence data"], { type: "application/pdf" });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "blob-cid" },
-        mimeType: "application/pdf",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRef({ mimeType: "application/pdf" }));
 
       const result = await hypercertOps.addAttachment({
         subjects: { uri: "at://did:plc:test/org.hypercerts.claim.activity/abc", cid: "hypercert-cid" },
@@ -1200,12 +1186,12 @@ describe("HypercertOperationsImpl", () => {
       ]);
 
       // Verify content array with blob
-      expect(call.record.content).toEqual([
-        {
-          $type: "org.hypercerts.defs#smallBlob",
-          blob: { ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
-        },
-      ]);
+      expect(call.record.content).toHaveLength(1);
+      expect(call.record.content[0]).toMatchObject({
+        $type: "org.hypercerts.defs#smallBlob",
+        blob: { $type: "blob", mimeType: "application/pdf", size: 100 },
+      });
+      expect(call.record.content[0].blob.ref).toBeDefined();
     });
 
     it("should add attachment with multiple subjects", async () => {
@@ -1242,11 +1228,7 @@ describe("HypercertOperationsImpl", () => {
 
     it("should add attachment with multiple content items (mixed URIs and Blobs)", async () => {
       const blob = new Blob(["evidence data"], { type: "application/pdf" });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "blob-cid" },
-        mimeType: "application/pdf",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRef({ mimeType: "application/pdf" }));
 
       const result = await hypercertOps.addAttachment({
         subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
@@ -1264,10 +1246,11 @@ describe("HypercertOperationsImpl", () => {
         $type: "org.hypercerts.defs#uri",
         uri: "https://example.com/report.pdf",
       });
-      expect(call.record.content[1]).toEqual({
+      expect(call.record.content[1]).toMatchObject({
         $type: "org.hypercerts.defs#smallBlob",
-        blob: { ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
+        blob: { $type: "blob", mimeType: "application/pdf", size: 100 },
       });
+      expect(call.record.content[1].blob.ref).toBeDefined();
     });
 
     it("should add attachment with contentType", async () => {
@@ -1496,7 +1479,7 @@ describe("HypercertOperationsImpl", () => {
         metric: "CO2 Reduced",
         unit: "tons",
         value: "100",
-        measurers: ["did:plc:measurer1"],
+        measurers: [{ did: "did:plc:measurer1" }],
       });
 
       expect(result.uri).toContain("measurement");
@@ -1510,7 +1493,7 @@ describe("HypercertOperationsImpl", () => {
         value: "500",
         startDate: "2024-01-01T00:00:00Z",
         endDate: "2024-12-31T23:59:59Z",
-        measurers: ["did:plc:auditor1"],
+        measurers: [{ did: "did:plc:auditor1" }],
         methodType: "satellite-imagery",
         methodURI: "https://example.com/methodology",
         evidenceURI: ["https://example.com/report"],
@@ -1978,17 +1961,9 @@ describe("HypercertOperationsImpl", () => {
       const bannerBlob = new Blob(["banner"], { type: "image/jpeg" });
 
       // Mock blob upload via BlobOperations (not agent.uploadBlob)
-      mockBlobs.upload.mockResolvedValueOnce({
-        ref: { $link: "bafyrei-avatar" },
-        mimeType: "image/png",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef());
 
-      mockBlobs.upload.mockResolvedValueOnce({
-        ref: { $link: "bafyrei-banner" },
-        mimeType: "image/jpeg",
-        size: 200,
-      });
+      mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef({ mimeType: "image/jpeg", size: 200 }));
 
       mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
         success: true,
@@ -2053,29 +2028,9 @@ describe("HypercertOperationsImpl", () => {
       const logoBlob = new Blob(["logo"], { type: "image/png" });
       const headerBlob = new Blob(["header"], { type: "image/jpeg" });
 
-      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValueOnce({
-        success: true,
-        data: {
-          blob: {
-            $type: "blob",
-            ref: { $link: "bafyrei-logo" },
-            mimeType: "image/png",
-            size: 150,
-          },
-        },
-      });
+      mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef({ size: 150 }));
 
-      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValueOnce({
-        success: true,
-        data: {
-          blob: {
-            $type: "blob",
-            ref: { $link: "bafyrei-header" },
-            mimeType: "image/jpeg",
-            size: 250,
-          },
-        },
-      });
+      mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef({ mimeType: "image/jpeg", size: 250 }));
 
       mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
         success: true,
@@ -2332,17 +2287,9 @@ describe("HypercertOperationsImpl", () => {
       const newBanner = new Blob(["new-banner"], { type: "image/jpeg" });
 
       // Mock blob upload via BlobOperations (not agent.uploadBlob)
-      mockBlobs.upload.mockResolvedValueOnce({
-        ref: { $link: "bafyrei-new-avatar" },
-        mimeType: "image/png",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef());
 
-      mockBlobs.upload.mockResolvedValueOnce({
-        ref: { $link: "bafyrei-new-banner" },
-        mimeType: "image/jpeg",
-        size: 200,
-      });
+      mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef({ mimeType: "image/jpeg", size: 200 }));
 
       const result = await hypercertOps.updateCollection("at://did:plc:test/org.hypercerts.collection/abc123", {
         avatar: newAvatar,
@@ -2667,11 +2614,7 @@ describe("HypercertOperationsImpl", () => {
 
       it("should upload avatar blob when provided", async () => {
         const avatarBlob = new Blob(["avatar data"], { type: "image/png" });
-        mockBlobs.upload.mockResolvedValue({
-          ref: { $link: "avatar-cid" },
-          mimeType: "image/png",
-          size: 100,
-        });
+        mockBlobs.upload.mockResolvedValue(createMockBlobRef());
 
         await hypercertOps.createProject({
           title: "Project with Avatar",
@@ -2681,19 +2624,16 @@ describe("HypercertOperationsImpl", () => {
 
         expect(mockBlobs.upload).toHaveBeenCalledWith(avatarBlob);
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-        expect(createCall.record.avatar).toEqual({
+        expect(createCall.record.avatar).toMatchObject({
           $type: "org.hypercerts.defs#smallImage",
-          image: { ref: { $link: "avatar-cid" }, mimeType: "image/png", size: 100 },
+          image: { $type: "blob", mimeType: "image/png", size: 100 },
         });
+        expect(createCall.record.avatar.image.ref).toBeDefined();
       });
 
       it("should upload banner blob when provided", async () => {
         const bannerBlob = new Blob(["banner data"], { type: "image/jpeg" });
-        mockBlobs.upload.mockResolvedValue({
-          ref: { $link: "banner-cid" },
-          mimeType: "image/jpeg",
-          size: 200,
-        });
+        mockBlobs.upload.mockResolvedValue(createMockBlobRef({ mimeType: "image/jpeg", size: 200 }));
 
         await hypercertOps.createProject({
           title: "Project with Banner",
@@ -2703,10 +2643,11 @@ describe("HypercertOperationsImpl", () => {
 
         expect(mockBlobs.upload).toHaveBeenCalledWith(bannerBlob);
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-        expect(createCall.record.banner).toEqual({
+        expect(createCall.record.banner).toMatchObject({
           $type: "org.hypercerts.defs#largeImage",
-          image: { ref: { $link: "banner-cid" }, mimeType: "image/jpeg", size: 200 },
+          image: { $type: "blob", mimeType: "image/jpeg", size: 200 },
         });
+        expect(createCall.record.banner.image.ref).toBeDefined();
       });
 
       it("should upload both avatar and banner when provided", async () => {
@@ -2714,16 +2655,8 @@ describe("HypercertOperationsImpl", () => {
         const bannerBlob = new Blob(["banner"], { type: "image/jpeg" });
 
         mockBlobs.upload
-          .mockResolvedValueOnce({
-            ref: { $link: "avatar-cid" },
-            mimeType: "image/png",
-            size: 50,
-          })
-          .mockResolvedValueOnce({
-            ref: { $link: "banner-cid" },
-            mimeType: "image/jpeg",
-            size: 100,
-          });
+          .mockResolvedValueOnce(createMockBlobRef({ size: 50 }))
+          .mockResolvedValueOnce(createMockBlobRef({ mimeType: "image/jpeg", size: 100 }));
 
         await hypercertOps.createProject({
           title: "Full Project",
@@ -3206,11 +3139,7 @@ describe("HypercertOperationsImpl", () => {
 
       it("should upload and update avatar", async () => {
         const newAvatar = new Blob(["new avatar"], { type: "image/png" });
-        mockBlobs.upload.mockResolvedValue({
-          ref: { $link: "new-avatar-cid" },
-          mimeType: "image/png",
-          size: 150,
-        });
+        mockBlobs.upload.mockResolvedValue(createMockBlobRef({ size: 150 }));
 
         await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           avatar: newAvatar,
@@ -3218,19 +3147,16 @@ describe("HypercertOperationsImpl", () => {
 
         expect(mockBlobs.upload).toHaveBeenCalledWith(newAvatar);
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
-        expect(putCall.record.avatar).toEqual({
+        expect(putCall.record.avatar).toMatchObject({
           $type: "org.hypercerts.defs#smallImage",
-          image: { ref: { $link: "new-avatar-cid" }, mimeType: "image/png", size: 150 },
+          image: { $type: "blob", mimeType: "image/png", size: 150 },
         });
+        expect(putCall.record.avatar.image.ref).toBeDefined();
       });
 
       it("should upload and update banner", async () => {
         const newBanner = new Blob(["new banner"], { type: "image/jpeg" });
-        mockBlobs.upload.mockResolvedValue({
-          ref: { $link: "new-banner-cid" },
-          mimeType: "image/jpeg",
-          size: 250,
-        });
+        mockBlobs.upload.mockResolvedValue(createMockBlobRef({ mimeType: "image/jpeg", size: 250 }));
 
         await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           banner: newBanner,
