@@ -942,6 +942,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       return uriRef;
     }
 
+    console.log("resolveUriOrBlob: uploading blob", content);
     const uploadResult = await this.blobs.upload(content);
     return {
       $type: "org.hypercerts.defs#smallBlob" as const,
@@ -983,6 +984,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @internal
    */
   private async resolveLocationValue(location: string | Blob | HypercertLocation["location"]) {
+    console.log("resolveLocationValue", location);
     if (typeof location === "string" || location instanceof Blob) {
       return this.resolveUriOrBlob(location, "application/geo+json");
     }
@@ -2682,7 +2684,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       createdAt: createdAt ?? new Date().toISOString(),
       location: resolvedLocationValue,
     };
-
+    console.log("createLocationRecord", JSON.stringify(locationRecord, null, 2));
     const validation = validate(locationRecord, HYPERCERT_COLLECTIONS.LOCATION, "main", false);
     if (!validation.success) {
       throw new ValidationError(`Invalid location record: ${validation.error?.message}`);
@@ -2693,6 +2695,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       collection: HYPERCERT_COLLECTIONS.LOCATION,
       record: locationRecord as Record<string, unknown>,
     });
+    console.log("createLocationRecord createRecord result", JSON.stringify(result, null, 2));
 
     if (!result.success) {
       throw new NetworkError("Failed to create location record");
