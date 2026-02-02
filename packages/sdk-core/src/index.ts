@@ -38,6 +38,7 @@ export {
   parseAtUri,
   buildAtUri,
   extractRkeyFromUri,
+  AT_URI_REGEX,
   isValidAtUri,
   createStrongRef,
   createStrongRefFromResult,
