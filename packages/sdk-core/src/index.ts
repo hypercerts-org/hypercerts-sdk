@@ -250,6 +250,9 @@ export type {
   Permission,
 } from "./auth/permissions.js";
 
+// URL Utilities
+export { isValidUri } from "./lib/url-utils.js";
+
 // Rich Text Utilities
 export { createFacetsFromText, createFacetsFromTextSync, RichText } from "./lib/rich-text.js";
 export type { RichTextResult, AppBskyRichtextFacet } from "./lib/rich-text.js";
