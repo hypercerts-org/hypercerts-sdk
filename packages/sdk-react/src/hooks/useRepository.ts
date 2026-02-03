@@ -120,31 +120,43 @@ export function useRepository(options: UseRepositoryOptions = {}): UseRepository
   });
 
   // Build repository once server is resolved
-  const repository = useMemo((): Repository | null => {
-    if (!session || !serverQuery.data) return null;
+  const repositoryQuery = useQuery({
+    queryKey: atprotoKeys.repository(repoDid ?? "", serverQuery.data?.url ?? ""),
+    queryFn: async (): Promise<Repository | null> => {
+      if (!session || !serverQuery.data) return null;
 
-    try {
-      return sdk.repository(session, {
-        serverUrl: serverQuery.data.url,
-        server: serverQuery.data.type === "sds" ? "sds" : "pds",
-      });
-    } catch {
-      return null;
-    }
-  }, [sdk, session, serverQuery.data]);
+      try {
+        return await sdk.repository(session, {
+          serverUrl: serverQuery.data.url,
+          server: serverQuery.data.type === "sds" ? "sds" : "pds",
+        });
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!session && !!serverQuery.data && authStatus === "authenticated",
+    staleTime: 5 * 60 * 1000, // 5 minutes - repositories are stable
+  });
 
   // Derive status
   const status = useMemo(() => {
     if (authStatus !== "authenticated") return "idle" as const;
-    if (serverQuery.isLoading) return "loading" as const;
-    if (serverQuery.error || !repository) return "error" as const;
+    if (serverQuery.isLoading || repositoryQuery.isLoading) return "loading" as const;
+    if (serverQuery.error || repositoryQuery.error || !repositoryQuery.data) return "error" as const;
     return "ready" as const;
-  }, [authStatus, serverQuery.isLoading, serverQuery.error, repository]);
+  }, [
+    authStatus,
+    serverQuery.isLoading,
+    repositoryQuery.isLoading,
+    serverQuery.error,
+    repositoryQuery.error,
+    repositoryQuery.data,
+  ]);
 
   return {
-    repository,
+    repository: repositoryQuery.data ?? null,
     status,
-    error: serverQuery.error ?? null,
+    error: serverQuery.error ?? repositoryQuery.error ?? null,
     isSDS: serverQuery.data?.type === "sds",
     serverUrl: serverQuery.data?.url ?? null,
   };

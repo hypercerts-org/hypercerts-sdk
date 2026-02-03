@@ -20,11 +20,9 @@ const sdk = createATProtoSDK({
     jwksUri: "https://your-app.com/jwks.json",
     jwkPrivate: process.env.ATPROTO_JWK_PRIVATE!,
   },
-  // set up with your pds url.
-  // entryway doesn't work for this. Has to be a PDS URL.
-  servers: {
-    pds: "https://pds-eu-west4.test.certified.app",
-  },
+  // Optional: URL for handle resolution during OAuth.
+  // If omitted, DNS-based resolution is used.
+  handleResolver: "https://pds-eu-west4.test.certified.app",
 });
 
 // 2. Authenticate user
@@ -80,10 +78,8 @@ const sdk = createATProtoSDK({
     // Optional: suppress warnings
     developmentMode: true,
   },
-  servers: {
-    // Point to local PDS for testing
-    pds: "http://localhost:2583",
-  },
+  // Optional: handle resolver for local testing
+  handleResolver: "http://localhost:2583",
   logger: console, // Enable debug logging
 });
 
@@ -155,17 +151,17 @@ The SDK supports two types of AT Protocol servers:
 - **Purpose**: User's own data storage (e.g., Bluesky)
 - **Use case**: Individual hypercerts, personal records
 - **Features**: Profile management, basic CRUD operations
-- **Example**: `bsky.social`, any Bluesky PDS
+- **Auto-detected**: The SDK automatically discovers the user's PDS from the OAuth session -- no configuration needed
 
 #### Shared Data Server (SDS)
 
 - **Purpose**: Collaborative data storage with access control
 - **Use case**: Organization hypercerts, team collaboration
 - **Features**: Organizations, multi-user access, role-based permissions
-- **Example**: `sds.hypercerts.org`
+- **Configured via**: `servers.sds` in SDK config
 
 ```typescript
-// Connect to user's PDS (default)
+// Connect to user's PDS (default) -- auto-detected from session
 const pdsRepo = sdk.repository(session);
 await pdsRepo.hypercerts.create({ ... }); // Creates in user's PDS
 
@@ -179,6 +175,20 @@ const orgRepo = sdsRepo.repo(orgs.organizations[0].did);
 await orgRepo.hypercerts.list(); // Queries organization's hypercerts on SDS
 ```
 
+#### How PDS Auto-Detection Works
+
+The SDK automatically discovers each user's PDS URL from their OAuth session. You do not need to configure a PDS URL.
+
+1. **During authentication** (`callback()` or `restoreSession()`), the SDK extracts the user's PDS URL from the OAuth
+   token's `aud` field, which is resolved from the user's DID Document.
+
+2. **When creating a repository** (`sdk.repository(session)`), the SDK uses the cached PDS URL for that session's DID.
+
+3. **For sessions created outside the SDK**, you can manually resolve the PDS:
+   ```typescript
+   await sdk.resolveSessionPds(session);
+   ```
+
 #### How Repository Routing Works
 
 The SDK uses a `ConfigurableAgent` to route requests to different servers while maintaining your OAuth authentication:
@@ -186,13 +196,13 @@ The SDK uses a `ConfigurableAgent` to route requests to different servers while 
 1. **Initial Repository Creation**
 
    ```typescript
-   // User authenticates (OAuth session knows user's PDS)
+   // User authenticates -- PDS URL is automatically cached from the session
    const session = await sdk.callback(params);
 
-   // Create PDS repository - routes to user's PDS
+   // Create PDS repository -- routes to user's auto-detected PDS
    const pdsRepo = sdk.repository(session);
 
-   // Create SDS repository - routes to SDS server
+   // Create SDS repository -- routes to configured SDS server
    const sdsRepo = sdk.repository(session, { server: "sds" });
    ```
 
@@ -206,13 +216,14 @@ The SDK uses a `ConfigurableAgent` to route requests to different servers while 
    const orgRepo = userSdsRepo.repo("did:plc:org-did");
 
    // All operations on orgRepo still route to SDS, not user's PDS
-   await orgRepo.hypercerts.list(); // ✅ Queries SDS
-   await orgRepo.collaborators.list(); // ✅ Queries SDS
+   await orgRepo.hypercerts.list(); // Queries SDS
+   await orgRepo.collaborators.list(); // Queries SDS
    ```
 
 3. **Key Implementation Details**
    - Each Repository uses a `ConfigurableAgent` that wraps your OAuth session's fetch handler
    - The agent routes all requests to the specified server URL (PDS, SDS, or custom)
+   - The user's PDS URL is auto-detected from the OAuth session's token info (`tokenInfo.aud`)
    - When you call `.repo(did)`, a new Repository is created with the same server configuration
    - Your OAuth session provides authentication (DPoP, access tokens), while the agent handles routing
    - This enables simultaneous connections to multiple servers with one authentication session
@@ -220,7 +231,7 @@ The SDK uses a `ConfigurableAgent` to route requests to different servers while 
 #### Common Patterns
 
 ```typescript
-// Pattern 1: Personal hypercerts on PDS
+// Pattern 1: Personal hypercerts on PDS (auto-detected)
 const myRepo = sdk.repository(session);
 await myRepo.hypercerts.create({ title: "My Personal Impact" });
 

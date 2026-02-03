@@ -64,6 +64,20 @@ export const atprotoKeys = {
   server: (did: string) => [...atprotoKeys.servers(), did] as const,
 
   // ─────────────────────────────────────────────
+  // Repository Keys
+  // ─────────────────────────────────────────────
+
+  /**
+   * Key for all repository instances.
+   */
+  repositories: () => [...atprotoKeys.all, "repository"] as const,
+
+  /**
+   * Key for a specific repository instance by DID and server URL.
+   */
+  repository: (did: string, serverUrl: string) => [...atprotoKeys.repositories(), did, serverUrl] as const,
+
+  // ─────────────────────────────────────────────
   // Profile Keys
   // ─────────────────────────────────────────────
 
@@ -172,6 +186,8 @@ export type ATProtoQueryKey =
   | ReturnType<typeof atprotoKeys.sessionByDid>
   | ReturnType<typeof atprotoKeys.servers>
   | ReturnType<typeof atprotoKeys.server>
+  | ReturnType<typeof atprotoKeys.repositories>
+  | ReturnType<typeof atprotoKeys.repository>
   | ReturnType<typeof atprotoKeys.profiles>
   | ReturnType<typeof atprotoKeys.profile>
   | ReturnType<typeof atprotoKeys.organizations>
