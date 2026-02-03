@@ -53,7 +53,7 @@ Host a `client-metadata.json` file at a public URL (e.g., `https://your-app.com/
 # .env.local
 NEXT_PUBLIC_OAUTH_CLIENT_ID=https://your-app.com/client-metadata.json
 NEXT_PUBLIC_OAUTH_REDIRECT_URI=https://your-app.com/callback
-NEXT_PUBLIC_PDS_URL=https://bsky.social
+NEXT_PUBLIC_HANDLE_RESOLVER_URL=https://bsky.social
 NEXT_PUBLIC_SDS_URL=https://sds.hypercerts.org
 JWK_PRIVATE_KEY={"kty":"EC","crv":"P-256",...}
 ```
@@ -86,8 +86,9 @@ export const atproto = createATProtoReact({
       redirectUri: process.env.NEXT_PUBLIC_OAUTH_REDIRECT_URI!,
       scope: "atproto transition:generic",
     },
+    // Optional: URL for handle resolution during OAuth (defaults to DNS-based resolution)
+    handleResolver: process.env.NEXT_PUBLIC_HANDLE_RESOLVER_URL || "https://bsky.social",
     servers: {
-      pds: process.env.NEXT_PUBLIC_PDS_URL || "https://bsky.social",
       sds: process.env.NEXT_PUBLIC_SDS_URL,
     },
   },
@@ -565,8 +566,8 @@ const sdk = new ATProtoSDK({
     jwksUri: `${process.env.NEXT_PUBLIC_APP_URL}/.well-known/jwks.json`,
     jwkPrivate: process.env.JWK_PRIVATE_KEY!,
   },
+  handleResolver: process.env.NEXT_PUBLIC_HANDLE_RESOLVER_URL || "https://bsky.social",
   servers: {
-    pds: process.env.NEXT_PUBLIC_PDS_URL || "https://bsky.social",
     sds: process.env.NEXT_PUBLIC_SDS_URL,
   },
 });
@@ -673,8 +674,8 @@ export const atproto = createATProtoReact({
       redirectUri: process.env.NEXT_PUBLIC_OAUTH_REDIRECT_URI!,
       scope: "atproto transition:generic",
     },
+    handleResolver: process.env.NEXT_PUBLIC_HANDLE_RESOLVER_URL || "https://bsky.social",
     servers: {
-      pds: process.env.NEXT_PUBLIC_PDS_URL || "https://bsky.social",
       sds: process.env.NEXT_PUBLIC_SDS_URL,
     },
   },

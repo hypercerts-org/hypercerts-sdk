@@ -114,13 +114,28 @@ describe("ATProtoSDK", () => {
       await expect(sdk.getAccountEmail(null as any)).rejects.toThrow(ValidationError);
     });
 
-    it("should throw ValidationError when PDS not configured", async () => {
-      const configWithoutPds = await createTestConfigAsync();
-      delete configWithoutPds.servers;
-      const sdk = new ATProtoSDK(configWithoutPds);
-      const mockSession = createMockSession();
-      await expect(sdk.getAccountEmail(mockSession)).rejects.toThrow(ValidationError);
-      await expect(sdk.getAccountEmail(mockSession)).rejects.toThrow("PDS server URL not configured");
+    it("should work without servers.pds configured", async () => {
+      // getAccountEmail uses session.fetchHandler with relative paths,
+      // so it doesn't need servers.pds — the session routes to the correct PDS internally
+      const configWithoutServers = await createTestConfigAsync();
+      delete configWithoutServers.servers;
+      const sdk = new ATProtoSDK(configWithoutServers);
+      const mockSession = createMockSession({
+        fetchHandler: async () =>
+          new Response(
+            JSON.stringify({
+              did: "did:plc:testdid123456789012345678901234567890",
+              handle: "test.bsky.social",
+              email: "test@example.com",
+              emailConfirmed: true,
+            }),
+            { status: 200 },
+          ),
+      });
+
+      const result = await sdk.getAccountEmail(mockSession);
+      expect(result).not.toBeNull();
+      expect(result?.email).toBe("test@example.com");
     });
 
     it("should return email info when permission granted", async () => {
@@ -209,34 +224,164 @@ describe("ATProtoSDK", () => {
   });
 
   describe("repository", () => {
-    it("should throw ValidationError when session is null", () => {
+    it("should throw ValidationError when session is null", async () => {
       const sdk = new ATProtoSDK(config);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(() => sdk.repository(null as any)).toThrow(ValidationError);
-    });
-
-    it("should throw ValidationError when PDS not configured and no server specified", async () => {
-      const configWithoutServers = await createTestConfigAsync();
-      delete configWithoutServers.servers;
-      const sdk = new ATProtoSDK(configWithoutServers);
-      const mockSession = createMockSession();
-      expect(() => sdk.repository(mockSession)).toThrow(ValidationError);
+      await expect(sdk.repository(null as any)).rejects.toThrow(ValidationError);
     });
 
     it("should throw ValidationError when SDS not configured and server=sds", async () => {
-      const configWithOnlyPds = await createTestConfigAsync();
-      configWithOnlyPds.servers = { pds: "https://pds.example.com" };
-      const sdk = new ATProtoSDK(configWithOnlyPds);
+      const configWithoutSds = await createTestConfigAsync();
+      delete configWithoutSds.servers?.sds;
+      const sdk = new ATProtoSDK(configWithoutSds);
       const mockSession = createMockSession();
-      expect(() => sdk.repository(mockSession, { server: "sds" })).toThrow(ValidationError);
+      await expect(sdk.repository(mockSession, { server: "sds" })).rejects.toThrow(ValidationError);
     });
 
-    it("should create repository with custom serverUrl", () => {
+    it("should create repository with custom serverUrl", async () => {
       const sdk = new ATProtoSDK(config);
       const mockSession = createMockSession();
-      const repo = sdk.repository(mockSession, { serverUrl: "https://custom.server.com" });
+      const repo = await sdk.repository(mockSession, { serverUrl: "https://custom.server.com" });
       expect(repo).toBeDefined();
       expect(repo.getServerUrl()).toBe("https://custom.server.com");
+    });
+
+    it("should auto-detect PDS from session after resolveSessionPds", async () => {
+      // Create SDK without any server config
+      const configWithoutServers = await createTestConfigAsync();
+      delete configWithoutServers.servers;
+      const sdk = new ATProtoSDK(configWithoutServers);
+
+      const mockSession = createMockSession({
+        getTokenInfo: async () => ({
+          expiresAt: new Date(Date.now() + 3600 * 1000),
+          expired: false,
+          scope: "atproto" as const,
+          iss: "https://bsky.social",
+          aud: "https://user-pds.example.com",
+          sub: "did:plc:testdid123456789012345678901234567890" as const,
+        }),
+      });
+
+      // Resolve and cache the PDS URL from the session
+      const pdsUrl = await sdk.resolveSessionPds(mockSession);
+      expect(pdsUrl).toBe("https://user-pds.example.com");
+
+      // Now repository() should work without servers.pds being configured
+      const repo = await sdk.repository(mockSession);
+      expect(repo).toBeDefined();
+      expect(repo.getServerUrl()).toBe("https://user-pds.example.com");
+    });
+
+    it("should auto-resolve PDS on cache miss when session has valid token info", async () => {
+      // Create SDK without any server config — and do NOT call resolveSessionPds
+      const configWithoutServers = await createTestConfigAsync();
+      delete configWithoutServers.servers;
+      const sdk = new ATProtoSDK(configWithoutServers);
+
+      const mockSession = createMockSession({
+        getTokenInfo: async () => ({
+          expiresAt: new Date(Date.now() + 3600 * 1000),
+          expired: false,
+          scope: "atproto" as const,
+          iss: "https://bsky.social",
+          aud: "https://auto-resolved-pds.example.com",
+          sub: "did:plc:testdid123456789012345678901234567890" as const,
+        }),
+      });
+
+      // repository() should auto-resolve the PDS on the fly
+      const repo = await sdk.repository(mockSession);
+      expect(repo).toBeDefined();
+      expect(repo.getServerUrl()).toBe("https://auto-resolved-pds.example.com");
+    });
+
+    it("should throw when session has no valid token info and cache is empty", async () => {
+      // Create SDK without any server config
+      const configWithoutServers = await createTestConfigAsync();
+      delete configWithoutServers.servers;
+      const sdk = new ATProtoSDK(configWithoutServers);
+
+      // Session with getTokenInfo that returns empty aud
+      const mockSession = createMockSession({
+        getTokenInfo: async () => ({
+          expiresAt: new Date(Date.now() + 3600 * 1000),
+          expired: false,
+          scope: "atproto" as const,
+          iss: "https://bsky.social",
+          aud: "",
+          sub: "did:plc:testdid123456789012345678901234567890" as const,
+        }),
+      });
+
+      await expect(sdk.repository(mockSession)).rejects.toThrow(ValidationError);
+    });
+
+    it("should still respect explicit serverUrl regardless of cache", async () => {
+      const sdk = new ATProtoSDK(config);
+      const mockSession = createMockSession();
+
+      // Populate cache with one URL
+      await sdk.resolveSessionPds(mockSession);
+
+      // Pass an explicit serverUrl - should override the cached value
+      const repo = await sdk.repository(mockSession, { serverUrl: "https://explicit.example.com" });
+      expect(repo).toBeDefined();
+      expect(repo.getServerUrl()).toBe("https://explicit.example.com");
+    });
+
+    it("should create repository with server=pds using cached PDS", async () => {
+      const sdk = new ATProtoSDK(config);
+      const mockSession = createMockSession({
+        getTokenInfo: async () => ({
+          expiresAt: new Date(Date.now() + 3600 * 1000),
+          expired: false,
+          scope: "atproto" as const,
+          iss: "https://bsky.social",
+          aud: "https://cached-pds.example.com",
+          sub: "did:plc:testdid123456789012345678901234567890" as const,
+        }),
+      });
+
+      await sdk.resolveSessionPds(mockSession);
+      const repo = await sdk.repository(mockSession, { server: "pds" });
+      expect(repo).toBeDefined();
+      expect(repo.getServerUrl()).toBe("https://cached-pds.example.com");
+    });
+  });
+
+  describe("resolveSessionPds", () => {
+    it("should resolve and cache PDS from session token info", async () => {
+      const sdk = new ATProtoSDK(config);
+      const mockSession = createMockSession({
+        getTokenInfo: async () => ({
+          expiresAt: new Date(Date.now() + 3600 * 1000),
+          expired: false,
+          scope: "atproto" as const,
+          iss: "https://bsky.social",
+          aud: "https://resolved-pds.example.com",
+          sub: "did:plc:testdid123456789012345678901234567890" as const,
+        }),
+      });
+
+      const pdsUrl = await sdk.resolveSessionPds(mockSession);
+      expect(pdsUrl).toBe("https://resolved-pds.example.com");
+    });
+
+    it("should throw when getTokenInfo returns no aud", async () => {
+      const sdk = new ATProtoSDK(config);
+      const mockSession = createMockSession({
+        getTokenInfo: async () => ({
+          expiresAt: new Date(Date.now() + 3600 * 1000),
+          expired: false,
+          scope: "atproto" as const,
+          iss: "https://bsky.social",
+          aud: "",
+          sub: "did:plc:testdid123456789012345678901234567890" as const,
+        }),
+      });
+
+      await expect(sdk.resolveSessionPds(mockSession)).rejects.toThrow(ValidationError);
     });
   });
 

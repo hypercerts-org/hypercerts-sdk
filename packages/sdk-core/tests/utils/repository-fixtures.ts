@@ -30,7 +30,7 @@ export function createMockSession(overrides?: Partial<Session>): Session {
       expired: false,
       scope: "atproto",
       iss: "https://pds.example.com",
-      aud: "https://example.com/atproto-client-metadata.json",
+      aud: "https://pds.example.com",
       sub: "did:plc:testdid123456789012345678901234567890",
     }),
     signOut: async () => {},
