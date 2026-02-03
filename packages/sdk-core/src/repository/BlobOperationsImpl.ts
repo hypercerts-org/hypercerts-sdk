@@ -168,7 +168,9 @@ export class BlobOperationsImpl implements BlobOperations {
       throw new NetworkError(`SDS blob upload failed: ${response.statusText}`);
     }
 
-    const result = await response.json();
+    const result = (await response.json()) as {
+      blob: BlobRef;
+    };
 
     return result.blob;
   }

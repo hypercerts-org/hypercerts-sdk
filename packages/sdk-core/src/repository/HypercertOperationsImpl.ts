@@ -2602,7 +2602,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     const result = await this.agent.com.atproto.repo.createRecord({
       repo: this.repoDid,
       collection: HYPERCERT_COLLECTIONS.LOCATION,
-      record: locationRecord as Record<string, unknown>,
+      record: locationRecord,
     });
 
     if (!result.success) {

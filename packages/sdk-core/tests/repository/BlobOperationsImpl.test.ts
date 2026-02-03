@@ -134,7 +134,7 @@ describe("BlobOperationsImpl", () => {
         ok: true,
         json: async () => ({
           blob: {
-            ref: "bafyrei-string-ref",
+            ref: { toString: () => "bafyrei-string-ref" },
             mimeType: "text/plain",
             size: 4,
           },
@@ -143,7 +143,7 @@ describe("BlobOperationsImpl", () => {
 
       const result = await sdsBlobOps.upload(mockBlob);
 
-      expect(result.ref).toBe("bafyrei-string-ref");
+      expect(result.ref.toString()).toEqual("bafyrei-string-ref");
     });
 
     it("should throw NetworkError when SDS returns non-ok response", async () => {
