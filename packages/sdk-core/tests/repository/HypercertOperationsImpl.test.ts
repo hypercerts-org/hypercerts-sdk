@@ -1464,6 +1464,53 @@ describe("HypercertOperationsImpl", () => {
         }),
       ).rejects.toThrow(NetworkError);
     });
+
+    it("should throw ValidationError when content URI is not a valid URI", async () => {
+      await expect(
+        hypercertOps.addAttachment({
+          subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          title: "Attachment with invalid URI",
+          content: "not-a-valid-uri",
+        }),
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it("should throw ValidationError when content URI is plain text", async () => {
+      await expect(
+        hypercertOps.addAttachment({
+          subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          title: "Attachment with plain text",
+          content: "just some random text",
+        }),
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it("should throw ValidationError when any content URI in array is invalid", async () => {
+      await expect(
+        hypercertOps.addAttachment({
+          subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          title: "Attachment with mixed content",
+          content: ["https://example.com/valid.pdf", "not-a-valid-uri"],
+        }),
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it("should accept valid non-http URI schemes in content", async () => {
+      const result = await hypercertOps.addAttachment({
+        subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        title: "IPFS Attachment",
+        content: "ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
+      });
+
+      expect(result.uri).toContain("attachment");
+      const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
+      expect(call.record.content).toEqual([
+        {
+          $type: "org.hypercerts.defs#uri",
+          uri: "ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
+        },
+      ]);
+    });
   });
 
   describe("addMeasurement", () => {
