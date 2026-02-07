@@ -960,7 +960,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     const uploadResult = await this.blobs.upload(content);
     return {
       $type: "org.hypercerts.defs#smallBlob" as const,
-      blob: uploadResult,
+      blob: this.blobToJsonRef(uploadResult),
     };
   }
 
@@ -975,11 +975,12 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     }
 
     const uploadResult = await this.blobs.upload(input);
+    const blobRef = this.blobToJsonRef(uploadResult);
     if (isBanner) {
-      return { $type: "org.hypercerts.defs#largeImage" as const, image: uploadResult };
+      return { $type: "org.hypercerts.defs#largeImage" as const, image: blobRef };
     }
 
-    return { $type: "org.hypercerts.defs#smallImage" as const, image: uploadResult };
+    return { $type: "org.hypercerts.defs#smallImage" as const, image: blobRef };
   }
 
   /**

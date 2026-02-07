@@ -8,8 +8,9 @@
  */
 
 import type { Agent } from "@atproto/api";
+import type { JsonBlobRef } from "@atproto/lexicon";
 import { NetworkError } from "../core/errors.js";
-import type { BlobOperations, ProfileOperations, ProfileParams } from "./interfaces.js";
+import type { BlobInput, BlobOperations, ProfileOperations, ProfileParams } from "./interfaces.js";
 import type { CreateResult, UpdateResult } from "./types.js";
 import { uploadResultToBlobRef } from "./types.js";
 
@@ -44,9 +45,13 @@ import { uploadResultToBlobRef } from "./types.js";
  *   description: "Updated bio",
  * });
  *
- * // Update with new avatar
+ * // Update with new avatar (Blob - will be uploaded)
  * const avatarBlob = new Blob([imageData], { type: "image/png" });
  * await repo.profile.update({ avatar: avatarBlob });
+ *
+ * // Update with existing blob reference (no re-upload)
+ * const existingRef = { $type: "blob", ref: { $link: "bafyrei..." }, mimeType: "image/png", size: 1234 };
+ * await repo.profile.update({ avatar: existingRef });
  *
  * // Remove a field
  * await repo.profile.update({ website: null });
@@ -86,21 +91,58 @@ export class ProfileOperationsImpl implements ProfileOperations {
   }
 
   /**
+   * Checks if a value is an existing JsonBlobRef.
+   *
+   * JsonBlobRef has the structure: { $type: "blob", ref: { $link: string }, mimeType, size }
+   *
+   * @internal
+   */
+  private isJsonBlobRef(value: unknown): value is JsonBlobRef {
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+
+    const record = value as Record<string, unknown>;
+
+    if (record.$type !== "blob" || !("ref" in record) || !("mimeType" in record) || !("size" in record)) {
+      return false;
+    }
+
+    const ref = record.ref;
+    if (typeof ref !== "object" || ref === null) {
+      return false;
+    }
+
+    const refRecord = ref as Record<string, unknown>;
+    return typeof refRecord.$link === "string";
+  }
+
+  /**
    * Applies a blob field to the profile, uploading if needed.
+   *
+   * Handles three input types:
+   * - undefined: Field is not modified
+   * - null: Field is removed from the profile
+   * - Blob: Uploaded and converted to JsonBlobRef
+   * - JsonBlobRef: Used directly without re-uploading
    *
    * @internal
    */
   private async applyBlobField(
     result: Record<string, unknown>,
     field: string,
-    blob: Blob | null | undefined,
+    input: BlobInput | null | undefined,
   ): Promise<void> {
-    if (blob === undefined) return;
+    if (input === undefined) return;
 
-    if (blob === null) {
+    if (input === null) {
       delete result[field];
+    } else if (this.isJsonBlobRef(input)) {
+      // Use existing blob ref directly
+      result[field] = input;
     } else {
-      const uploadResult = await this.blobs.upload(blob);
+      // Upload new blob
+      const uploadResult = await this.blobs.upload(input);
       result[field] = uploadResultToBlobRef(uploadResult);
     }
   }

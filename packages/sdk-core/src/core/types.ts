@@ -23,6 +23,33 @@ import { z } from "zod";
 export type DID = string;
 
 /**
+ * Validates that a string is a valid DID format.
+ *
+ * DIDs must follow the format: `did:<method>:<method-specific-id>`
+ * where method is lowercase letters and digits, and the identifier contains
+ * alphanumeric characters plus `.`, `_`, `:`, `%`, and `-`.
+ *
+ * @param did - The string to validate
+ * @returns true if the string is a valid DID format
+ *
+ * @example
+ * ```typescript
+ * isValidDid("did:plc:ewvi7nxzyoun6zhxrhs64oiz"); // true
+ * isValidDid("did:web:example.com"); // true
+ * isValidDid("not-a-did"); // false
+ * isValidDid("did:"); // false
+ * ```
+ *
+ * @see https://www.w3.org/TR/did-core/#did-syntax for DID syntax specification
+ */
+export function isValidDid(did: string): boolean {
+  // DID format: did:<method>:<method-specific-id>
+  // Method: lowercase letters and digits (per W3C DID Core spec)
+  // Identifier: alphanumeric plus . _ : % -
+  return /^did:[a-z0-9]+:[a-zA-Z0-9._:%-]+$/.test(did);
+}
+
+/**
  * OAuth session with DPoP (Demonstrating Proof of Possession) support.
  *
  * This type represents an authenticated user session. It wraps the

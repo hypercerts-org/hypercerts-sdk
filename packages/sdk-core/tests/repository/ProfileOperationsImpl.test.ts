@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
 import { ProfileOperationsImpl } from "../../src/repository/ProfileOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
-import type { BlobOperations } from "../../src/repository/interfaces.js";
+import type { BlobOperations, BlobInput } from "../../src/repository/interfaces.js";
 import { createMockAgent, createMockBlobOperations, TEST_REPO_DID } from "../utils/mocks.js";
 
 describe("ProfileOperationsImpl", () => {
@@ -178,6 +178,56 @@ describe("ProfileOperationsImpl", () => {
       expect(createCall.record.description).toBeUndefined();
     });
 
+    it("should create profile with existing avatar blob ref (no upload)", async () => {
+      const existingBlobRef = {
+        $type: "blob" as const,
+        ref: { $link: "existing-avatar-cid" },
+        mimeType: "image/png",
+        size: 2048,
+      };
+
+      await profileOps.create({
+        displayName: "User with Existing Avatar",
+        avatar: existingBlobRef,
+      });
+
+      // Should NOT upload - existing blob ref is used directly
+      expect(mockBlobs.upload).not.toHaveBeenCalled();
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            displayName: "User with Existing Avatar",
+            avatar: existingBlobRef,
+          }),
+        }),
+      );
+    });
+
+    it("should create profile with existing banner blob ref (no upload)", async () => {
+      const existingBlobRef = {
+        $type: "blob" as const,
+        ref: { $link: "existing-banner-cid" },
+        mimeType: "image/jpeg",
+        size: 4096,
+      };
+
+      await profileOps.create({
+        displayName: "User with Existing Banner",
+        banner: existingBlobRef,
+      });
+
+      // Should NOT upload - existing blob ref is used directly
+      expect(mockBlobs.upload).not.toHaveBeenCalled();
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            displayName: "User with Existing Banner",
+            banner: existingBlobRef,
+          }),
+        }),
+      );
+    });
+
     it("should throw NetworkError when createRecord returns success: false", async () => {
       mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
         success: false,
@@ -344,6 +394,174 @@ describe("ProfileOperationsImpl", () => {
 
       const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
       expect(putCall.record.banner).toBeUndefined();
+    });
+
+    it("should use existing avatar blob ref without re-uploading", async () => {
+      const existingBlobRef = {
+        $type: "blob" as const,
+        ref: { $link: "existing-avatar-cid" },
+        mimeType: "image/png",
+        size: 2048,
+      };
+
+      await profileOps.update({
+        avatar: existingBlobRef,
+      });
+
+      // Should NOT upload - existing blob ref is used directly
+      expect(mockBlobs.upload).not.toHaveBeenCalled();
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            avatar: existingBlobRef,
+          }),
+        }),
+      );
+    });
+
+    it("should use existing banner blob ref without re-uploading", async () => {
+      const existingBlobRef = {
+        $type: "blob" as const,
+        ref: { $link: "existing-banner-cid" },
+        mimeType: "image/jpeg",
+        size: 4096,
+      };
+
+      await profileOps.update({
+        banner: existingBlobRef,
+      });
+
+      // Should NOT upload - existing blob ref is used directly
+      expect(mockBlobs.upload).not.toHaveBeenCalled();
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            banner: existingBlobRef,
+          }),
+        }),
+      );
+    });
+
+    it("should handle mixed blob and existing ref for avatar and banner", async () => {
+      const avatarBlob = new Blob(["avatar data"], { type: "image/png" });
+      const existingBannerRef = {
+        $type: "blob" as const,
+        ref: { $link: "existing-banner-cid" },
+        mimeType: "image/jpeg",
+        size: 4096,
+      };
+
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "new-avatar-cid" },
+        mimeType: "image/png",
+        size: 1024,
+      });
+
+      await profileOps.update({
+        avatar: avatarBlob, // Upload this
+        banner: existingBannerRef, // Use directly
+      });
+
+      // Should upload avatar only
+      expect(mockBlobs.upload).toHaveBeenCalledTimes(1);
+      expect(mockBlobs.upload).toHaveBeenCalledWith(avatarBlob);
+
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record: expect.objectContaining({
+            avatar: { $type: "blob", ref: { $link: "new-avatar-cid" }, mimeType: "image/png", size: 1024 },
+            banner: existingBannerRef,
+          }),
+        }),
+      );
+    });
+
+    it("should treat malformed blob ref (missing $link) as regular Blob and upload", async () => {
+      const malformedRef = {
+        $type: "blob" as const,
+        ref: {}, // Missing $link
+        mimeType: "image/png",
+        size: 1024,
+      };
+
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "uploaded-cid" },
+        mimeType: "image/png",
+        size: 1024,
+      });
+
+      await profileOps.update({
+        avatar: malformedRef as unknown as BlobInput,
+      });
+
+      // Should upload because it's not a valid JsonBlobRef
+      expect(mockBlobs.upload).toHaveBeenCalledWith(malformedRef);
+    });
+
+    it("should treat malformed blob ref (ref is not an object) as regular Blob and upload", async () => {
+      const malformedRef = {
+        $type: "blob" as const,
+        ref: "string-instead-of-object",
+        mimeType: "image/png",
+        size: 1024,
+      };
+
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "uploaded-cid" },
+        mimeType: "image/png",
+        size: 1024,
+      });
+
+      await profileOps.update({
+        avatar: malformedRef as unknown as BlobInput,
+      });
+
+      // Should upload because it's not a valid JsonBlobRef
+      expect(mockBlobs.upload).toHaveBeenCalledWith(malformedRef);
+    });
+
+    it("should treat malformed blob ref (ref is null) as regular Blob and upload", async () => {
+      const malformedRef = {
+        $type: "blob" as const,
+        ref: null,
+        mimeType: "image/png",
+        size: 1024,
+      };
+
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "uploaded-cid" },
+        mimeType: "image/png",
+        size: 1024,
+      });
+
+      await profileOps.update({
+        avatar: malformedRef as unknown as BlobInput,
+      });
+
+      // Should upload because it's not a valid JsonBlobRef
+      expect(mockBlobs.upload).toHaveBeenCalledWith(malformedRef);
+    });
+
+    it("should treat malformed blob ref (missing mimeType) as regular Blob and upload", async () => {
+      const malformedRef = {
+        $type: "blob" as const,
+        ref: { $link: "some-cid" },
+        // Missing mimeType
+        size: 1024,
+      };
+
+      mockBlobs.upload.mockResolvedValue({
+        ref: { $link: "uploaded-cid" },
+        mimeType: "image/png",
+        size: 1024,
+      });
+
+      await profileOps.update({
+        avatar: malformedRef as unknown as BlobInput,
+      });
+
+      // Should upload because it's not a valid JsonBlobRef
+      expect(mockBlobs.upload).toHaveBeenCalledWith(malformedRef);
     });
 
     it("should throw NetworkError when getRecord returns success: false", async () => {

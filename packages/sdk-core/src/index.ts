@@ -99,6 +99,7 @@ export type {
   ContributorIdentityParams,
   CreateContributorInformationParams,
   ResolvedContributorIdentity,
+  BlobInput,
 } from "./repository/interfaces.js";
 
 // ============================================================================
@@ -195,7 +196,7 @@ export { InMemoryStateStore } from "./storage/InMemoryStateStore.js";
 
 // Core types and schemas
 export type { DID, Organization, Collaborator, CollaboratorPermissions } from "./core/types.js";
-export { OrganizationSchema, CollaboratorSchema, CollaboratorPermissionsSchema } from "./core/types.js";
+export { OrganizationSchema, CollaboratorSchema, CollaboratorPermissionsSchema, isValidDid } from "./core/types.js";
 export { ATProtoSDKConfigSchema, OAuthConfigSchema, ServerConfigSchema, TimeoutConfigSchema } from "./core/config.js";
 
 // OAuth Permissions System

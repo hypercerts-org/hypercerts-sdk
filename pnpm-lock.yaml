@@ -72,7 +72,7 @@ importers:
         specifier: ^5.4.1
         version: 5.4.1
       zod:
-        specifier: ^3.24.4
+        specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
       '@rollup/plugin-commonjs':
