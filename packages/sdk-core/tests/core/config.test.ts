@@ -237,7 +237,7 @@ describe("URL Validation with Loopback Support", () => {
   });
 
   describe("server URLs validation", () => {
-    it("accepts loopback PDS URL", () => {
+    it("accepts loopback SDS URL with handleResolver", () => {
       const config = {
         oauth: {
           clientId: "http://localhost/",
@@ -246,8 +246,9 @@ describe("URL Validation with Loopback Support", () => {
           jwksUri: "http://localhost:3000/jwks.json",
           jwkPrivate: validJWK,
         },
+        handleResolver: "http://localhost:2583",
         servers: {
-          pds: "http://localhost:2583",
+          sds: "http://localhost:2584",
         },
       };
 
@@ -271,7 +272,7 @@ describe("URL Validation with Loopback Support", () => {
       expect(() => ATProtoSDKConfigSchema.parse(config)).not.toThrow();
     });
 
-    it("accepts both loopback PDS and SDS", () => {
+    it("accepts loopback SDS with handleResolver", () => {
       const config = {
         oauth: {
           clientId: "http://localhost/",
@@ -280,8 +281,8 @@ describe("URL Validation with Loopback Support", () => {
           jwksUri: "http://localhost:3000/jwks.json",
           jwkPrivate: validJWK,
         },
+        handleResolver: "http://localhost:2583",
         servers: {
-          pds: "http://localhost:2583",
           sds: "http://127.0.0.1:2584",
         },
       };
@@ -289,7 +290,7 @@ describe("URL Validation with Loopback Support", () => {
       expect(() => ATProtoSDKConfigSchema.parse(config)).not.toThrow();
     });
 
-    it("rejects non-loopback http server URLs", () => {
+    it("rejects non-loopback http SDS URLs", () => {
       const config = {
         oauth: {
           clientId: "https://example.com/",
@@ -299,7 +300,7 @@ describe("URL Validation with Loopback Support", () => {
           jwkPrivate: validJWK,
         },
         servers: {
-          pds: "http://example.com:2583",
+          sds: "http://example.com:2584",
         },
       };
 
@@ -319,8 +320,8 @@ describe("URL Validation with Loopback Support", () => {
           jwksUri: "https://example.com/jwks.json",
           jwkPrivate: validJWK,
         },
+        handleResolver: "https://pds-eu-west4.test.certified.app",
         servers: {
-          pds: "https://bsky.social",
           sds: "https://sds.hypercerts.org",
         },
       };
@@ -390,7 +391,7 @@ describe("URL Validation with Loopback Support", () => {
       expect(() => ATProtoSDKConfigSchema.parse(config)).not.toThrow();
     });
 
-    it("accepts https clientId with loopback for local testing servers", () => {
+    it("accepts https clientId with loopback handleResolver for local testing", () => {
       const config = {
         oauth: {
           clientId: "https://example.com/",
@@ -399,9 +400,7 @@ describe("URL Validation with Loopback Support", () => {
           jwksUri: "https://example.com/jwks.json",
           jwkPrivate: validJWK,
         },
-        servers: {
-          pds: "http://localhost:2583", // Testing against local PDS
-        },
+        handleResolver: "http://localhost:2583", // Testing against local handle resolver
       };
 
       expect(() => ATProtoSDKConfigSchema.parse(config)).not.toThrow();
