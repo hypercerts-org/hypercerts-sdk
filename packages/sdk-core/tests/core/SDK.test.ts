@@ -80,7 +80,7 @@ describe("ATProtoSDK", () => {
       const sdk = new ATProtoSDK(config);
       // Will fail due to network, but should not throw ValidationError
       await expect(sdk.authorize("  test.bsky.social  ")).rejects.not.toThrow(ValidationError);
-    });
+    }, 10000);
   });
 
   describe("restoreSession", () => {

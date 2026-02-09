@@ -23,7 +23,7 @@ import type {
   CreateMeasurementParams,
   UpdateMeasurementParams,
   CreateAttachmentParams,
-  StrongRef,
+  RefUri,
 } from "../services/hypercerts/types.js";
 import type {
   CreateResult,
@@ -87,12 +87,6 @@ export interface CreateContributionDetailsParams {
  */
 export type ContributionDetailsParams = string | { uri: string; cid: string } | CreateContributionDetailsParams;
 
-/**
- * Resolved contribution details (after processing).
- * CreateContributionDetailsParams is converted to a StrongRef.
- */
-export type ResolvedContributionDetails = string | { uri: string; cid: string; $type: "com.atproto.repo.strongRef" };
-
 // ============================================================================
 // Contributor Identity Types
 // ============================================================================
@@ -132,12 +126,6 @@ export interface CreateContributorInformationParams {
  * - A CreateContributorInformationParams object to auto-create a record
  */
 export type ContributorIdentityParams = string | { uri: string; cid: string } | CreateContributorInformationParams;
-
-/**
- * Resolved contributor identity (after processing).
- * CreateContributorInformationParams is converted to a StrongRef.
- */
-export type ResolvedContributorIdentity = string | { uri: string; cid: string; $type: "com.atproto.repo.strongRef" };
 
 // ============================================================================
 // Hypercert Operation Types
@@ -245,7 +233,7 @@ export interface CreateHypercertParams {
    * workScope: { uri: "at://did:plc:.../org.hypercerts.helper.workScopeTag/...", cid: "..." }
    * ```
    */
-  workScope?: string | StrongRef;
+  workScope?: RefUri;
 
   /**
    * Start date of the work period.
@@ -393,6 +381,47 @@ export interface CreateHypercertParams {
    */
   onProgress?: (step: ProgressStep) => void;
 }
+
+/**
+ * Parameters for updating an existing hypercert record.
+ *
+ * Only includes fields that exist in the actual record schema (HypercertClaim).
+ * Excludes immutable fields like $type, createdAt, and rights.
+ *
+ * @remarks
+ * This differs from CreateHypercertParams:
+ * - Uses `contributors` (record field) not `contributions` (input field)
+ * - Uses `locations` as StrongRef array (resolved) not LocationParams (input)
+ * - All fields are optional (partial update)
+ *
+ * @example Basic field update
+ * ```typescript
+ * await repo.hypercerts.update({
+ *   uri: hypercertUri,
+ *   updates: {
+ *     title: "Updated Title",
+ *     description: "New description"
+ *   }
+ * });
+ * ```
+ *
+ * @example Update contributors array
+ * ```typescript
+ * await repo.hypercerts.update({
+ *   uri: hypercertUri,
+ *   updates: {
+ *     contributors: [
+ *       {
+ *         contributorIdentity: { uri: "at://...", cid: "..." },
+ *         contributionDetails: "Developer",
+ *         contributionWeight: "1.0"
+ *       }
+ *     ]
+ *   }
+ * });
+ * ```
+ */
+export type UpdateHypercertParams = Partial<Omit<HypercertClaim, "$type" | "createdAt" | "rights">>;
 
 export interface CreateOrganizationParams {
   /**
@@ -882,11 +911,11 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    *
    * @param params - Update parameters
    * @param params.uri - AT-URI of the hypercert to update
-   * @param params.updates - Fields to update
+   * @param params.updates - Fields to update (from actual record schema)
    * @param params.image - New image, or `null` to remove
    * @returns Promise resolving to update result
    */
-  update(params: { uri: string; updates: Partial<CreateHypercertParams>; image?: Blob | null }): Promise<UpdateResult>;
+  update(params: { uri: string; updates: UpdateHypercertParams; image?: Blob | null }): Promise<UpdateResult>;
 
   /**
    * Gets a hypercert by URI.
@@ -968,17 +997,26 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
   addAttachment(attachment: CreateAttachmentParams): Promise<UpdateResult>;
 
   /**
-   * Creates a contribution record.
+   * Adds contributors to an existing hypercert.
+   *
+   * This method creates or references contribution records and updates the hypercert
+   * to include the new contributors in its contributors array.
    *
    * @param params - Contribution parameters
-   * @returns Promise resolving to contribution record result
+   * @param params.hypercertUri - URI of the hypercert to add contributors to
+   * @param params.contributors - Array of contributor identities (DID, StrongRef, or create params)
+   * @param params.contributionDetails - Contribution details (inline role, StrongRef, or create params)
+   * @param params.weight - Optional contribution weight
+   * @param params.onProgress - Optional progress callback
+   * @returns Promise resolving to updated hypercert URI and CID
    */
   addContribution(params: {
-    hypercertUri?: string;
-    contributors: string[];
-    role: string;
-    description?: string;
-  }): Promise<CreateResult>;
+    hypercertUri: string;
+    contributors: Array<ContributorIdentityParams>;
+    contributionDetails: ContributionDetailsParams;
+    weight?: string;
+    onProgress?: (step: ProgressStep) => void;
+  }): Promise<UpdateResult>;
 
   /**
    * Creates a measurement record for a hypercert or other subject.
