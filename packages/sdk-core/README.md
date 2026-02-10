@@ -59,27 +59,25 @@ For local development and testing, you can use HTTP loopback URLs with `localhos
 // lib/atproto.ts
 import { createATProtoSDK } from "@hypercerts-org/sdk-core";
 
+const baseUrl = "http://127.0.0.1:3000";
+const scope = "atproto transition:generic";
+const redirectUri = `${baseUrl}/api/auth/callback`;
+
 const sdk = createATProtoSDK({
   oauth: {
-    // Use localhost for client_id (loopback client)
-    clientId: "http://localhost/",
-
-    // Use 127.0.0.1 with your app's port for redirect
-    redirectUri: "http://127.0.0.1:3000/api/auth/callback",
-
-    scope: "atproto",
-
-    // Serve JWKS from your app
-    jwksUri: "http://127.0.0.1:3000/.well-known/jwks.json",
+    // Client ID embeds all metadata as query parameters
+    clientId: `http://localhost?scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(redirectUri)}`,
+    // Redirect URI: MUST use 127.0.0.1 (not localhost)
+    redirectUri,
+    scope,
+    // JWKS URI: same origin as redirect URI
+    jwksUri: `${baseUrl}/jwks.json`,
 
     // Load from environment variable
     jwkPrivate: process.env.ATPROTO_JWK_PRIVATE!,
-
-    // Optional: suppress warnings
-    developmentMode: true,
   },
   // Optional: handle resolver for local testing
-  handleResolver: "http://localhost:2583",
+  handleResolver: "https://bsky.social",
   logger: console, // Enable debug logging
 });
 
@@ -128,6 +126,9 @@ ATPROTO_JWK_PRIVATE='{"keys":[{"kty":"EC","crv":"P-256",...}]}'
 ```
 
 ### Important Notes
+
+> **Embed scope and redirect in client_id**: For loopback clients, embed scope and redirect in client_id. Otherwise the
+> oauth complains about missing scope and redirect.
 
 > **Authorization Server Support**: The AT Protocol OAuth spec makes loopback support **optional**. Most AT Protocol
 > servers support loopback clients for development, but verify your target authorization server supports this feature.
