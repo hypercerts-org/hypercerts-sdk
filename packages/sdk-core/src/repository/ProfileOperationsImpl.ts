@@ -295,6 +295,74 @@ export class ProfileOperationsImpl implements ProfileOperations {
   }
 
   /**
+   * Upserts a profile record (creates if missing, updates if exists).
+   *
+   * @param collection - NSID of the collection (Bsky or Certified profile)
+   * @param params - Profile fields to set
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {ValidationError} if validation fails
+   * @throws {NetworkError} if operation fails
+   * @internal
+   */
+  private async upsertProfileRecord(
+    collection: ProfileCollection,
+    params: CreateBskyProfileParams | CreateCertifiedProfileParams,
+  ): Promise<UpdateResult> {
+    try {
+      // Check if profile exists
+      const existing = await this.agent.com.atproto.repo.getRecord({
+        repo: this.repoDid,
+        collection,
+        rkey: PROFILE_RKEY,
+      });
+
+      if (!existing.success) {
+        return this.createProfileRecord(collection, params);
+      }
+
+      const { avatar, banner, ...otherFields } = params;
+
+      const updatedProfile: Record<string, unknown> = {
+        ...existing.data.value,
+      };
+
+      for (const [key, value] of Object.entries(otherFields)) {
+        // ignotre these since profile already created
+        if (["$type", "createdAt"].includes(key)) continue;
+        if (value === null) {
+          delete updatedProfile[key];
+        } else if (value !== undefined) {
+          updatedProfile[key] = value;
+        }
+      }
+
+      await this.applyImageField(updatedProfile, "avatar", avatar, collection);
+      await this.applyImageField(updatedProfile, "banner", banner, collection);
+
+      this.validateProfileRecord(updatedProfile, collection);
+
+      const result = await this.agent.com.atproto.repo.putRecord({
+        repo: this.repoDid,
+        collection,
+        rkey: PROFILE_RKEY,
+        record: updatedProfile,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to upsert profile");
+      }
+
+      return { uri: result.data.uri, cid: result.data.cid };
+    } catch (error) {
+      if (error instanceof NetworkError || error instanceof ValidationError) throw error;
+      throw new NetworkError(
+        `Failed to upsert profile: ${error instanceof Error ? error.message : "Unknown error"}`,
+        error,
+      );
+    }
+  }
+
+  /**
    * Gets Bluesky profile (app.bsky.actor.profile).
    *
    * @returns Promise resolving to Bluesky profile data
@@ -332,18 +400,22 @@ export class ProfileOperationsImpl implements ProfileOperations {
    * Includes the user's handle fetched from getProfile(). If getProfile() fails,
    * handle is set to empty string.
    *
-   * @returns Promise resolving to Certified profile data
-   * @throws {NetworkError} If profile record cannot be fetched
+   * @returns Promise resolving to Certified profile data, or null if no profile exists
+   * @throws {NetworkError} If profile fetch fails due to network/server issues
    *
    * @example
    * ```typescript
    * const certifiedProfile = await repo.profile.getCertifiedProfile();
-   * console.log(certifiedProfile.displayName); // "Alice"
-   * console.log(certifiedProfile.pronouns); // "she/her"
-   * console.log(certifiedProfile.avatar); // "https://pds.../xrpc/..."
+   * if (certifiedProfile) {
+   *   console.log(certifiedProfile.displayName); // "Alice"
+   *   console.log(certifiedProfile.pronouns); // "she/her"
+   *   console.log(certifiedProfile.avatar); // "https://pds.../xrpc/..."
+   * } else {
+   *   console.log("User hasn't created a certified profile yet");
+   * }
    * ```
    */
-  async getCertifiedProfile(): Promise<CertifiedProfile> {
+  async getCertifiedProfile(): Promise<CertifiedProfile | null> {
     try {
       // Fetch handle from Bluesky profile (non-blocking)
       let handle = "";
@@ -365,7 +437,7 @@ export class ProfileOperationsImpl implements ProfileOperations {
       });
 
       if (!recordResult.success) {
-        throw new NetworkError("Failed to get Certified profile");
+        return null;
       }
 
       const profileRecord = recordResult.data.value as AppCertifiedActorProfile.Main;
@@ -388,6 +460,12 @@ export class ProfileOperationsImpl implements ProfileOperations {
         banner,
       };
     } catch (error) {
+      // Check for RecordNotFoundError from AT Protocol SDK
+      if (error && typeof error === "object" && "error" in error && error.error === "RecordNotFound") {
+        return null;
+      }
+
+      // Actual network/server errors still throw
       if (error instanceof NetworkError) throw error;
       throw new NetworkError(
         `Failed to get Certified profile: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -472,5 +550,54 @@ export class ProfileOperationsImpl implements ProfileOperations {
    */
   async updateCertifiedProfile(params: UpdateCertifiedProfileParams): Promise<UpdateResult> {
     return this.updateProfileRecord(CERTIFIED_PROFILE_NSID, params);
+  }
+
+  /**
+   * Upserts Bluesky profile (creates if missing, updates if exists).
+   *
+   * Automatically detects whether the profile exists and creates or updates accordingly.
+   * This is the recommended method for most use cases.
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} If operation fails
+   * @throws {ValidationError} If validation fails
+   *
+   * @example
+   * ```typescript
+   * // Works whether profile exists or not
+   * await repo.profile.upsertBskyProfile({
+   *   displayName: "Alice",
+   *   description: "Building on AT Protocol",
+   * });
+   * ```
+   */
+  async upsertBskyProfile(params: CreateBskyProfileParams): Promise<UpdateResult> {
+    return this.upsertProfileRecord(BSKY_PROFILE_NSID, params);
+  }
+
+  /**
+   * Upserts Certified profile (creates if missing, updates if exists).
+   *
+   * Automatically detects whether the profile exists and creates or updates accordingly.
+   * This is the recommended method for most use cases.
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} If operation fails
+   * @throws {ValidationError} If validation fails
+   *
+   * @example
+   * ```typescript
+   * // Works whether profile exists or not
+   * await repo.profile.upsertCertifiedProfile({
+   *   displayName: "Alice",
+   *   pronouns: "she/her",
+   *   website: "https://alice.com",
+   * });
+   * ```
+   */
+  async upsertCertifiedProfile(params: CreateCertifiedProfileParams): Promise<UpdateResult> {
+    return this.upsertProfileRecord(CERTIFIED_PROFILE_NSID, params);
   }
 }

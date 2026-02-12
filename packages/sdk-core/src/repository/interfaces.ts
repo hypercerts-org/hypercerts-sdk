@@ -715,18 +715,22 @@ export interface ProfileOperations {
    * Returns the profile record with avatar and banner converted to blob URLs.
    * Includes the user's handle fetched from getProfile().
    *
-   * @returns Promise resolving to Certified profile data
-   * @throws {NetworkError} If profile cannot be fetched
+   * @returns Promise resolving to Certified profile data, or null if no profile exists
+   * @throws {NetworkError} If profile fetch fails due to network/server issues
    *
    * @example
    * ```typescript
    * const certifiedProfile = await repo.profile.getCertifiedProfile();
-   * console.log(certifiedProfile.displayName); // "Alice"
-   * console.log(certifiedProfile.pronouns); // "she/her"
-   * console.log(certifiedProfile.avatar); // "https://pds.../xrpc/..."
+   * if (certifiedProfile) {
+   *   console.log(certifiedProfile.displayName); // "Alice"
+   *   console.log(certifiedProfile.pronouns); // "she/her"
+   *   console.log(certifiedProfile.avatar); // "https://pds.../xrpc/..."
+   * } else {
+   *   console.log("User hasn't created a certified profile yet");
+   * }
    * ```
    */
-  getCertifiedProfile(): Promise<CertifiedProfile>;
+  getCertifiedProfile(): Promise<CertifiedProfile | null>;
 
   /**
    * Creates Bluesky profile (app.bsky.actor.profile).
@@ -797,6 +801,50 @@ export interface ProfileOperations {
    * ```
    */
   updateCertifiedProfile(params: UpdateCertifiedProfileParams): Promise<UpdateResult>;
+
+  /**
+   * Upserts Bluesky profile (creates if missing, updates if exists).
+   *
+   * Automatically detects whether the profile exists and creates or updates accordingly.
+   * This is the recommended method for most use cases.
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} If operation fails
+   * @throws {ValidationError} If validation fails
+   *
+   * @example
+   * ```typescript
+   * // Works whether profile exists or not
+   * await repo.profile.upsertBskyProfile({
+   *   displayName: "Alice",
+   *   description: "Building on AT Protocol",
+   * });
+   * ```
+   */
+  upsertBskyProfile(params: CreateBskyProfileParams): Promise<UpdateResult>;
+
+  /**
+   * Upserts Certified profile (creates if missing, updates if exists).
+   *
+   * Automatically detects whether the profile exists and creates or updates accordingly.
+   * This is the recommended method for most use cases.
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} If operation fails
+   * @throws {ValidationError} If validation fails
+   *
+   * @example
+   * ```typescript
+   * // Works whether profile exists or not
+   * await repo.profile.upsertCertifiedProfile({
+   *   displayName: "Alice",
+   *   pronouns: "she/her",
+   * });
+   * ```
+   */
+  upsertCertifiedProfile(params: CreateCertifiedProfileParams): Promise<UpdateResult>;
 }
 
 /**

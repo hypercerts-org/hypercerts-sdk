@@ -82,6 +82,9 @@ export function useProfile(did?: string): UseProfileResult {
 
       const profileData = await repository.profile.getCertifiedProfile();
 
+      // Handle null case - user hasn't created certified profile
+      if (!profileData) return null;
+
       return {
         handle: profileData.handle ?? "",
         displayName: profileData.displayName,
@@ -95,19 +98,21 @@ export function useProfile(did?: string): UseProfileResult {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Update mutation
-  const updateMutation = useMutation({
+  // Save mutation (uses upsert - works for both create and update)
+  const saveMutation = useMutation({
     mutationFn: async (params: ProfileUpdate) => {
       if (!repository) {
         throw new Error("Repository not available");
       }
 
-      await repository.profile.updateCertifiedProfile({
-        displayName: params.displayName,
-        description: params.description,
-        avatar: params.avatar,
-        banner: params.banner,
-        website: params.website,
+      // Use upsert instead of update - works for first-time profile creation too
+      // Filter out null values for upsert (upsert uses create params, update uses null for deletion)
+      await repository.profile.upsertCertifiedProfile({
+        displayName: params.displayName ?? undefined,
+        description: params.description ?? undefined,
+        avatar: params.avatar ?? undefined,
+        banner: params.banner ?? undefined,
+        website: params.website ?? undefined,
       });
     },
     onSuccess: () => {
@@ -119,11 +124,11 @@ export function useProfile(did?: string): UseProfileResult {
   });
 
   // Callbacks
-  const update = useCallback(
+  const save = useCallback(
     async (params: ProfileUpdate) => {
-      await updateMutation.mutateAsync(params);
+      await saveMutation.mutateAsync(params);
     },
-    [updateMutation],
+    [saveMutation],
   );
 
   const refetch = useCallback(async () => {
@@ -134,8 +139,8 @@ export function useProfile(did?: string): UseProfileResult {
     profile: profileQuery.data ?? null,
     isLoading: profileQuery.isLoading || repoStatus === "loading",
     error: profileQuery.error ?? null,
-    update,
-    isUpdating: updateMutation.isPending,
+    save,
+    isSaving: saveMutation.isPending,
     refetch,
   };
 }

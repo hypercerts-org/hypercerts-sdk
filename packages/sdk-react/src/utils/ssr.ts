@@ -86,6 +86,9 @@ export function createSSRHelpers(sdk: ATProtoSDK, queryClient: QueryClient): SSR
             const repo = await sdk.repository(session);
             const profile = await repo.profile.getCertifiedProfile();
 
+            // Handle null case - user hasn't created certified profile
+            if (!profile) return null;
+
             return {
               handle: profile.handle ?? "",
               displayName: profile.displayName,
@@ -95,6 +98,7 @@ export function createSSRHelpers(sdk: ATProtoSDK, queryClient: QueryClient): SSR
               website: profile.website,
             };
           } catch {
+            // Only catch unexpected errors (session/network issues)
             return null;
           }
         },
