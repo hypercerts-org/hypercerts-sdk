@@ -731,12 +731,16 @@ await repo.profile.updateBskyProfile({
 #### Certified Profile
 
 ```typescript
-// Get Certified profile (with hypercerts-specific fields)
+// Get Certified profile (returns null if it doesn't exist)
 const certProfile = await repo.profile.getCertifiedProfile();
-console.log(certProfile.displayName);
-console.log(certProfile.pronouns); // "she/her"
-console.log(certProfile.website); // "https://alice.com"
-console.log(certProfile.avatar); // Blob URL: "https://pds.../xrpc/..."
+if (certProfile) {
+  console.log(certProfile.displayName);
+  console.log(certProfile.pronouns); // "she/her"
+  console.log(certProfile.website); // "https://alice.com"
+  console.log(certProfile.avatar); // Blob URL: "https://pds.../xrpc/..."
+} else {
+  console.log("User hasn't created a Certified profile yet");
+}
 
 // Create Certified profile
 await repo.profile.createCertifiedProfile({
@@ -753,72 +757,96 @@ await repo.profile.updateCertifiedProfile({
   pronouns: "they/them",
   website: null, // Remove website
 });
+
+// Upsert Certified profile (create if missing, update if exists)
+await repo.profile.upsertCertifiedProfile({
+  displayName: "Alice",
+  description: "Climate scientist",
+  pronouns: "she/her",
+  website: "https://alice.com",
+  avatar: avatarBlob,
+});
+
+// Upsert Bluesky profile
+await repo.profile.upsertBskyProfile({
+  displayName: "Alice",
+  description: "Impact researcher",
+  avatar: avatarBlob,
+});
 ```
 
 **Key Differences:**
 
-- **Bluesky**: Returns avatar/banner as CDN URLs (`https://cdn.bsky.app/...`)
+- **Bluesky**: Returns avatar/banner as CDN URLs (`https://cdn.bsky.app/...`), throws error if profile doesn't exist
 - **Certified**: Returns avatar/banner as PDS blob URLs (`https://pds.../xrpc/...`), includes `pronouns` (max 20
-  graphemes) and `website` fields
+  graphemes) and `website` fields, returns `null` if profile doesn't exist
+
+**When to use upsert vs create/update:**
+
+- Use `upsert*()` for convenience when you don't know if a profile exists (e.g., first-time setup flows)
+- Use `create*()` when you know the profile doesn't exist (e.g., after checking with `get*()`)
+- Use `update*()` when you know the profile exists and only want to modify specific fields
 
 ## API Reference
 
 ### Repository Operations
 
-| Operation                | Method                                           | PDS | SDS | Returns                      |
-| ------------------------ | ------------------------------------------------ | --- | --- | ---------------------------- |
-| **Records**              |                                                  |     |     |                              |
-| Create record            | `repo.records.create()`                          | ✅  | ✅  | `{ uri, cid }`               |
-| Get record               | `repo.records.get()`                             | ✅  | ✅  | Record data                  |
-| Update record            | `repo.records.update()`                          | ✅  | ✅  | `{ uri, cid }`               |
-| Delete record            | `repo.records.delete()`                          | ✅  | ✅  | void                         |
-| List records             | `repo.records.list()`                            | ✅  | ✅  | `{ records, cursor? }`       |
-| **Hypercerts**           |                                                  |     |     |                              |
-| Create hypercert         | `repo.hypercerts.create()`                       | ✅  | ✅  | `{ uri, cid, value }`        |
-| Get hypercert            | `repo.hypercerts.get()`                          | ✅  | ✅  | Full hypercert               |
-| Update hypercert         | `repo.hypercerts.update()`                       | ✅  | ✅  | `{ uri, cid }`               |
-| Delete hypercert         | `repo.hypercerts.delete()`                       | ✅  | ✅  | void                         |
-| List hypercerts          | `repo.hypercerts.list()`                         | ✅  | ✅  | `{ records, cursor? }`       |
-| Add contribution         | `repo.hypercerts.addContribution()`              | ✅  | ✅  | Contribution                 |
-| Add measurement          | `repo.hypercerts.addMeasurement()`               | ✅  | ✅  | Measurement                  |
-| **Collections**          |                                                  |     |     |                              |
-| Create collection        | `repo.hypercerts.createCollection()`             | ✅  | ✅  | `{ uri, cid, record }`       |
-| Get collection           | `repo.hypercerts.getCollection()`                | ✅  | ✅  | Collection data              |
-| List collections         | `repo.hypercerts.listCollections()`              | ✅  | ✅  | `{ records, cursor? }`       |
-| Update collection        | `repo.hypercerts.updateCollection()`             | ✅  | ✅  | `{ uri, cid }`               |
-| Delete collection        | `repo.hypercerts.deleteCollection()`             | ✅  | ✅  | void                         |
-| Attach location          | `repo.hypercerts.attachLocationToCollection()`   | ✅  | ✅  | `{ uri, cid }`               |
-| Remove location          | `repo.hypercerts.removeLocationFromCollection()` | ✅  | ✅  | void                         |
-| **Projects**             |                                                  |     |     |                              |
-| Create project           | `repo.hypercerts.createProject()`                | ✅  | ✅  | `{ uri, cid, record }`       |
-| Get project              | `repo.hypercerts.getProject()`                   | ✅  | ✅  | Project data                 |
-| List projects            | `repo.hypercerts.listProjects()`                 | ✅  | ✅  | `{ records, cursor? }`       |
-| Update project           | `repo.hypercerts.updateProject()`                | ✅  | ✅  | `{ uri, cid }`               |
-| Delete project           | `repo.hypercerts.deleteProject()`                | ✅  | ✅  | void                         |
-| Attach location          | `repo.hypercerts.attachLocationToProject()`      | ✅  | ✅  | `{ uri, cid }`               |
-| Remove location          | `repo.hypercerts.removeLocationFromProject()`    | ✅  | ✅  | void                         |
-| **Blobs**                |                                                  |     |     |                              |
-| Upload blob              | `repo.blobs.upload()`                            | ✅  | ✅  | `{ ref, mimeType, size }`    |
-| Get blob                 | `repo.blobs.get()`                               | ✅  | ✅  | Blob data                    |
-| **Profile**              |                                                  |     |     |                              |
-| Get Bluesky profile      | `repo.profile.getBskyProfile()`                  | ✅  | ❌  | BskyProfile (CDN URLs)       |
-| Create Bluesky profile   | `repo.profile.createBskyProfile()`               | ✅  | ❌  | `{ uri, cid }`               |
-| Update Bluesky profile   | `repo.profile.updateBskyProfile()`               | ✅  | ❌  | `{ uri, cid }`               |
-| Get Certified profile    | `repo.profile.getCertifiedProfile()`             | ✅  | ❌  | CertifiedProfile (blob URLs) |
-| Create Certified profile | `repo.profile.createCertifiedProfile()`          | ✅  | ❌  | `{ uri, cid }`               |
-| Update Certified profile | `repo.profile.updateCertifiedProfile()`          | ✅  | ❌  | `{ uri, cid }`               |
-| **Organizations**        |                                                  |     |     |                              |
-| Create org               | `repo.organizations.create()`                    | ❌  | ✅  | `{ did, name, ... }`         |
-| Get org                  | `repo.organizations.get()`                       | ❌  | ✅  | Organization                 |
-| List orgs                | `repo.organizations.list()`                      | ❌  | ✅  | `{ organizations, cursor? }` |
-| **Collaborators**        |                                                  |     |     |                              |
-| Grant access             | `repo.collaborators.grant()`                     | ❌  | ✅  | void                         |
-| Revoke access            | `repo.collaborators.revoke()`                    | ❌  | ✅  | void                         |
-| List collaborators       | `repo.collaborators.list()`                      | ❌  | ✅  | `{ collaborators, cursor? }` |
-| Check access             | `repo.collaborators.hasAccess()`                 | ❌  | ✅  | boolean                      |
-| Get role                 | `repo.collaborators.getRole()`                   | ❌  | ✅  | Role string                  |
-| Get permissions          | `repo.collaborators.getPermissions()`            | ❌  | ✅  | Permissions                  |
-| Transfer ownership       | `repo.collaborators.transferOwnership()`         | ❌  | ✅  | void                         |
+| Operation                | Method                                           | PDS | SDS | Returns                              |
+| ------------------------ | ------------------------------------------------ | --- | --- | ------------------------------------ |
+| **Records**              |                                                  |     |     |                                      |
+| Create record            | `repo.records.create()`                          | ✅  | ✅  | `{ uri, cid }`                       |
+| Get record               | `repo.records.get()`                             | ✅  | ✅  | Record data                          |
+| Update record            | `repo.records.update()`                          | ✅  | ✅  | `{ uri, cid }`                       |
+| Delete record            | `repo.records.delete()`                          | ✅  | ✅  | void                                 |
+| List records             | `repo.records.list()`                            | ✅  | ✅  | `{ records, cursor? }`               |
+| **Hypercerts**           |                                                  |     |     |                                      |
+| Create hypercert         | `repo.hypercerts.create()`                       | ✅  | ✅  | `{ uri, cid, value }`                |
+| Get hypercert            | `repo.hypercerts.get()`                          | ✅  | ✅  | Full hypercert                       |
+| Update hypercert         | `repo.hypercerts.update()`                       | ✅  | ✅  | `{ uri, cid }`                       |
+| Delete hypercert         | `repo.hypercerts.delete()`                       | ✅  | ✅  | void                                 |
+| List hypercerts          | `repo.hypercerts.list()`                         | ✅  | ✅  | `{ records, cursor? }`               |
+| Add contribution         | `repo.hypercerts.addContribution()`              | ✅  | ✅  | Contribution                         |
+| Add measurement          | `repo.hypercerts.addMeasurement()`               | ✅  | ✅  | Measurement                          |
+| **Collections**          |                                                  |     |     |                                      |
+| Create collection        | `repo.hypercerts.createCollection()`             | ✅  | ✅  | `{ uri, cid, record }`               |
+| Get collection           | `repo.hypercerts.getCollection()`                | ✅  | ✅  | Collection data                      |
+| List collections         | `repo.hypercerts.listCollections()`              | ✅  | ✅  | `{ records, cursor? }`               |
+| Update collection        | `repo.hypercerts.updateCollection()`             | ✅  | ✅  | `{ uri, cid }`                       |
+| Delete collection        | `repo.hypercerts.deleteCollection()`             | ✅  | ✅  | void                                 |
+| Attach location          | `repo.hypercerts.attachLocationToCollection()`   | ✅  | ✅  | `{ uri, cid }`                       |
+| Remove location          | `repo.hypercerts.removeLocationFromCollection()` | ✅  | ✅  | void                                 |
+| **Projects**             |                                                  |     |     |                                      |
+| Create project           | `repo.hypercerts.createProject()`                | ✅  | ✅  | `{ uri, cid, record }`               |
+| Get project              | `repo.hypercerts.getProject()`                   | ✅  | ✅  | Project data                         |
+| List projects            | `repo.hypercerts.listProjects()`                 | ✅  | ✅  | `{ records, cursor? }`               |
+| Update project           | `repo.hypercerts.updateProject()`                | ✅  | ✅  | `{ uri, cid }`                       |
+| Delete project           | `repo.hypercerts.deleteProject()`                | ✅  | ✅  | void                                 |
+| Attach location          | `repo.hypercerts.attachLocationToProject()`      | ✅  | ✅  | `{ uri, cid }`                       |
+| Remove location          | `repo.hypercerts.removeLocationFromProject()`    | ✅  | ✅  | void                                 |
+| **Blobs**                |                                                  |     |     |                                      |
+| Upload blob              | `repo.blobs.upload()`                            | ✅  | ✅  | `{ ref, mimeType, size }`            |
+| Get blob                 | `repo.blobs.get()`                               | ✅  | ✅  | Blob data                            |
+| **Profile**              |                                                  |     |     |                                      |
+| Get Bluesky profile      | `repo.profile.getBskyProfile()`                  | ✅  | ❌  | BskyProfile (CDN URLs)               |
+| Create Bluesky profile   | `repo.profile.createBskyProfile()`               | ✅  | ❌  | `{ uri, cid }`                       |
+| Update Bluesky profile   | `repo.profile.updateBskyProfile()`               | ✅  | ❌  | `{ uri, cid }`                       |
+| Upsert Bluesky profile   | `repo.profile.upsertBskyProfile()`               | ✅  | ❌  | `{ uri, cid }`                       |
+| Get Certified profile    | `repo.profile.getCertifiedProfile()`             | ✅  | ❌  | CertifiedProfile \| null (blob URLs) |
+| Create Certified profile | `repo.profile.createCertifiedProfile()`          | ✅  | ❌  | `{ uri, cid }`                       |
+| Update Certified profile | `repo.profile.updateCertifiedProfile()`          | ✅  | ❌  | `{ uri, cid }`                       |
+| Upsert Certified profile | `repo.profile.upsertCertifiedProfile()`          | ✅  | ❌  | `{ uri, cid }`                       |
+| **Organizations**        |                                                  |     |     |                                      |
+| Create org               | `repo.organizations.create()`                    | ❌  | ✅  | `{ did, name, ... }`                 |
+| Get org                  | `repo.organizations.get()`                       | ❌  | ✅  | Organization                         |
+| List orgs                | `repo.organizations.list()`                      | ❌  | ✅  | `{ organizations, cursor? }`         |
+| **Collaborators**        |                                                  |     |     |                                      |
+| Grant access             | `repo.collaborators.grant()`                     | ❌  | ✅  | void                                 |
+| Revoke access            | `repo.collaborators.revoke()`                    | ❌  | ✅  | void                                 |
+| List collaborators       | `repo.collaborators.list()`                      | ❌  | ✅  | `{ collaborators, cursor? }`         |
+| Check access             | `repo.collaborators.hasAccess()`                 | ❌  | ✅  | boolean                              |
+| Get role                 | `repo.collaborators.getRole()`                   | ❌  | ✅  | Role string                          |
+| Get permissions          | `repo.collaborators.getPermissions()`            | ❌  | ✅  | Permissions                          |
+| Transfer ownership       | `repo.collaborators.transferOwnership()`         | ❌  | ✅  | void                                 |
 
 ## Type System
 
