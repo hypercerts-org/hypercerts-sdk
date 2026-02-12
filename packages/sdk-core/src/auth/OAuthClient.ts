@@ -52,7 +52,7 @@ interface AuthorizeOptions {
  *     jwksUri: "https://my-app.com/.well-known/jwks.json",
  *     jwkPrivate: process.env.JWK_PRIVATE_KEY!,
  *   },
- *   servers: { pds: "https://bsky.social" },
+ *   handleResolver: "https://pds-eu-west4.test.certified.app",
  * });
  *
  * // Start authorization
@@ -146,7 +146,7 @@ export class OAuthClient {
       keyset,
       stateStore: this.createStateStoreAdapter(stateStore),
       sessionStore: this.createSessionStoreAdapter(sessionStore),
-      handleResolver: this.config.servers?.pds,
+      handleResolver: this.config.handleResolver,
       fetch: this.config.fetch ?? fetchWithTimeout,
     });
 

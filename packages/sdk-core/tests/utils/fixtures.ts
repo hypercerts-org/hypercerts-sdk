@@ -76,8 +76,8 @@ export function createTestConfig(overrides?: Partial<ATProtoSDKConfig>): ATProto
       jwkPrivate: createTestJWKSync(),
       ...overrides?.oauth,
     },
+    handleResolver: overrides?.handleResolver ?? "https://pds-eu-west4.test.certified.app",
     servers: {
-      pds: "https://bsky.social",
       ...overrides?.servers,
     },
     storage: overrides?.storage,
@@ -104,8 +104,8 @@ export async function createTestConfigAsync(overrides?: Partial<ATProtoSDKConfig
       jwkPrivate,
       ...overrides?.oauth,
     },
+    handleResolver: overrides?.handleResolver ?? "https://pds-eu-west4.test.certified.app",
     servers: {
-      pds: "https://bsky.social",
       ...overrides?.servers,
     },
     storage: overrides?.storage,

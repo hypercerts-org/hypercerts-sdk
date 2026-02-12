@@ -160,26 +160,11 @@ export const OAuthConfigSchema = z.object({
  * Zod schema for server URL configuration.
  *
  * @remarks
- * At least one server (PDS or SDS) should be configured for the SDK to be useful.
+ * Configure SDS here for collaborative operations.
+ * PDS URLs are auto-detected from the user's OAuth session and do not need configuration.
  * For local development, HTTP loopback URLs are allowed.
  */
 export const ServerConfigSchema = z.object({
-  /**
-   * Personal Data Server URL - the user's own AT Protocol server.
-   * This is the primary server for user data operations.
-   *
-   * @example Production
-   * ```typescript
-   * pds: "https://bsky.social"
-   * ```
-   *
-   * @example Local development
-   * ```typescript
-   * pds: "http://localhost:2583"
-   * ```
-   */
-  pds: urlOrLoopback.optional(),
-
   /**
    * Shared Data Server URL - for collaborative data storage.
    * Required for collaborator and organization operations.
@@ -227,6 +212,19 @@ export const TimeoutConfigSchema = z.object({
  */
 export const ATProtoSDKConfigSchema = z.object({
   oauth: OAuthConfigSchema,
+  /**
+   * URL string used for resolving AT Protocol handles to DIDs
+   * during the OAuth authorization flow. This can be any server that speaks
+   * the `com.atproto.identity.resolveHandle` XRPC method.
+   *
+   * If not provided, the `@atproto` library falls back to DNS-based handle resolution.
+   *
+   * @example
+   * ```typescript
+   * handleResolver: "https://pds-eu-west4.test.certified.app"
+   * ```
+   */
+  handleResolver: urlOrLoopback.optional(),
   servers: ServerConfigSchema.optional(),
   timeouts: TimeoutConfigSchema.optional(),
 });
@@ -247,9 +245,6 @@ export const ATProtoSDKConfigSchema = z.object({
  *     jwksUri: "https://my-app.com/.well-known/jwks.json",
  *     jwkPrivate: process.env.JWK_PRIVATE_KEY!,
  *   },
- *   servers: {
- *     pds: "https://bsky.social",
- *   },
  * };
  * ```
  *
@@ -257,8 +252,8 @@ export const ATProtoSDKConfigSchema = z.object({
  * ```typescript
  * const config: ATProtoSDKConfig = {
  *   oauth: { ... },
+ *   handleResolver: "https://bsky.social",
  *   servers: {
- *     pds: "https://bsky.social",
  *     sds: "https://sds.hypercerts.org",
  *   },
  *   storage: {
@@ -285,10 +280,29 @@ export interface ATProtoSDKConfig {
   oauth: z.infer<typeof OAuthConfigSchema>;
 
   /**
-   * Server URLs for PDS and SDS connections.
+   * URL string used for resolving AT Protocol handles to DIDs during the OAuth
+   * authorization flow. This can be any server that speaks the
+   * `com.atproto.identity.resolveHandle` XRPC method.
    *
-   * - **PDS**: Personal Data Server - user's own data storage
+   * If not provided, the `@atproto` library falls back to DNS-based handle resolution.
+   *
+   * Note: This is NOT the user's PDS URL. The user's PDS is auto-detected from
+   * the OAuth session during `callback()` and `restoreSession()`.
+   *
+   * @example
+   * ```typescript
+   * handleResolver: "https://pds-eu-west4.test.certified.app"
+   * ```
+   */
+  handleResolver?: string;
+
+  /**
+   * Server URLs for SDS connections.
+   *
    * - **SDS**: Shared Data Server - collaborative storage with access control
+   *
+   * Note: PDS (Personal Data Server) URLs are auto-detected from the user's
+   * OAuth session and do not need to be configured.
    */
   servers?: z.infer<typeof ServerConfigSchema>;
 

@@ -83,7 +83,7 @@ export function createSSRHelpers(sdk: ATProtoSDK, queryClient: QueryClient): SSR
             const session = await sdk.restoreSession(did);
             if (!session) return null;
 
-            const repo = sdk.repository(session);
+            const repo = await sdk.repository(session);
             const profile = await repo.profile.getCertifiedProfile();
 
             return {

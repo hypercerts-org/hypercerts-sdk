@@ -69,6 +69,14 @@ export function createMockSession(overrides: Partial<Session> = {}): Session {
         headers: { "Content-Type": "application/json" },
       });
     },
+    getTokenInfo: async () => ({
+      expiresAt: new Date(Date.now() + 3600 * 1000),
+      expired: false,
+      scope: "atproto" as const,
+      iss: "https://bsky.social",
+      aud: "https://bsky.social",
+      sub: "did:plc:test123",
+    }),
     ...overrides,
   } as unknown as Session;
 
@@ -102,12 +110,10 @@ export function createMockSession(overrides: Partial<Session> = {}): Session {
  * const sdk = new ATProtoSDK(config);
  * ```
  *
- * @example With custom PDS
+ * @example With custom handle resolver
  * ```typescript
  * const config = createTestConfig({
- *   servers: {
- *     pds: "https://custom-pds.example.com",
- *   },
+ *   handleResolver: "https://custom-resolver.example.com",
  * });
  * ```
  *
@@ -133,8 +139,8 @@ export function createTestConfig(overrides: Partial<ATProtoSDKConfig> = {}): ATP
         d: "test",
       }),
     },
+    handleResolver: "https://pds-eu-west4.test.certified.app",
     servers: {
-      pds: "https://bsky.social",
       sds: "https://sds.example.com",
     },
     ...overrides,

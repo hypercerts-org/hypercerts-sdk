@@ -84,8 +84,8 @@ export interface AuthorizeOptions {
  *     jwksUri: "https://my-app.com/.well-known/jwks.json",
  *     jwkPrivate: process.env.JWK_PRIVATE_KEY!,
  *   },
+ *   handleResolver: "https://bsky.social",
  *   servers: {
- *     pds: "https://bsky.social",
  *     sds: "https://sds.hypercerts.org",
  *   },
  * });
@@ -119,6 +119,8 @@ export class ATProtoSDK {
   private config: ATProtoSDKConfig;
   private logger?: ATProtoSDKConfig["logger"];
   private lexiconRegistry: LexiconRegistry;
+  /** Cache of session DID → PDS URL, populated during callback/restoreSession */
+  private sessionPdsMap = new Map<string, string>();
 
   /**
    * Creates a new ATProto SDK instance.
@@ -142,7 +144,7 @@ export class ATProtoSDK {
    *     jwksUri: "https://my-app.com/.well-known/jwks.json",
    *     jwkPrivate: privateKeyJwk,
    *   },
-   *   servers: { pds: "https://bsky.social" },
+   *   handleResolver: "https://pds-eu-west4.test.certified.app",
    * });
    * ```
    */
@@ -243,7 +245,19 @@ export class ATProtoSDK {
    * ```
    */
   async callback(params: URLSearchParams): Promise<Session> {
-    return this.oauthClient.callback(params);
+    const session = await this.oauthClient.callback(params);
+
+    // Cache the user's actual PDS URL from the token
+    try {
+      const tokenInfo = await session.getTokenInfo();
+      if (tokenInfo.aud) {
+        this.sessionPdsMap.set(session.did, tokenInfo.aud);
+      }
+    } catch {
+      this.logger?.warn?.("Could not resolve PDS URL from session token during callback");
+    }
+
+    return session;
   }
 
   /**
@@ -279,7 +293,21 @@ export class ATProtoSDK {
       throw new ValidationError("DID is required");
     }
 
-    return this.oauthClient.restore(did.trim());
+    const session = await this.oauthClient.restore(did.trim());
+
+    if (session) {
+      // Cache the user's actual PDS URL from the token
+      try {
+        const tokenInfo = await session.getTokenInfo();
+        if (tokenInfo.aud) {
+          this.sessionPdsMap.set(session.did, tokenInfo.aud);
+        }
+      } catch {
+        this.logger?.warn?.("Could not resolve PDS URL from session token during restore");
+      }
+    }
+
+    return session;
   }
 
   /**
@@ -358,14 +386,9 @@ export class ATProtoSDK {
     }
 
     try {
-      // Determine PDS URL from session or config
-      const pdsUrl = this.config.servers?.pds;
-      if (!pdsUrl) {
-        throw new ValidationError("PDS server URL not configured");
-      }
-
       // Call com.atproto.server.getSession endpoint using session's fetchHandler
-      // which automatically includes proper authorization with DPoP
+      // which automatically includes proper authorization with DPoP.
+      // The session internally routes this to the user's actual PDS via tokenSet.aud.
       const response = await session.fetchHandler("/xrpc/com.atproto.server.getSession", {
         method: "GET",
         headers: {
@@ -440,7 +463,7 @@ export class ATProtoSDK {
    * });
    * ```
    */
-  repository(session: Session, options?: RepositoryOptions): Repository {
+  async repository(session: Session, options?: RepositoryOptions): Promise<Repository> {
     if (!session) {
       throw new ValidationError("Session is required");
     }
@@ -462,11 +485,22 @@ export class ATProtoSDK {
       serverUrl = this.config.servers.sds;
       isSDS = true;
     } else if (options?.server === "pds" || !options?.server) {
-      // Use configured PDS (default)
-      if (!this.config.servers?.pds) {
-        throw new ValidationError("PDS server URL not configured");
+      // Auto-detect PDS from cached session info
+      const did = session.did || session.sub;
+      let cachedPds = this.sessionPdsMap.get(did);
+
+      if (!cachedPds) {
+        // Try to resolve on the fly before giving up
+        try {
+          cachedPds = await this.resolveSessionPds(session);
+        } catch {
+          throw new ValidationError(
+            "Could not determine PDS URL. Ensure the session has valid token info, " +
+              "or was created via SDK auth methods (callback/restoreSession).",
+          );
+        }
       }
-      serverUrl = this.config.servers.pds;
+      serverUrl = cachedPds;
       isSDS = false;
     } else {
       // Custom server string (treat as URL)
@@ -510,12 +544,52 @@ export class ATProtoSDK {
   }
 
   /**
-   * The configured PDS (Personal Data Server) URL.
+   * Resolves and caches the PDS URL from a session's token info.
    *
-   * @returns The PDS URL if configured, otherwise `undefined`
+   * This method is automatically called during `callback()` and `restoreSession()`.
+   * Use it manually if you have a session obtained outside the SDK's auth flow
+   * and need to enable PDS auto-detection for `repository()`.
+   *
+   * @param session - An authenticated OAuth session
+   * @returns The resolved PDS URL
+   * @throws {@link ValidationError} if the PDS URL cannot be determined from the session
+   *
+   * @example
+   * ```typescript
+   * // For sessions created outside the SDK auth flow
+   * const pdsUrl = await sdk.resolveSessionPds(session);
+   * const repo = sdk.repository(session); // Now works with auto-detected PDS
+   * ```
+   */
+  async resolveSessionPds(session: Session): Promise<string> {
+    try {
+      const tokenInfo = await session.getTokenInfo();
+      if (tokenInfo.aud) {
+        this.sessionPdsMap.set(session.did, tokenInfo.aud);
+        return tokenInfo.aud;
+      }
+      throw new ValidationError("Could not determine PDS URL from session token info");
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw new ValidationError("Could not determine PDS URL from session token info", error);
+    }
+  }
+
+  /**
+   * Gets the cached PDS URL for a specific DID, if available.
+   *
+   * @param did - The user's DID
+   * @returns The cached PDS URL, or `undefined` if not cached
+   *
+   * @deprecated Use `resolveSessionPds()` to resolve and cache PDS URLs.
+   * This getter is provided for backward compatibility with sdk-react.
    */
   get pdsUrl(): string | undefined {
-    return this.config.servers?.pds;
+    // Return the first cached PDS URL for backward compat with sdk-react
+    const firstEntry = this.sessionPdsMap.values().next();
+    return firstEntry.done ? undefined : firstEntry.value;
   }
 
   /**
@@ -542,7 +616,7 @@ export class ATProtoSDK {
  *
  * const sdk = createATProtoSDK({
  *   oauth: { ... },
- *   servers: { pds: "https://bsky.social" },
+ *   handleResolver: "https://bsky.social",
  * });
  * ```
  */

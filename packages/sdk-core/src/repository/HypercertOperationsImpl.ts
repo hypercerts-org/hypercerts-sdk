@@ -15,6 +15,7 @@ import { EventEmitter } from "eventemitter3";
 import type { LoggerInterface } from "../core/interfaces.js";
 import { NetworkError, ValidationError } from "../errors.js";
 import { sha256Hash } from "../lib/crypto.js";
+import { isValidUri } from "../lib/url-utils.js";
 import {
   HYPERCERT_COLLECTIONS,
   type CreateAttachmentParams,
@@ -1113,11 +1114,21 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    *
    * @param contentInput - Single content item or array (URI strings or Blobs)
    * @returns Promise resolving to array of URI refs or Blob refs
+   * @throws {@link ValidationError} if a string content item is not a valid URI
    * @throws {@link NetworkError} if blob upload fails
    * @internal
    */
   private async resolveAttachmentContent(contentInput: string | Blob | Array<string | Blob>) {
     const contentArray = Array.isArray(contentInput) ? contentInput : [contentInput];
+
+    // Validate that all string content items are valid URIs before resolving
+    for (const item of contentArray) {
+      if (typeof item === "string" && !isValidUri(item)) {
+        throw new ValidationError(
+          `Invalid URI: "${item}". Content must be a valid URI with a scheme (e.g., https://example.com)`,
+        );
+      }
+    }
 
     return await Promise.all(contentArray.map((item) => this.resolveUriOrBlob(item, "application/octet-stream")));
   }
