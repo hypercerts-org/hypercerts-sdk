@@ -151,6 +151,37 @@ describe("ProfileOperationsImpl", () => {
       expect(result!.displayName).toBe("Test");
     });
 
+    it("should pass through non-http URI schemes unchanged (e.g., ipfs://)", async () => {
+      mockAgent.getProfile!.mockResolvedValue({
+        success: true,
+        data: { handle: "test.bsky.social" },
+      });
+
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          value: {
+            $type: CERTIFIED_PROFILE_COLLECTION,
+            createdAt: "2024-01-01T00:00:00.000Z",
+            displayName: "Test",
+            avatar: {
+              $type: "org.hypercerts.defs#uri",
+              uri: "ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
+            },
+            banner: {
+              $type: "org.hypercerts.defs#uri",
+              uri: "ar://some-arweave-tx-id",
+            },
+          },
+        },
+      });
+
+      const result = await profileOps.getCertifiedProfile();
+      expect(result).not.toBeNull();
+      expect(result!.avatar).toBe("ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG");
+      expect(result!.banner).toBe("ar://some-arweave-tx-id");
+    });
+
     it("should return empty string for handle if getProfile fails", async () => {
       mockAgent.getProfile!.mockRejectedValue(new Error("Network error"));
 

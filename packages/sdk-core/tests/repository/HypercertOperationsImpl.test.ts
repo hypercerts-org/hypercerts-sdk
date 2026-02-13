@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { Agent } from "@atproto/api";
+import { BlobRef, type Agent } from "@atproto/api";
 import { HypercertOperationsImpl } from "../../src/repository/HypercertOperationsImpl.js";
 import { NetworkError, ValidationError } from "../../src/core/errors.js";
 import type {
@@ -110,9 +110,10 @@ describe("HypercertOperationsImpl", () => {
       expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledTimes(2);
     });
 
-    it("should upload image and include in hypercert", async () => {
+    it("should upload image and include in hypercert with correct wrapper", async () => {
       const imageBlob = new Blob(["image data"], { type: "image/png" });
-      mockBlobs.upload.mockResolvedValue(createMockBlobRef());
+      const mockBlobRef = createMockBlobRef({ mimeType: "image/png", size: 1024 });
+      mockBlobs.upload.mockResolvedValue(mockBlobRef);
 
       await hypercertOps.create({
         ...validParams,
@@ -120,6 +121,15 @@ describe("HypercertOperationsImpl", () => {
       });
 
       expect(mockBlobs.upload).toHaveBeenCalledWith(imageBlob);
+
+      // Verify the hypercert record (second createRecord call)
+      const hypercertCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(hypercertCall.record.image).toEqual({
+        $type: "org.hypercerts.defs#smallImage",
+        image: mockBlobRef,
+      });
+      expect(hypercertCall.record.image.$type).toBe("org.hypercerts.defs#smallImage");
+      expect(hypercertCall.record.image.image).toBeInstanceOf(BlobRef);
     });
 
     it("should include shortDescription when provided", async () => {
@@ -895,9 +905,10 @@ describe("HypercertOperationsImpl", () => {
       expect(putCall.record.rights).toEqual({ uri: "at://rights", cid: "rights-cid" });
     });
 
-    it("should upload new image", async () => {
+    it("should upload new image with correct wrapper", async () => {
       const imageBlob = new Blob(["new image"], { type: "image/png" });
-      mockBlobs.upload.mockResolvedValue(createMockBlobRef());
+      const mockBlobRef = createMockBlobRef({ mimeType: "image/png", size: 2048 });
+      mockBlobs.upload.mockResolvedValue(mockBlobRef);
 
       await hypercertOps.update({
         uri: "at://did:plc:test/org.hypercerts.claim.record/abc123",
@@ -906,6 +917,15 @@ describe("HypercertOperationsImpl", () => {
       });
 
       expect(mockBlobs.upload).toHaveBeenCalledWith(imageBlob);
+
+      // Verify the putRecord call
+      const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(putCall.record.image).toEqual({
+        $type: "org.hypercerts.defs#smallImage",
+        image: mockBlobRef,
+      });
+      expect(putCall.record.image.$type).toBe("org.hypercerts.defs#smallImage");
+      expect(putCall.record.image.image).toBeInstanceOf(BlobRef);
     });
 
     it("should remove image when set to null", async () => {
@@ -1037,16 +1057,14 @@ describe("HypercertOperationsImpl", () => {
 
       // Check the location record that was created
       const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-      expect(call.record.location).toMatchObject({
-        $type: "org.hypercerts.defs#smallBlob", // Your code wraps it in smallBlob
-        blob: {
-          // The actual blob data is nested here
-          $type: "blob",
-          mimeType: "application/geo+json",
-          size: 100,
-        },
-      });
-      // Check that ref exists and has the right structure
+
+      // Verify the location wrapper type
+      expect(call.record.location.$type).toBe("org.hypercerts.defs#smallBlob");
+
+      // Verify blob is a BlobRef instance with correct properties
+      expect(call.record.location.blob).toBeInstanceOf(BlobRef);
+      expect(call.record.location.blob.mimeType).toBe("application/geo+json");
+      expect(call.record.location.blob.size).toBe(100);
       expect(call.record.location.blob.ref).toBeDefined();
     });
 
@@ -1683,10 +1701,14 @@ describe("HypercertOperationsImpl", () => {
 
       // Verify content array with blob
       expect(call.record.content).toHaveLength(1);
-      expect(call.record.content[0]).toMatchObject({
-        $type: "org.hypercerts.defs#smallBlob",
-        blob: { $type: "blob", mimeType: "application/pdf", size: 100 },
-      });
+
+      // Verify content wrapper type
+      expect(call.record.content[0].$type).toBe("org.hypercerts.defs#smallBlob");
+
+      // Verify blob is a BlobRef instance with correct properties
+      expect(call.record.content[0].blob).toBeInstanceOf(BlobRef);
+      expect(call.record.content[0].blob.mimeType).toBe("application/pdf");
+      expect(call.record.content[0].blob.size).toBe(100);
       expect(call.record.content[0].blob.ref).toBeDefined();
     });
 
@@ -1742,10 +1764,14 @@ describe("HypercertOperationsImpl", () => {
         $type: "org.hypercerts.defs#uri",
         uri: "https://example.com/report.pdf",
       });
-      expect(call.record.content[1]).toMatchObject({
-        $type: "org.hypercerts.defs#smallBlob",
-        blob: { $type: "blob", mimeType: "application/pdf", size: 100 },
-      });
+
+      // Verify blob content wrapper type
+      expect(call.record.content[1].$type).toBe("org.hypercerts.defs#smallBlob");
+
+      // Verify blob is a BlobRef instance with correct properties
+      expect(call.record.content[1].blob).toBeInstanceOf(BlobRef);
+      expect(call.record.content[1].blob.mimeType).toBe("application/pdf");
+      expect(call.record.content[1].blob.size).toBe(100);
       expect(call.record.content[1].blob.ref).toBeDefined();
     });
 
@@ -3167,10 +3193,14 @@ describe("HypercertOperationsImpl", () => {
 
         expect(mockBlobs.upload).toHaveBeenCalledWith(avatarBlob);
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-        expect(createCall.record.avatar).toMatchObject({
-          $type: "org.hypercerts.defs#smallImage",
-          image: { $type: "blob", mimeType: "image/png", size: 100 },
-        });
+
+        // Verify wrapper type
+        expect(createCall.record.avatar.$type).toBe("org.hypercerts.defs#smallImage");
+
+        // Verify image is a BlobRef instance with correct properties
+        expect(createCall.record.avatar.image).toBeInstanceOf(BlobRef);
+        expect(createCall.record.avatar.image.mimeType).toBe("image/png");
+        expect(createCall.record.avatar.image.size).toBe(100);
         expect(createCall.record.avatar.image.ref).toBeDefined();
       });
 
@@ -3186,10 +3216,14 @@ describe("HypercertOperationsImpl", () => {
 
         expect(mockBlobs.upload).toHaveBeenCalledWith(bannerBlob);
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-        expect(createCall.record.banner).toMatchObject({
-          $type: "org.hypercerts.defs#largeImage",
-          image: { $type: "blob", mimeType: "image/jpeg", size: 200 },
-        });
+
+        // Verify wrapper type
+        expect(createCall.record.banner.$type).toBe("org.hypercerts.defs#largeImage");
+
+        // Verify image is a BlobRef instance with correct properties
+        expect(createCall.record.banner.image).toBeInstanceOf(BlobRef);
+        expect(createCall.record.banner.image.mimeType).toBe("image/jpeg");
+        expect(createCall.record.banner.image.size).toBe(200);
         expect(createCall.record.banner.image.ref).toBeDefined();
       });
 
@@ -3690,10 +3724,14 @@ describe("HypercertOperationsImpl", () => {
 
         expect(mockBlobs.upload).toHaveBeenCalledWith(newAvatar);
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
-        expect(putCall.record.avatar).toMatchObject({
-          $type: "org.hypercerts.defs#smallImage",
-          image: { $type: "blob", mimeType: "image/png", size: 150 },
-        });
+
+        // Verify wrapper type
+        expect(putCall.record.avatar.$type).toBe("org.hypercerts.defs#smallImage");
+
+        // Verify image is a BlobRef instance with correct properties
+        expect(putCall.record.avatar.image).toBeInstanceOf(BlobRef);
+        expect(putCall.record.avatar.image.mimeType).toBe("image/png");
+        expect(putCall.record.avatar.image.size).toBe(150);
         expect(putCall.record.avatar.image.ref).toBeDefined();
       });
 

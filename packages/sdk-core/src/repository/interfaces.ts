@@ -700,8 +700,13 @@ export type CreateBskyProfileParams = OverrideProperties<
   { avatar?: Blob; banner?: Blob }
 >;
 
+/**
+ * Parameters for updating Bluesky profile (app.bsky.actor.profile).
+ * All fields are optional and nullable - pass null to delete a field.
+ * System fields ($type, createdAt) cannot be modified.
+ */
 export type UpdateBskyProfileParams = OverrideProperties<
-  Nullable<Except<AppBskyActorProfile.Record, "$type" | "createdAt">>,
+  Nullable<Except<CreateBskyProfileParams, "$type" | "createdAt">>,
   { avatar?: Blob | null; banner?: Blob | null }
 >;
 
@@ -715,8 +720,13 @@ export type CreateCertifiedProfileParams = OverrideProperties<
   { avatar?: Blob; banner?: Blob }
 >;
 
+/**
+ * Parameters for updating Certified profile (app.certified.actor.profile).
+ * All fields are optional and nullable - pass null to delete a field.
+ * System fields ($type, createdAt) cannot be modified.
+ */
 export type UpdateCertifiedProfileParams = OverrideProperties<
-  Nullable<Except<AppCertifiedActorProfile.Main, "$type" | "createdAt">>,
+  Nullable<Except<CreateCertifiedProfileParams, "$type" | "createdAt">>,
   { avatar?: Blob | null; banner?: Blob | null }
 >;
 

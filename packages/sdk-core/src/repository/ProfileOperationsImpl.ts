@@ -12,6 +12,7 @@ import type { Agent, AppBskyActorDefs } from "@atproto/api";
 import { NetworkError, ValidationError } from "../core/errors.js";
 import { HYPERCERT_COLLECTIONS } from "../lexicons.js";
 import { extractCidFromImage, getBlobUrl } from "../lib/blob-url.js";
+import { isValidUri } from "../lib/url-utils.js";
 import { AppCertifiedActorProfile, type HypercertImageRecord } from "../services/hypercerts/types.js";
 import { validate } from "@hypercerts-org/lexicon";
 import type {
@@ -108,7 +109,7 @@ export class ProfileOperationsImpl implements ProfileOperations {
     if (!result) {
       throw new Error("Unable to extract CID or URI from image record");
     }
-    if (result.startsWith("http://") || result.startsWith("https://")) {
+    if (isValidUri(result)) {
       return result;
     }
 
