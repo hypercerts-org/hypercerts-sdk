@@ -328,7 +328,7 @@ export class ProfileOperationsImpl implements ProfileOperations {
       };
 
       for (const [key, value] of Object.entries(otherFields)) {
-        // ignotre these since profile already created
+        // ignore these since profile has already created
         if (["$type", "createdAt"].includes(key)) continue;
         if (value === null) {
           delete updatedProfile[key];

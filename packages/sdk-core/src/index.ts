@@ -100,6 +100,9 @@ export type {
   CreateContributionDetailsParams,
   ContributorIdentityParams,
   CreateContributorInformationParams,
+  ResolvedContributorIdentity,
+  CreateCertifiedProfileParams,
+  UpdateCertifiedProfileParams,
 } from "./repository/interfaces.js";
 
 // ============================================================================
@@ -161,6 +164,7 @@ export type {
   BadgeDefinition,
   BadgeResponse,
   FundingReceipt,
+  CertifiedProfileRecord,
   // SDK-specific types
   HypercertAttachment,
   HypercertImage,
@@ -175,9 +179,6 @@ export type {
   UpdateAttachmentParams,
   AttachmentParams,
 } from "./services/hypercerts/types.js";
-
-// Re-export ATProto lexicon types
-export type { JsonBlobRef } from "./services/hypercerts/types.js";
 
 // Errors
 export {

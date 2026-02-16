@@ -34,7 +34,6 @@ import {
   type HypercertLocation,
   type HypercertMeasurement,
   type HypercertRights,
-  type JsonBlobRef,
   type OrgHypercertsDefs,
   type RefUri,
   type StrongRef,
@@ -141,17 +140,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         this.logger?.error(`Error in progress handler: ${err instanceof Error ? err.message : "Unknown"}`);
       }
     }
-  }
-
-  /**
-   * Converts BlobRef to JsonBlobRef format.
-   *
-   * @param blobRef - BlobRef from blob upload
-   * @returns JsonBlobRef formatted for records
-   * @internal
-   */
-  private blobToJsonRef(blobRef: BlobRef): JsonBlobRef {
-    return blobRef.ipld();
   }
 
   /**
@@ -336,7 +324,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error?.message}`);
     }
 
-    // if its a blob ref guarateed to have ref and a .toString method
+    // if its a blob ref guaranteed to have ref and a .toString method
     let imageRef: string | undefined;
     if (imageBlobRef) {
       imageRef = imageBlobRef.ref.toString();
@@ -1606,7 +1594,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           // URI string - wrap in typed object
           resolvedImage = { $type: "org.hypercerts.defs#uri", uri: image } as HypercertContributorInformation["image"];
         } else {
-          // JsonBlobRef from upload - wrap in smallImage
+          // BlobRef from upload - wrap in smallImage
           resolvedImage = {
             $type: "org.hypercerts.defs#smallImage",
             image: image,

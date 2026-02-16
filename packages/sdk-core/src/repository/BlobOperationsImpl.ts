@@ -154,10 +154,7 @@ export class BlobOperationsImpl implements BlobOperations {
    * @throws {@link NetworkError} if the upload fails
    * @internal
    */
-  private async uploadViaSDS(
-    data: Uint8Array,
-    encoding: string,
-  ): Promise<BlobRef> {
+  private async uploadViaSDS(data: Uint8Array, encoding: string): Promise<BlobRef> {
     const url = `/xrpc/com.sds.repo.uploadBlob?repo=${encodeURIComponent(this.repoDid)}`;
     const response = await this.agent.fetchHandler(url, {
       method: "POST",
@@ -171,9 +168,9 @@ export class BlobOperationsImpl implements BlobOperations {
       throw new NetworkError(`SDS blob upload failed: ${response.statusText}`);
     }
 
-    const result = (await response.json()) 
-    
-    return result.blob
+    const result = await response.json();
+
+    return result.blob;
   }
 
   /**

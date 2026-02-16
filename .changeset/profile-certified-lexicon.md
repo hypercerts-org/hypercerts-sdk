@@ -16,6 +16,22 @@ The profile API has been completely redesigned to support two profile types:
   - ❌ `profile.create(params)`
   - ❌ `profile.update(params)`
 
+- **Removed deprecated profile types:**
+  - ❌ `HypercertProfile` - Use `CertifiedProfileRecord` instead
+  - ❌ `CreateHypercertProfileParams` - Use `CreateCertifiedProfileParams` instead
+  - ❌ `UpdateHypercertProfileParams` - Use `UpdateCertifiedProfileParams` instead
+  - ❌ `HypercertProfileParams` - Use specific create/update types instead
+  - ❌ `CreateProfileParams` - Use `CreateCertifiedProfileParams` instead
+
+- **Removed unused type export:**
+  - ❌ `JsonBlobRef` - No longer used in SDK. This type was removed because:
+    - It was too "snowflaky" - required converting `BlobRef` instances to JSON format unnecessarily
+    - The actual `BlobRef` object works perfectly fine for all use cases
+    - It created flaky tests where we manually created mock JSON objects that weren't representative of actual
+      `JsonBlobRef` values
+    - Internal implementation now uses `BlobRef` instances directly throughout
+    - Users who need this type for advanced use cases can import it directly from `@atproto/lexicon`
+
 - **Added profile-specific methods:**
   - ✅ `profile.getBskyProfile()` - Get Bluesky profile (app.bsky.actor.profile)
   - ✅ `profile.createBskyProfile(params)` - Create Bluesky profile
@@ -51,8 +67,10 @@ The profile API has been completely redesigned to support two profile types:
 - **New types:**
   - `BskyProfile` - Type for Bluesky profiles (alias for `AppBskyActorDefs.ProfileViewDetailed`)
   - `CertifiedProfile` - Type for Certified profiles
+  - `CertifiedProfileRecord` - Record type for Certified profiles (replaces `HypercertProfile`)
   - `CreateBskyProfileParams`, `UpdateBskyProfileParams`
-  - `CreateCertifiedProfileParams`, `UpdateCertifiedProfileParams`
+  - `CreateCertifiedProfileParams`, `UpdateCertifiedProfileParams` (replace `CreateHypercertProfileParams`,
+    `UpdateHypercertProfileParams`)
 
 **Migration Guide:**
 
@@ -89,6 +107,13 @@ if (profile) {
 } else {
   console.log("User hasn't created a profile yet");
 }
+
+// Type migrations
+import type {
+  CertifiedProfileRecord, // was: HypercertProfile
+  CreateCertifiedProfileParams, // was: CreateHypercertProfileParams
+  UpdateCertifiedProfileParams, // was: UpdateHypercertProfileParams
+} from "@hypercerts-org/sdk-core/types";
 ```
 
 **React SDK (`@hypercerts-org/sdk-react`):**

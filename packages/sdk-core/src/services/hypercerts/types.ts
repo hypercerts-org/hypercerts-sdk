@@ -8,7 +8,6 @@
 
 // Re-export BlobRef from ATProto lexicon
 export { BlobRef } from "@atproto/lexicon";
-export type { JsonBlobRef } from "@atproto/lexicon";
 import type { Except, OverrideProperties, SetOptional } from "type-fest";
 
 // Re-export everything from lexicon package
@@ -191,84 +190,10 @@ export type HypercertAttachment = OrgHypercertsClaimAttachment.Main;
 export type HypercertCollection = OrgHypercertsClaimCollection.Main;
 
 /**
- * @deprecated Use CertifiedProfileRecord instead. This type alias will be removed in a future version.
- */
-export type HypercertProfile = AppCertifiedActorProfile.Main;
-
-/**
  * Certified actor profile record (app.certified.actor.profile).
  * Extended profile with additional fields beyond Bluesky profiles.
  */
 export type CertifiedProfileRecord = AppCertifiedActorProfile.Main;
-
-// ============================================================================
-// Profile SDK Input Types
-// ============================================================================
-
-/**
- * SDK input parameters for creating a hypercert profile.
- *
- * Derived from lexicon type with $type and createdAt optional.
- * avatar/banner accept HypercertImage (string URI or Blob) for user convenience.
- *
- * @example Basic profile creation
- * ```typescript
- * const params: CreateHypercertProfileParams = {
- *   displayName: "Alice",
- *   description: "Building impact certificates",
- *   pronouns: "she/her",
- *   website: "https://example.com",
- * };
- * ```
- *
- * @example Profile with avatar
- * ```typescript
- * const avatarBlob = new Blob([avatarData], { type: "image/png" });
- * const params: CreateHypercertProfileParams = {
- *   displayName: "Alice",
- *   avatar: avatarBlob,
- * };
- * ```
- */
-export type CreateHypercertProfileParams = OverrideProperties<
-  SetOptional<HypercertProfile, "$type" | "createdAt">,
-  {
-    avatar?: HypercertImage;
-    banner?: HypercertImage;
-  }
->;
-
-/**
- * SDK input parameters for updating a hypercert profile.
- * All fields optional. Pass null to remove a field.
- *
- * @example Update display name
- * ```typescript
- * const params: UpdateHypercertProfileParams = {
- *   displayName: "New Name",
- * };
- * ```
- *
- * @example Remove a field
- * ```typescript
- * const params: UpdateHypercertProfileParams = {
- *   description: null,  // Removes description
- * };
- * ```
- */
-export type UpdateHypercertProfileParams = OverrideProperties<
-  Partial<CreateHypercertProfileParams>,
-  {
-    avatar?: HypercertImage | null;
-    banner?: HypercertImage | null;
-  }
->;
-
-/**
- * Union type for all profile parameter variants.
- * Used when a function can accept either create or update params.
- */
-export type HypercertProfileParams = CreateHypercertProfileParams | UpdateHypercertProfileParams;
 
 /**
  * Collection item with optional weight.
@@ -774,10 +699,5 @@ export type UpdateAttachmentParams = Partial<CreateAttachmentParams>;
  * - Full attachment params object to create new attachment
  */
 export type AttachmentParams = RefUri | CreateAttachmentParams;
-
-/**
- * @deprecated Use CreateCertifiedProfileParams instead. This type will be removed in a future version.
- */
-export type CreateProfileParams = SetOptional<AppCertifiedActorProfile.Main, "createdAt" | "$type">;
 
 export type CreateCertifiedProfileParams = SetOptional<AppCertifiedActorProfile.Main, "createdAt" | "$type">;
