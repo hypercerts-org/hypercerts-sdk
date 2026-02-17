@@ -154,20 +154,20 @@ packages:
   '@atcute/atproto@3.1.10':
     resolution: {integrity: sha512-+GKZpOc0PJcdWMQEkTfg/rSNDAAHxmAUGBl60g2az15etqJn5WaUPNGFE2sB7hKpwi5Ue2h/L0OacINcE/JDDQ==}
 
-  '@atcute/bluesky@3.2.15':
-    resolution: {integrity: sha512-H4RW3WffjfdKvOZ9issEUQnuSR4KfuAwwJnYu0fclA9VDa99JTJ+pa8tTl9lFeBV9DINtWJAx7rdIbICoVCstQ==}
+  '@atcute/bluesky@3.2.17':
+    resolution: {integrity: sha512-Li+RsPkcRNC6AnNlqOGnlmAcjSwBdXIKFubJL1nwACDngKNXG4ooGL5cvzeekdDEfHmtFhS/tyZNaUx9QXYEUw==}
 
-  '@atcute/leaflet@1.0.16':
-    resolution: {integrity: sha512-YS0+93C+bG2AlB1M5Cvf8v7GMnP/67l5G+RUQQltXydqugcAEW6ZgasXN/ZlsTJJl5tdWBTS4HsRYwdS576SkA==}
+  '@atcute/leaflet@1.0.17':
+    resolution: {integrity: sha512-aCykf/vCRY19B8S42VEoyIvUR2CuOsH/RQcDF8u8rHZvmGfc4qgcAAxriHxiVrlinLNhxzhzuliq2avVxHiv8g==}
 
-  '@atcute/lexicons@1.2.6':
-    resolution: {integrity: sha512-s76UQd8D+XmHIzrjD9CJ9SOOeeLPHc+sMmcj7UFakAW/dDFXc579fcRdRfuUKvXBL5v1Gs2VgDdlh/IvvQZAwA==}
+  '@atcute/lexicons@1.2.7':
+    resolution: {integrity: sha512-gCvkSMI1F1zx7xXa59iPiSKMH3L5Hga6iurGqQjaQbE2V/np/2QuDqQzt96TNbWfaFAXE9f9oY+0z3ljf/bweA==}
 
-  '@atcute/uint8array@1.0.6':
-    resolution: {integrity: sha512-ucfRBQc7BFT8n9eCyGOzDHEMKF/nZwhS2pPao4Xtab1ML3HdFYcX2DM1tadCzas85QTGxHe5urnUAAcNKGRi9A==}
+  '@atcute/uint8array@1.1.0':
+    resolution: {integrity: sha512-JtHXIVW6LPU9FMWp7SgE4HbUs3uV2WdfkK/2RWdEGjr4EgMV50P3FdU6fPeGlTfDNBJVYMIsuD2wwaKRPV/Aqg==}
 
-  '@atcute/util-text@0.0.1':
-    resolution: {integrity: sha512-t1KZqvn0AYy+h2KcJyHnKF9aEqfRfMUmyY8j1ELtAEIgqN9CxINAjxnoRCJIFUlvWzb+oY3uElQL/Vyk3yss0g==}
+  '@atcute/util-text@1.1.0':
+    resolution: {integrity: sha512-34G9KD5Z9f7oEdFpZOmqrMnU86p8ne6LlxJowfZzKNszRcl1GH+FtEPh3N1woelJT2SkPXMK2anwT8DESTluwA==}
 
   '@atproto-labs/did-resolver@0.2.4':
     resolution: {integrity: sha512-sbXxBnAJWsKv/FEGG6a/WLz7zQYUr1vA2TXvNnPwwJQJCjPwEJMOh1vM22wBr185Phy7D2GD88PcRokn7eUVyw==}
@@ -201,8 +201,8 @@ packages:
   '@atproto/api@0.17.7':
     resolution: {integrity: sha512-V+OJBZq9chcrD21xk1bUa6oc5DSKfQj5DmUPf5rmZncqL1w9ZEbS38H5cMyqqdhfgo2LWeDRdZHD0rvNyJsIaw==}
 
-  '@atproto/common-web@0.4.13':
-    resolution: {integrity: sha512-TewRUyB/dVJ5PtI3QmJzEgT3wDsvpnLJ+48hPl+LuUueJPamZevXKJN6dFjtbKAMFRnl2bKfdsf79qwvdSaLKQ==}
+  '@atproto/common-web@0.4.16':
+    resolution: {integrity: sha512-Ufvaff5JgxUyUyTAG0/3o7ltpy3lnZ1DvLjyAnvAf+hHfiK7OMQg+8byr+orN+KP9MtIQaRTsCgYPX+PxMKUoA==}
 
   '@atproto/common-web@0.4.5':
     resolution: {integrity: sha512-Tx0xUafLm3vRvOQpbBl5eb9V8xlC7TaRXs6dAulHRkDG3Kb+P9qn3pkDteq+aeMshbVXbVa1rm3Ok4vFyuoyYA==}
@@ -222,14 +222,14 @@ packages:
   '@atproto/lex-data@0.0.1':
     resolution: {integrity: sha512-DrS/8cQcQs3s5t9ELAFNtyDZ8/PdiCx47ALtFEP2GnX2uCBHZRkqWG7xmu6ehjc787nsFzZBvlnz3T/gov5fGA==}
 
-  '@atproto/lex-data@0.0.9':
-    resolution: {integrity: sha512-1slwe4sG0cyWtsq16+rBoWIxNDqGPkkvN+PV6JuzA7dgUK9bjUmXBGQU4eZlUPSS43X1Nhmr/9VjgKmEzU9vDw==}
+  '@atproto/lex-data@0.0.11':
+    resolution: {integrity: sha512-4+KTtHdqwlhiTKA7D4SACea4jprsNpCQsNALW09wsZ6IHhCDGO5tr1cmV+QnLYe3G3mu1E1yXHXbPUHrUUDT/A==}
 
   '@atproto/lex-json@0.0.1':
     resolution: {integrity: sha512-ivcF7+pDRuD/P97IEKQ/9TruunXj0w58Khvwk3M6psaI5eZT6LRsRZ4cWcKaXiFX4SHnjy+x43g0f7pPtIsERg==}
 
-  '@atproto/lex-json@0.0.9':
-    resolution: {integrity: sha512-Q2v1EVZcnd+ndyZj1r2UlGikA7q6It24CFPLbxokcf5Ba4RBupH8IkkQX7mqUDSRWPgQdmZYIdW9wUln+MKDqw==}
+  '@atproto/lex-json@0.0.11':
+    resolution: {integrity: sha512-2IExAoQ4KsR5fyPa1JjIvtR316PvdgRH/l3BVGLBd3cSxM3m5MftIv1B6qZ9HjNiK60SgkWp0mi9574bTNDhBQ==}
 
   '@atproto/lexicon@0.5.2':
     resolution: {integrity: sha512-lRmJgMA8f5j7VB5Iu5cp188ald5FuI4FlmZ7nn6EBrk1dgOstWVrI5Ft6K3z2vjyLZRG6nzknlsw+tDP63p7bQ==}
@@ -2225,28 +2225,28 @@ snapshots:
 
   '@atcute/atproto@3.1.10':
     dependencies:
-      '@atcute/lexicons': 1.2.6
+      '@atcute/lexicons': 1.2.7
 
-  '@atcute/bluesky@3.2.15':
+  '@atcute/bluesky@3.2.17':
     dependencies:
       '@atcute/atproto': 3.1.10
-      '@atcute/lexicons': 1.2.6
+      '@atcute/lexicons': 1.2.7
 
-  '@atcute/leaflet@1.0.16':
+  '@atcute/leaflet@1.0.17':
     dependencies:
       '@atcute/atproto': 3.1.10
-      '@atcute/lexicons': 1.2.6
+      '@atcute/lexicons': 1.2.7
 
-  '@atcute/lexicons@1.2.6':
+  '@atcute/lexicons@1.2.7':
     dependencies:
-      '@atcute/uint8array': 1.0.6
-      '@atcute/util-text': 0.0.1
+      '@atcute/uint8array': 1.1.0
+      '@atcute/util-text': 1.1.0
       '@standard-schema/spec': 1.1.0
       esm-env: 1.2.2
 
-  '@atcute/uint8array@1.0.6': {}
+  '@atcute/uint8array@1.1.0': {}
 
-  '@atcute/util-text@0.0.1':
+  '@atcute/util-text@1.1.0':
     dependencies:
       unicode-segmenter: 0.14.5
 
@@ -2308,10 +2308,10 @@ snapshots:
       tlds: 1.261.0
       zod: 3.25.76
 
-  '@atproto/common-web@0.4.13':
+  '@atproto/common-web@0.4.16':
     dependencies:
-      '@atproto/lex-data': 0.0.9
-      '@atproto/lex-json': 0.0.9
+      '@atproto/lex-data': 0.0.11
+      '@atproto/lex-json': 0.0.11
       '@atproto/syntax': 0.4.3
       zod: 3.25.76
 
@@ -2349,21 +2349,21 @@ snapshots:
       uint8arrays: 3.0.0
       unicode-segmenter: 0.14.0
 
-  '@atproto/lex-data@0.0.9':
+  '@atproto/lex-data@0.0.11':
     dependencies:
       multiformats: 9.9.0
       tslib: 2.8.1
       uint8arrays: 3.0.0
-      unicode-segmenter: 0.14.0
+      unicode-segmenter: 0.14.5
 
   '@atproto/lex-json@0.0.1':
     dependencies:
       '@atproto/lex-data': 0.0.1
       tslib: 2.8.1
 
-  '@atproto/lex-json@0.0.9':
+  '@atproto/lex-json@0.0.11':
     dependencies:
-      '@atproto/lex-data': 0.0.9
+      '@atproto/lex-data': 0.0.11
       tslib: 2.8.1
 
   '@atproto/lexicon@0.5.2':
@@ -2376,7 +2376,7 @@ snapshots:
 
   '@atproto/lexicon@0.6.1':
     dependencies:
-      '@atproto/common-web': 0.4.13
+      '@atproto/common-web': 0.4.16
       '@atproto/syntax': 0.4.3
       iso-datestring-validator: 2.2.2
       multiformats: 9.9.0
@@ -2775,8 +2775,8 @@ snapshots:
 
   '@hypercerts-org/lexicon@0.10.0-beta.13(@atproto/xrpc@0.7.6)':
     dependencies:
-      '@atcute/bluesky': 3.2.15
-      '@atcute/leaflet': 1.0.16
+      '@atcute/bluesky': 3.2.17
+      '@atcute/leaflet': 1.0.17
       '@atproto/lexicon': 0.6.1
       '@atproto/xrpc': 0.7.6
       multiformats: 13.4.2

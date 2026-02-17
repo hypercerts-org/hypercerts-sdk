@@ -82,6 +82,32 @@ export type { AppBskyRichtextFacet } from "@atproto/api";
 export type StrongRef = ComAtprotoRepoStrongRef.Main;
 
 /**
+ * A reference that can be either an AT-URI string or a resolved StrongRef.
+ *
+ * This type is commonly used for parameters that accept references to existing records,
+ * where the caller can provide either:
+ * - An AT-URI string (e.g., "at://did:plc:abc/org.hypercerts.claim.activity/xyz")
+ * - A StrongRef object with both URI and CID
+ *
+ * The string form is typically resolved to a StrongRef internally by fetching the CID.
+ *
+ * @example String URI
+ * ```typescript
+ * const ref: RefUri = "at://did:plc:abc/collection/rkey";
+ * ```
+ *
+ * @example StrongRef
+ * ```typescript
+ * const ref: RefUri = {
+ *   $type: "com.atproto.repo.strongRef",
+ *   uri: "at://...",
+ *   cid: "bafy..."
+ * };
+ * ```
+ */
+export type RefUri = string | StrongRef;
+
+/**
  * Hypercert claim (activity) record.
  *
  * Represents a single hypercert activity with metadata including descriptions,
@@ -373,7 +399,7 @@ export type CreateLocationParams = OverrideProperties<
  * };
  * ```
  */
-export type LocationParams = StrongRef | string | CreateLocationParams;
+export type LocationParams = RefUri | CreateLocationParams;
 
 /**
  * SDK input parameters for creating a collection.
@@ -485,7 +511,7 @@ export type CreateMeasurementParams = OverrideProperties<
      * This will be converted to a StrongRef (uri + cid).
      * or if its a strong ref will be stored as is
      */
-    subject: string | StrongRef;
+    subject: RefUri;
 
     /**
      * Geographic locations where the measurement was taken.
@@ -547,7 +573,7 @@ export type UpdateMeasurementParams = Partial<Except<CreateMeasurementParams, "s
  * };
  * ```
  */
-export type MeasurementParams = string | StrongRef | CreateMeasurementParams;
+export type MeasurementParams = RefUri | CreateMeasurementParams;
 
 // ============================================================================
 // Attachment Types
@@ -624,7 +650,7 @@ export type CreateAttachmentParams = OverrideProperties<
      *
      * Will be normalized to an array of StrongRefs internally.
      */
-    subjects: string | StrongRef | Array<string | StrongRef>;
+    subjects: RefUri | RefUri[];
 
     /**
      * Content of the attachment.
@@ -662,4 +688,4 @@ export type UpdateAttachmentParams = Partial<CreateAttachmentParams>;
  * - StrongRef with uri and cid
  * - Full attachment params object to create new attachment
  */
-export type AttachmentParams = string | StrongRef | CreateAttachmentParams;
+export type AttachmentParams = RefUri | CreateAttachmentParams;

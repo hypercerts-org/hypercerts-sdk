@@ -31,6 +31,7 @@ import {
   type HypercertRights,
   type JsonBlobRef,
   type OrgHypercertsDefs,
+  type RefUri,
   type StrongRef,
   type UpdateCollectionParams,
   type UpdateProjectParams,
@@ -42,19 +43,19 @@ import type {
   BlobOperations,
   LocationParams,
   CreateHypercertParams,
+  UpdateHypercertParams,
   CreateHypercertResult,
   HypercertEvents,
   HypercertOperations,
   ContributionDetailsParams,
-  ResolvedContributionDetails,
   ContributorIdentityParams,
-  ResolvedContributorIdentity,
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
 import { uploadResultToBlobRef } from "./types.js";
 import { $Typed } from "@atproto/api";
 import { sha256Hash } from "../lib/crypto.js";
 import { isValidUri } from "../lib/url-utils.js";
+import { parseAtUri, isValidAtUri, type AtUriComponents } from "../lexicons/utils.js";
 
 /**
  * Implementation of high-level hypercert operations.
@@ -180,6 +181,24 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
+   * Parse and validate an AT-URI, throwing ValidationError on failure.
+   *
+   * Extracts the DID, collection NSID, and record key from an AT-URI string.
+   * Validates the URI format and throws a descriptive error if invalid.
+   *
+   * @param uri - The AT-URI to parse (e.g., "at://did:plc:abc/collection/rkey")
+   * @returns The parsed URI components (did, collection, rkey)
+   * @throws {@link ValidationError} If the URI format is invalid
+   * @internal
+   */
+  private parseAndValidateUri(uri: string): AtUriComponents {
+    if (!isValidAtUri(uri)) {
+      throw new ValidationError(`Invalid AT-URI format: ${uri}`);
+    }
+    return parseAtUri(uri);
+  }
+
+  /**
    * Creates a rights record for a hypercert.
    *
    * @param rights - Rights data
@@ -255,9 +274,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     locationRefs: Array<{ uri: string; cid: string }> | undefined,
     contributorsData:
       | Array<{
-          contributorIdentity: ResolvedContributorIdentity;
+          contributorIdentity: RefUri;
           contributionWeight?: string;
-          contributionDetails?: ResolvedContributionDetails;
+          contributionDetails?: RefUri;
         }>
       | undefined,
     createdAt: string,
@@ -400,50 +419,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     } catch (error) {
       this.emitProgress(onProgress, { name: "attachLocation", status: "error", error: error as Error });
       this.logger?.warn(`Failed to attach location: ${error instanceof Error ? error.message : "Unknown"}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Creates contribution records with progress tracking.
-   *
-   * @param hypercertUri - URI of the hypercert
-   * @param contributions - Array of contribution data
-   * @param onProgress - Optional progress callback
-   * @returns Promise resolving to array of contribution URIs
-   * @internal
-   */
-  private async createContributionsWithProgress(
-    hypercertUri: string,
-    contributions: Array<{
-      contributors: Array<string | { uri: string; cid: string }>;
-      role: string;
-      description?: string;
-      weight?: string;
-    }>,
-    onProgress?: (step: ProgressStep) => void,
-  ): Promise<string[]> {
-    this.emitProgress(onProgress, { name: "createContributions", status: "start" });
-    try {
-      const contributionUris: string[] = [];
-      for (const contrib of contributions) {
-        const contribResult = await this.addContribution({
-          hypercertUri,
-          contributors: contrib.contributors.filter((c): c is string => typeof c === "string"),
-          role: contrib.role,
-          description: contrib.description,
-        });
-        contributionUris.push(contribResult.uri);
-      }
-      this.emitProgress(onProgress, {
-        name: "createContributions",
-        status: "success",
-        data: { count: contributionUris.length },
-      });
-      return contributionUris;
-    } catch (error) {
-      this.emitProgress(onProgress, { name: "createContributions", status: "error", error: error as Error });
-      this.logger?.warn(`Failed to create contributions: ${error instanceof Error ? error.message : "Unknown"}`);
       throw error;
     }
   }
@@ -667,17 +642,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * });
    * ```
    */
-  async update(params: {
-    uri: string;
-    updates: Partial<CreateHypercertParams>;
-    image?: Blob | null;
-  }): Promise<UpdateResult> {
+  async update(params: { uri: string; updates: UpdateHypercertParams; image?: Blob | null }): Promise<UpdateResult> {
     try {
-      const uriMatch = params.uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${params.uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseAndValidateUri(params.uri);
 
       const existing = await this.agent.com.atproto.repo.getRecord({
         repo: this.repoDid,
@@ -753,11 +720,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async get(uri: string): Promise<{ uri: string; cid: string; record: HypercertClaim }> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseAndValidateUri(uri);
 
       const result = await this.agent.com.atproto.repo.getRecord({
         repo: this.repoDid,
@@ -844,11 +807,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async delete(uri: string): Promise<void> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseAndValidateUri(uri);
 
       const result = await this.agent.com.atproto.repo.deleteRecord({
         repo: this.repoDid,
@@ -1034,17 +993,12 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       return this.createLocationRecord(location);
     }
 
-    // Otherwise it's string | StrongRef, resolve to StrongRef
+    // Otherwise it's RefUri, resolve to StrongRef
     return this.resolveToStrongRef(location);
   }
 
   private async resolveStrongRefFromUri(uri: string): Promise<StrongRef> {
-    const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-    if (!uriMatch) {
-      throw new ValidationError(`Invalid AT-URI format: "${uri}"`);
-    }
-
-    const [, repo, collection, rkey] = uriMatch;
+    const { did: repo, collection, rkey } = this.parseAndValidateUri(uri);
     const record = await this.agent.com.atproto.repo.getRecord({ repo, collection, rkey });
     if (!record.success) {
       throw new NetworkError(`Failed to fetch record for repo=${repo}, collection=${collection}, rkey=${rkey}`);
@@ -1067,7 +1021,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @throws {@link NetworkError} When getRecord fails
    * @internal
    */
-  private async resolveToStrongRef(input: string | StrongRef): Promise<StrongRef> {
+  private async resolveToStrongRef(input: RefUri): Promise<StrongRef> {
     // Check if already a StrongRef
     if (typeof input === "object" && "uri" in input && "cid" in input) {
       return {
@@ -1095,9 +1049,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @throws {@link NetworkError} if fetching subject record fails
    * @internal
    */
-  private async resolveAttachmentSubjects(
-    subjectsInput: string | StrongRef | Array<string | StrongRef>,
-  ): Promise<StrongRef[]> {
+  private async resolveAttachmentSubjects(subjectsInput: RefUri | RefUri[]): Promise<StrongRef[]> {
     const subjectsArray = Array.isArray(subjectsInput) ? subjectsInput : [subjectsInput];
 
     return await Promise.all(subjectsArray.map((subject) => this.resolveToStrongRef(subject)));
@@ -1318,44 +1270,72 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     onProgress?: (step: ProgressStep) => void,
   ): Promise<
     | Array<{
-        contributorIdentity: ResolvedContributorIdentity;
+        contributorIdentity: RefUri;
         contributionWeight?: string;
-        contributionDetails?: ResolvedContributionDetails;
+        contributionDetails?: RefUri;
       }>
     | undefined
   > {
     if (!contributions || contributions.length === 0) return undefined;
 
-    const contributorsPromises = contributions.map(async (contrib) => {
-      // Resolve contributionDetails
-      const detailsRef = await this.resolveContributionDetails(contrib.contributionDetails, onProgress);
+    const contributorPromises = contributions.map((contrib) =>
+      this.buildContributorEntries(contrib.contributors, contrib.contributionDetails, contrib.weight, onProgress),
+    );
 
-      // Resolve each contributor identity
-      const resolvedContributors = await Promise.all(
-        contrib.contributors.map((identity) => this.resolveContributorIdentity(identity, onProgress)),
-      );
-
-      // Expand to one entry per contributor
-      return resolvedContributors.map((identity) => ({
-        contributorIdentity: identity,
-        contributionWeight: contrib.weight,
-        contributionDetails: detailsRef,
-      }));
-    });
-
-    const nestedContributors = await Promise.all(contributorsPromises);
+    const nestedContributors = await Promise.all(contributorPromises);
     return nestedContributors.flat();
   }
 
   /**
-   * Resolves ContributionDetailsParams to a ResolvedContributionDetails.
+   * Creates a standalone contributionDetails record.
+   * @internal
+   */
+  private async createContributionDetailsRecord(params: {
+    role: string;
+    contributionDescription?: string;
+    startDate?: string;
+    endDate?: string;
+    [key: string]: unknown;
+  }): Promise<CreateResult> {
+    const createdAt = new Date().toISOString();
+    const { role, contributionDescription, startDate, endDate, ...extraProps } = params;
+    const contributionRecord: HypercertContributionDetails = {
+      $type: HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
+      role,
+      createdAt,
+      contributionDescription,
+      startDate,
+      endDate,
+      ...extraProps,
+    };
+
+    const validation = validate(contributionRecord, HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS, "main", false);
+    if (!validation.success) {
+      throw new ValidationError(`Invalid contribution details record: ${validation.error?.message}`);
+    }
+
+    const result = await this.agent.com.atproto.repo.createRecord({
+      repo: this.repoDid,
+      collection: HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
+      record: contributionRecord as Record<string, unknown>,
+    });
+
+    if (!result.success) {
+      throw new NetworkError("Failed to create contribution details");
+    }
+
+    return { uri: result.data.uri, cid: result.data.cid };
+  }
+
+  /**
+   * Resolves ContributionDetailsParams to a RefUri.
    * Creates a record if CreateContributionDetailsParams is provided.
    * @internal
    */
   private async resolveContributionDetails(
     details: ContributionDetailsParams,
     onProgress?: (step: ProgressStep) => void,
-  ): Promise<ResolvedContributionDetails> {
+  ): Promise<RefUri> {
     if (typeof details === "string") {
       // Inline role string
       return details;
@@ -1366,20 +1346,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // CreateContributionDetailsParams - auto-create record
       try {
         this.emitProgress(onProgress, { name: "createContribution", status: "start" });
-        const { role, contributionDescription, startDate, endDate, ...extraProps } = details as {
-          role: string;
-          contributionDescription?: string;
-          startDate?: string;
-          endDate?: string;
-          [key: string]: unknown;
-        };
-        const result = await this.addContribution({
-          role,
-          description: contributionDescription,
-          startDate,
-          endDate,
-          ...extraProps,
-        });
+        const result = await this.createContributionDetailsRecord(details);
         this.emitProgress(onProgress, {
           name: "createContribution",
           status: "success",
@@ -1399,16 +1366,16 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Resolves ContributorIdentityParams to a ResolvedContributorIdentity.
+   * Resolves ContributorIdentityParams to a RefUri.
    * Creates a contributorInformation record if CreateContributorInformationParams is provided.
    * @internal
    */
   private async resolveContributorIdentity(
     identity: ContributorIdentityParams,
     onProgress?: (step: ProgressStep) => void,
-  ): Promise<ResolvedContributorIdentity> {
+  ): Promise<RefUri> {
     if (typeof identity === "string") {
-      // we still store as contribtorInformation since it cant directly be a string
+      // we still store as contributorInformation since it can't directly be a string
       const result = await this.addContributorInformation({ identifier: identity });
       return { uri: result.uri, cid: result.cid, $type: "com.atproto.repo.strongRef" };
     } else if ("uri" in identity && "cid" in identity && !("identifier" in identity)) {
@@ -1459,82 +1426,135 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Creates a contribution details record.
+   * Builds contributor entries from parameters by resolving identities and details.
    *
-   * This creates a standalone contribution details record that can be referenced
-   * from an activity's `contributors` array via a strong reference.
+   * This helper resolves contributor identities and contribution details,
+   * creating records as needed, then assembles them into the contributor entry
+   * format used in hypercert records.
+   *
+   * @param contributorParams - Array of contributor identity params (DID, StrongRef, or create params)
+   * @param detailsParams - Contribution details (inline role, StrongRef, or create params)
+   * @param weight - Optional contribution weight
+   * @param onProgress - Optional progress callback
+   * @returns Promise resolving to array of contributor entries ready for embedding
+   * @internal
+   * @protected
+   */
+  protected async buildContributorEntries(
+    contributorParams: Array<ContributorIdentityParams>,
+    detailsParams: ContributionDetailsParams,
+    weight?: string,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<
+    Array<{
+      contributorIdentity: RefUri;
+      contributionWeight?: string;
+      contributionDetails?: RefUri;
+    }>
+  > {
+    const detailsRef = await this.resolveContributionDetails(detailsParams, onProgress);
+    const resolvedIdentities = await Promise.all(
+      contributorParams.map((identity) => this.resolveContributorIdentity(identity, onProgress)),
+    );
+    return resolvedIdentities.map((identity) => ({
+      contributorIdentity: identity,
+      contributionWeight: weight,
+      contributionDetails: detailsRef,
+    }));
+  }
+
+  /**
+   * Attaches contributor entries to a hypercert by appending to its contributors array.
+   *
+   * Fetches the existing hypercert, merges new contributors with existing ones,
+   * and updates the hypercert record.
+   *
+   * @param hypercertUri - URI of the hypercert to update
+   * @param newContributors - Array of contributor entries to add
+   * @returns Promise resolving to update result with new URI and CID
+   * @throws {@link ValidationError} if URI format is invalid or validation fails
+   * @throws {@link NetworkError} if fetching or updating fails
+   * @internal
+   * @protected
+   */
+  protected async attachContributorsToHypercert(
+    hypercertUri: string,
+    newContributors: Array<{
+      contributorIdentity: RefUri;
+      contributionWeight?: string;
+      contributionDetails?: RefUri;
+    }>,
+  ): Promise<UpdateResult> {
+    const existing = await this.get(hypercertUri);
+    const existingContributors = existing.record.contributors || [];
+    const updatedContributors = [...existingContributors, ...newContributors];
+
+    return await this.update({
+      uri: hypercertUri,
+      updates: {
+        contributors: updatedContributors,
+      },
+    });
+  }
+
+  /**
+   * Adds contributors to an existing hypercert.
+   *
+   * This method creates or references contribution records and updates the hypercert
+   * to include the new contributors in its contributors array.
    *
    * @param params - Contribution parameters
-   * @param params.hypercertUri - Optional hypercert (unused, kept for backward compatibility)
-   * @param params.contributors - Array of contributor DIDs (unused, kept for backward compatibility)
-   * @param params.role - Role of the contributor (e.g., "coordinator", "implementer")
-   * @param params.description - Optional description of the contribution
-   * @returns Promise resolving to contribution details record URI and CID
+   * @returns Promise resolving to updated hypercert URI and CID
    * @throws {@link ValidationError} if validation fails
    * @throws {@link NetworkError} if the operation fails
    *
-   * @remarks
-   * In the new lexicon structure, contributions are stored differently:
-   * - Use `contributionDetails` for detailed contribution records (role, description, timeframe)
-   * - Use `contributorInformation` for contributor profiles (identifier, displayName, image)
-   * - Reference these from the activity's `contributors` array using strong refs
-   *
-   * @example
+   * @example Add multiple contributors with inline role
    * ```typescript
    * await repo.hypercerts.addContribution({
-   *   role: "implementer",
-   *   description: "On-ground implementation team",
+   *   hypercertUri: "at://did:plc:abc/org.hypercerts.claim.activity/xyz",
+   *   contributors: ["did:plc:user1", "did:plc:user2"],
+   *   contributionDetails: "Developer",
+   *   weight: "1.0"
+   * });
+   * ```
+   *
+   * @example Add contributor with detailed contribution record
+   * ```typescript
+   * await repo.hypercerts.addContribution({
+   *   hypercertUri: hypercertUri,
+   *   contributors: [{
+   *     identifier: "did:plc:coordinator",
+   *     displayName: "Alice",
+   *     image: avatarBlob
+   *   }],
+   *   contributionDetails: {
+   *     role: "Project Coordinator",
+   *     contributionDescription: "Led coordination efforts",
+   *     startDate: "2024-01-01",
+   *     endDate: "2024-06-30"
+   *   },
+   *   weight: "2.0"
    * });
    * ```
    */
   async addContribution(params: {
-    hypercertUri?: string;
-    contributors?: string[];
-    role: string;
-    description?: string;
-    startDate?: string;
-    endDate?: string;
-    [key: string]: unknown;
-  }): Promise<CreateResult> {
+    hypercertUri: string;
+    contributors: Array<ContributorIdentityParams>;
+    contributionDetails: ContributionDetailsParams;
+    weight?: string;
+    onProgress?: (step: ProgressStep) => void;
+  }): Promise<UpdateResult> {
     try {
-      const createdAt = new Date().toISOString();
-      // Extract known fields, spread the rest
-      const {
-        hypercertUri: _hypercertUri,
-        contributors: _contributors,
-        role,
-        description,
-        startDate,
-        endDate,
-        ...extraProps
-      } = params;
-      const contributionRecord: HypercertContributionDetails = {
-        $type: HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
-        role,
-        createdAt,
-        contributionDescription: description,
-        startDate,
-        endDate,
-        ...extraProps,
-      };
+      const newContributors = await this.buildContributorEntries(
+        params.contributors,
+        params.contributionDetails,
+        params.weight,
+        params.onProgress,
+      );
+      const result = await this.attachContributorsToHypercert(params.hypercertUri, newContributors);
+      this.emit("contributionCreated", { uri: result.uri, cid: result.cid });
 
-      const validation = validate(contributionRecord, HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS, "main", false);
-      if (!validation.success) {
-        throw new ValidationError(`Invalid contribution details record: ${validation.error?.message}`);
-      }
-
-      const result = await this.agent.com.atproto.repo.createRecord({
-        repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
-        record: contributionRecord as Record<string, unknown>,
-      });
-
-      if (!result.success) {
-        throw new NetworkError("Failed to create contribution details");
-      }
-
-      this.emit("contributionCreated", { uri: result.data.uri, cid: result.data.cid });
-      return { uri: result.data.uri, cid: result.data.cid };
+      return result;
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(
@@ -1733,11 +1753,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async updateMeasurement(uri: string, updates: UpdateMeasurementParams): Promise<UpdateResult> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseAndValidateUri(uri);
 
       if (collection !== HYPERCERT_COLLECTIONS.MEASUREMENT) {
         throw new ValidationError(
@@ -1979,11 +1995,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async getCollection(uri: string): Promise<{ uri: string; cid: string; record: HypercertCollection }> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseAndValidateUri(uri);
 
       const result = await this.agent.com.atproto.repo.getRecord({
         repo: this.repoDid,
@@ -2132,11 +2144,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   async getProject(uri: string): Promise<{ uri: string; cid: string; record: HypercertCollection }> {
     try {
       // Parse URI
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseAndValidateUri(uri);
 
       // Fetch record
       const result = await this.agent.com.atproto.repo.getRecord({
@@ -2263,11 +2271,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async updateProject(uri: string, updates: UpdateProjectParams): Promise<UpdateResult> {
     // Verify it's a project before updating
-    const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-    if (!uriMatch) {
-      throw new ValidationError(`Invalid URI format: ${uri}`);
-    }
-    const [, , collection, rkey] = uriMatch;
+    const { collection, rkey } = this.parseAndValidateUri(uri);
 
     const existing = await this.agent.com.atproto.repo.getRecord({
       repo: this.repoDid,
@@ -2306,11 +2310,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * ```
    */
   async deleteProject(uri: string): Promise<void> {
-    const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-    if (!uriMatch) {
-      throw new ValidationError(`Invalid URI format: ${uri}`);
-    }
-    const [, , collection, rkey] = uriMatch;
+    const { collection, rkey } = this.parseAndValidateUri(uri);
 
     const existing = await this.agent.com.atproto.repo.getRecord({
       repo: this.repoDid,
@@ -2372,11 +2372,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async updateCollection(uri: string, updates: UpdateCollectionParams): Promise<UpdateResult> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseAndValidateUri(uri);
 
       const existing = await this.agent.com.atproto.repo.getRecord({
         repo: this.repoDid,
@@ -2482,11 +2478,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async deleteCollection(uri: string): Promise<void> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseAndValidateUri(uri);
 
       const result = await this.agent.com.atproto.repo.deleteRecord({
         repo: this.repoDid,
@@ -2517,11 +2509,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async attachLocationToCollection(uri: string, location: LocationParams): Promise<CreateResult> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseAndValidateUri(uri);
 
       const existing = await this.agent.com.atproto.repo.getRecord({
         repo: this.repoDid,
@@ -2573,11 +2561,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async removeLocationFromCollection(uri: string): Promise<void> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseAndValidateUri(uri);
 
       const existing = await this.agent.com.atproto.repo.getRecord({
         repo: this.repoDid,

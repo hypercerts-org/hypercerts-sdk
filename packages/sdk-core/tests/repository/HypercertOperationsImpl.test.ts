@@ -2,7 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
 import { HypercertOperationsImpl } from "../../src/repository/HypercertOperationsImpl.js";
 import { NetworkError, ValidationError } from "../../src/core/errors.js";
-import type { BlobOperations } from "../../src/repository/interfaces.js";
+import type {
+  BlobOperations,
+  ContributorIdentityParams,
+  ContributionDetailsParams,
+} from "../../src/repository/interfaces.js";
+import type { RefUri } from "../../src/services/hypercerts/types.js";
+import type { ProgressStep, UpdateResult } from "../../src/repository/types.js";
 import { createMockAgent, createMockBlobOperations, TEST_REPO_DID } from "../utils/mocks.js";
 
 /**
@@ -12,6 +18,34 @@ import { createMockAgent, createMockBlobOperations, TEST_REPO_DID } from "../uti
  */
 function createWorkScopeString(scopes: string[]): string {
   return scopes.join(", ");
+}
+
+/**
+ * Test-only subclass that exposes protected methods for unit testing.
+ * This allows us to test internal implementation details while maintaining
+ * type safety and avoiding ESLint warnings from 'as any' assertions.
+ */
+class TestableHypercertOperations extends HypercertOperationsImpl {
+  // Expose protected methods as public for testing
+  public async testBuildContributorEntries(
+    contributorParams: Array<ContributorIdentityParams>,
+    detailsParams: ContributionDetailsParams,
+    weight?: string,
+    onProgress?: (step: ProgressStep) => void,
+  ) {
+    return this.buildContributorEntries(contributorParams, detailsParams, weight, onProgress);
+  }
+
+  public async testAttachContributorsToHypercert(
+    hypercertUri: string,
+    newContributors: Array<{
+      contributorIdentity: RefUri;
+      contributionWeight?: string;
+      contributionDetails?: RefUri;
+    }>,
+  ): Promise<UpdateResult> {
+    return this.attachContributorsToHypercert(hypercertUri, newContributors);
+  }
 }
 
 // Mock the validate function from lexicon package
@@ -26,12 +60,12 @@ vi.mock("@hypercerts-org/lexicon", async (importOriginal) => {
 describe("HypercertOperationsImpl", () => {
   let mockAgent: ReturnType<typeof createMockAgent>;
   let mockBlobs: ReturnType<typeof createMockBlobOperations>;
-  let hypercertOps: HypercertOperationsImpl;
+  let hypercertOps: TestableHypercertOperations;
 
   beforeEach(() => {
     mockAgent = createMockAgent(vi);
     mockBlobs = createMockBlobOperations(vi);
-    hypercertOps = new HypercertOperationsImpl(
+    hypercertOps = new TestableHypercertOperations(
       mockAgent as unknown as Agent,
       TEST_REPO_DID,
       mockBlobs as BlobOperations,
@@ -920,6 +954,30 @@ describe("HypercertOperationsImpl", () => {
 
       expect(handler).toHaveBeenCalled();
     });
+
+    it("should update contributors array", async () => {
+      const newContributors = [
+        {
+          contributorIdentity: {
+            uri: `at://${TEST_REPO_DID}/org.hypercerts.claim.contributorInformation/xyz`,
+            cid: "contributor-cid",
+            $type: "com.atproto.repo.strongRef" as const,
+          },
+          contributionDetails: "Lead Developer",
+          contributionWeight: "2.0",
+        },
+      ];
+
+      await hypercertOps.update({
+        uri: `at://${TEST_REPO_DID}/org.hypercerts.claim.activity/abc123`,
+        updates: {
+          contributors: newContributors,
+        },
+      });
+
+      const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(putCall.record.contributors).toEqual(newContributors);
+    });
   });
 
   describe("attachLocation", () => {
@@ -1059,60 +1117,498 @@ describe("HypercertOperationsImpl", () => {
     });
   });
 
-  describe("addContribution", () => {
+  describe("buildContributorEntries (helper)", () => {
+    beforeEach(() => {
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/xyz", cid: "record-cid" },
+      });
+    });
+
+    it("should resolve inline role string", async () => {
+      const result = await hypercertOps.testBuildContributorEntries(
+        ["did:plc:user1"],
+        "Developer",
+        undefined,
+        undefined,
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].contributionDetails).toBe("Developer");
+      expect(result[0].contributorIdentity).toMatchObject({
+        uri: expect.stringContaining("contributorInformation"),
+        cid: "record-cid",
+      });
+    });
+
+    it("should create contributionDetails record from object", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValueOnce({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+      });
+
+      const result = await hypercertOps.testBuildContributorEntries(
+        ["did:plc:user1"],
+        {
+          role: "Project Lead",
+          contributionDescription: "Led project",
+          startDate: "2024-01-01",
+          endDate: "2024-06-30",
+        },
+        "2.0",
+        undefined,
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].contributionDetails).toMatchObject({
+        uri: expect.stringContaining("contributionDetails"),
+        cid: "details-cid",
+      });
+      expect(result[0].contributionWeight).toBe("2.0");
+    });
+
+    it("should handle multiple contributors with shared details", async () => {
+      const result = await hypercertOps.testBuildContributorEntries(
+        ["did:plc:user1", "did:plc:user2", "did:plc:user3"],
+        "Volunteer",
+        "1.0",
+        undefined,
+      );
+
+      expect(result).toHaveLength(3);
+      expect(result[0].contributionDetails).toBe("Volunteer");
+      expect(result[1].contributionDetails).toBe("Volunteer");
+      expect(result[2].contributionDetails).toBe("Volunteer");
+    });
+
+    it("should create contributorInformation from create params", async () => {
+      await hypercertOps.testBuildContributorEntries(
+        [{ identifier: "did:plc:alice", displayName: "Alice Smith" }],
+        "Coordinator",
+        undefined,
+        undefined,
+      );
+
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: "org.hypercerts.claim.contributorInformation",
+          record: expect.objectContaining({
+            identifier: "did:plc:alice",
+            displayName: "Alice Smith",
+          }),
+        }),
+      );
+    });
+  });
+
+  describe("attachContributorsToHypercert (helper)", () => {
     beforeEach(() => {
       mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
         success: true,
         data: {
-          uri: "at://did:plc:test/org.hypercerts.claim.record/abc",
+          uri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
           cid: "hypercert-cid",
           value: {
+            $type: "org.hypercerts.claim.activity",
             title: "Test",
             description: "Test",
+            shortDescription: "Test",
             workScope: createWorkScopeString(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
-            createdAt: "2024-01-01",
+            rights: { uri: "at://rights", cid: "rights-cid" },
+            contributors: [],
+            createdAt: "2024-01-01T00:00:00Z",
           },
         },
       });
 
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.activity/abc", cid: "updated-cid" },
+      });
+    });
+
+    it("should append contributors to empty array", async () => {
+      const newContributors = [
+        {
+          contributorIdentity: { uri: "at://test/info/1", cid: "cid1", $type: "com.atproto.repo.strongRef" as const },
+          contributionDetails: "Developer" as const,
+          contributionWeight: "1.0",
+        },
+      ];
+
+      const result = await hypercertOps.testAttachContributorsToHypercert(
+        "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        newContributors,
+      );
+
+      expect(result.uri).toBe("at://did:plc:test/org.hypercerts.claim.activity/abc");
+      expect(result.cid).toBe("updated-cid");
+
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors).toHaveLength(1);
+    });
+
+    it("should preserve existing contributors when appending", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValueOnce({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          cid: "hypercert-cid",
+          value: {
+            $type: "org.hypercerts.claim.activity",
+            title: "Test",
+            description: "Test",
+            shortDescription: "Test",
+            workScope: createWorkScopeString(["Climate"]),
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            rights: { uri: "at://rights", cid: "rights-cid" },
+            contributors: [
+              {
+                contributorIdentity: { uri: "at://existing", cid: "cid0", $type: "com.atproto.repo.strongRef" },
+                contributionDetails: "Existing Role",
+              },
+            ],
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+
+      const newContributors = [
+        {
+          contributorIdentity: { uri: "at://test/info/1", cid: "cid1", $type: "com.atproto.repo.strongRef" as const },
+          contributionDetails: "New Role" as const,
+        },
+      ];
+
+      await hypercertOps.testAttachContributorsToHypercert(
+        "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        newContributors,
+      );
+
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors).toHaveLength(2);
+      expect(updateCall.record.contributors[0].contributionDetails).toBe("Existing Role");
+      expect(updateCall.record.contributors[1].contributionDetails).toBe("New Role");
+    });
+
+    it("should handle hypercert with no contributors field", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValueOnce({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          cid: "hypercert-cid",
+          value: {
+            $type: "org.hypercerts.claim.activity",
+            title: "Test",
+            description: "Test",
+            shortDescription: "Test",
+            workScope: createWorkScopeString(["Climate"]),
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            rights: { uri: "at://rights", cid: "rights-cid" },
+            // No contributors field
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+
+      const newContributors = [
+        {
+          contributorIdentity: { uri: "at://test/info/1", cid: "cid1", $type: "com.atproto.repo.strongRef" as const },
+          contributionDetails: "Developer" as const,
+        },
+      ];
+
+      await hypercertOps.testAttachContributorsToHypercert(
+        "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        newContributors,
+      );
+
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors).toHaveLength(1);
+    });
+  });
+
+  describe("addContribution (refactored)", () => {
+    beforeEach(() => {
+      // Mock getRecord - hypercert with empty contributors
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: `at://${TEST_REPO_DID}/org.hypercerts.claim.activity/abc`,
+          cid: "hypercert-cid",
+          value: {
+            $type: "org.hypercerts.claim.activity",
+            title: "Test Hypercert",
+            description: "Test",
+            shortDescription: "Test",
+            workScope: createWorkScopeString(["Climate"]),
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            rights: { uri: "at://rights", cid: "rights-cid" },
+            contributors: [],
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+
+      // Mock createRecord - for contributionDetails/contributorInformation
       mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
         success: true,
-        data: { uri: "at://did:plc:test/org.hypercerts.claim.contribution/xyz", cid: "contrib-cid" },
+        data: {
+          uri: `at://${TEST_REPO_DID}/org.hypercerts.claim.contributionDetails/xyz`,
+          cid: "record-cid",
+        },
+      });
+
+      // Mock putRecord - for updating hypercert
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: `at://${TEST_REPO_DID}/org.hypercerts.claim.activity/abc`,
+          cid: "updated-cid",
+        },
       });
     });
 
-    it("should create a contribution linked to hypercert", async () => {
+    it("should add single contributor with inline role", async () => {
       const result = await hypercertOps.addContribution({
-        hypercertUri: "at://did:plc:test/org.hypercerts.claim.record/abc",
-        contributors: ["did:plc:contributor1"],
-        role: "Developer",
-        description: "Built the thing",
+        hypercertUri: `at://${TEST_REPO_DID}/org.hypercerts.claim.activity/abc`,
+        contributors: ["did:plc:user1"],
+        contributionDetails: "Developer",
       });
 
-      expect(result.uri).toContain("contribution");
+      // Verify hypercert was updated
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          repo: TEST_REPO_DID,
+          collection: "org.hypercerts.claim.activity",
+          record: expect.objectContaining({
+            contributors: expect.arrayContaining([
+              expect.objectContaining({
+                contributionDetails: "Developer",
+              }),
+            ]),
+          }),
+        }),
+      );
+
+      expect(result.uri).toBe(`at://${TEST_REPO_DID}/org.hypercerts.claim.activity/abc`);
+      expect(result.cid).toBe("updated-cid");
     });
 
-    it("should create standalone contribution without hypercert", async () => {
-      const result = await hypercertOps.addContribution({
-        contributors: ["did:plc:contributor1"],
-        role: "Developer",
+    it("should add multiple contributors with shared role", async () => {
+      await hypercertOps.addContribution({
+        hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        contributors: ["did:plc:user1", "did:plc:user2", "did:plc:user3"],
+        contributionDetails: "Volunteer",
       });
 
-      expect(result.uri).toBeDefined();
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors).toHaveLength(3);
     });
 
-    it("should emit contributionCreated event", async () => {
-      const handler = vi.fn();
-      hypercertOps.on("contributionCreated", handler);
+    it("should create contributionDetails record from object", async () => {
+      await hypercertOps.addContribution({
+        hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        contributors: ["did:plc:user1"],
+        contributionDetails: {
+          role: "Project Lead",
+          contributionDescription: "Led the project",
+          startDate: "2024-01-01",
+          endDate: "2024-06-30",
+        },
+      });
+
+      // Verify contributionDetails record was created
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: "org.hypercerts.claim.contributionDetails",
+          record: expect.objectContaining({
+            role: "Project Lead",
+            contributionDescription: "Led the project",
+          }),
+        }),
+      );
+
+      // Verify hypercert references the created record
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors[0].contributionDetails).toMatchObject({
+        uri: expect.stringContaining("contributionDetails"),
+        cid: "record-cid",
+      });
+    });
+
+    it("should use existing contributionDetails StrongRef", async () => {
+      await hypercertOps.addContribution({
+        hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        contributors: ["did:plc:user1"],
+        contributionDetails: {
+          uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/existing",
+          cid: "existing-cid",
+        },
+      });
+
+      // Verify no new contributionDetails record created (only contributorInformation)
+      const createCalls = mockAgent.com.atproto.repo.createRecord.mock.calls;
+      expect(createCalls.some((call) => call[0].collection === "org.hypercerts.claim.contributionDetails")).toBe(false);
+
+      // Verify hypercert uses the provided StrongRef
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors[0].contributionDetails).toMatchObject({
+        uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/existing",
+        cid: "existing-cid",
+      });
+    });
+
+    it("should create contributorInformation from create params", async () => {
+      await hypercertOps.addContribution({
+        hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        contributors: [
+          {
+            identifier: "did:plc:alice",
+            displayName: "Alice Smith",
+          },
+        ],
+        contributionDetails: "Coordinator",
+      });
+
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: "org.hypercerts.claim.contributorInformation",
+          record: expect.objectContaining({
+            identifier: "did:plc:alice",
+            displayName: "Alice Smith",
+          }),
+        }),
+      );
+    });
+
+    it("should include weight when provided", async () => {
+      await hypercertOps.addContribution({
+        hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        contributors: ["did:plc:user1"],
+        contributionDetails: "Lead Developer",
+        weight: "2.5",
+      });
+
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors[0]).toMatchObject({
+        contributionWeight: "2.5",
+      });
+    });
+
+    it("should append to existing contributors without replacing", async () => {
+      // Mock hypercert with existing contributor
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValueOnce({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          cid: "hypercert-cid",
+          value: {
+            $type: "org.hypercerts.claim.activity",
+            title: "Test",
+            description: "Test",
+            shortDescription: "Test",
+            workScope: createWorkScopeString(["Climate"]),
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            rights: { uri: "at://rights", cid: "rights-cid" },
+            contributors: [
+              {
+                contributorIdentity: {
+                  uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/existing",
+                  cid: "existing-cid",
+                  $type: "com.atproto.repo.strongRef",
+                },
+                contributionDetails: "Existing Role",
+              },
+            ],
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
 
       await hypercertOps.addContribution({
-        contributors: ["did:plc:test"],
-        role: "Tester",
+        hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        contributors: ["did:plc:new-user"],
+        contributionDetails: "New Role",
       });
 
-      expect(handler).toHaveBeenCalled();
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors).toHaveLength(2);
+      expect(updateCall.record.contributors[0].contributionDetails).toBe("Existing Role");
+    });
+
+    it("should throw NetworkError if hypercert not found", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValueOnce({
+        success: false,
+      });
+
+      await expect(
+        hypercertOps.addContribution({
+          hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/missing",
+          contributors: ["did:plc:user"],
+          contributionDetails: "Developer",
+        }),
+      ).rejects.toThrow(NetworkError);
+    });
+
+    it("should throw NetworkError if update fails", async () => {
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValueOnce({
+        success: false,
+      });
+
+      await expect(
+        hypercertOps.addContribution({
+          hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          contributors: ["did:plc:user"],
+          contributionDetails: "Developer",
+        }),
+      ).rejects.toThrow(NetworkError);
+    });
+  });
+
+  describe("processContributors (integration check)", () => {
+    it("should still work after refactor", async () => {
+      // Set up mocks for record creation
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://test/record", cid: "test-cid" },
+      });
+
+      // Test the create() flow which uses processContributors
+      await hypercertOps.create({
+        title: "Test",
+        description: "Test",
+        shortDescription: "Test",
+        workScope: createWorkScopeString(["Climate"]),
+        startDate: "2024-01-01",
+        endDate: "2024-12-31",
+        rights: { name: "CC-BY", type: "license", description: "Open" },
+        contributions: [
+          {
+            contributors: ["did:plc:user1", "did:plc:user2"],
+            contributionDetails: "Developer",
+            weight: "1.0",
+          },
+          {
+            contributors: ["did:plc:user3"],
+            contributionDetails: { role: "Lead", contributionDescription: "Led project" },
+            weight: "2.0",
+          },
+        ],
+      });
+
+      // Verify contributors were processed and included in hypercert
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls.find(
+        (call) => call[0].collection === "org.hypercerts.claim.activity",
+      );
+      expect(createCall).toBeDefined();
+      expect(createCall![0].record.contributors).toHaveLength(3); // 2 + 1
     });
   });
 
