@@ -116,11 +116,9 @@ describe("BlobOperationsImpl", () => {
 
       const result = await sdsBlobOps.upload(mockBlob);
 
-      // BlobRef.asBlobRef constructs a proper BlobRef from the untyped { cid, mimeType } format
       expect(result.ref.toString()).toBe("bafkreih2lkrpuecmhbfuqkapcuy5n3r6bniibdes65v5j2yogi7jdsecia");
       expect(result.mimeType).toBe("image/png");
-      // Size is -1 because the untyped BlobRef format doesn't carry size
-      expect(result.size).toBe(-1);
+      expect(result.size).toBe(12);
       expect(mockAgent.fetchHandler).toHaveBeenCalledWith(
         `/xrpc/com.sds.repo.uploadBlob?repo=${encodeURIComponent(TEST_REPO_DID)}`,
         expect.objectContaining({

@@ -6,8 +6,8 @@ Refactor internal URI parsing and blob upload operations
 
 **Breaking:** `BlobOperationsImpl.upload()` now returns AT Protocol's `BlobRef` type instead of a plain
 `{ ref, mimeType, size }` object. Callers should access blob properties via `BlobRef` methods (e.g.
-`result.ref.toString()` for the CID string). SDS uploads now return a proper `BlobRef` instance constructed from the
-server response.
+`result.ref.toString()` for the CID string). SDS uploads now return a proper `BlobRef` instance with `ref`, `mimeType`,
+and `size` correctly populated from the server response.
 
 - Export `AT_URI_REGEX` from `@hypercerts-org/sdk-core` for direct regex usage
 - Consolidate AT-URI parsing in HypercertOperationsImpl using `parseAtUri()` utility

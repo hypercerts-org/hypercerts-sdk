@@ -9,6 +9,7 @@
 
 import type { Agent } from "@atproto/api";
 import { BlobRef } from "@atproto/lexicon";
+import { CID } from "multiformats/cid";
 import { NetworkError } from "../core/errors.js";
 import type { BlobOperations } from "./interfaces.js";
 
@@ -171,21 +172,19 @@ export class BlobOperationsImpl implements BlobOperations {
 
     // SDS returns { blob: { ref: { $link: string }, mimeType: string, size: number } }
     // which is a JSON-serialized blob ref, not a BlobRef instance.
-    // Use BlobRef.asBlobRef with the untyped format ({ cid, mimeType }) to construct a proper BlobRef.
+    // Construct a BlobRef directly using CID.parse to preserve the size from the SDS response.
     const result = (await response.json()) as {
       blob: { ref: { $link: string }; mimeType: string; size: number };
     };
 
-    const blobRef = BlobRef.asBlobRef({
-      cid: result.blob.ref.$link,
-      mimeType: result.blob.mimeType,
-    });
-
-    if (!blobRef) {
+    let cid: CID;
+    try {
+      cid = CID.parse(result.blob.ref.$link);
+    } catch {
       throw new NetworkError("SDS blob upload returned an invalid blob reference");
     }
 
-    return blobRef;
+    return new BlobRef(cid, result.blob.mimeType, result.blob.size);
   }
 
   /**
