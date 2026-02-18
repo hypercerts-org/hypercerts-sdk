@@ -9,6 +9,8 @@
  */
 
 import type { Agent, AppBskyActorDefs } from "@atproto/api";
+import { BlobRef as LexiconBlobRef } from "@atproto/lexicon";
+import type { JsonBlobRef } from "@atproto/lexicon";
 import { NetworkError, ValidationError } from "../core/errors.js";
 import { HYPERCERT_COLLECTIONS } from "../lexicons.js";
 import { extractCidFromImage, getBlobUrl } from "../lib/blob-url.js";
@@ -16,6 +18,7 @@ import { isValidUri } from "../lib/url-utils.js";
 import { AppCertifiedActorProfile, type HypercertImageRecord } from "../services/hypercerts/types.js";
 import { validate } from "@hypercerts-org/lexicon";
 import type {
+  BlobInput,
   BlobOperations,
   BskyProfile,
   CertifiedProfile,
@@ -118,15 +121,38 @@ export class ProfileOperationsImpl implements ProfileOperations {
   }
 
   /**
+   * Type guard to check if a value is a JsonBlobRef (already-uploaded blob reference).
+   *
+   * Supports both typed form (`{ $type: "blob", ref, mimeType, size }`) and
+   * untyped/legacy form (`{ cid: string, mimeType: string }`).
+   *
+   * @internal
+   */
+  private isJsonBlobRef(value: unknown): value is JsonBlobRef {
+    if (typeof value !== "object" || value === null) return false;
+    const r = value as Record<string, unknown>;
+    // Typed form: { $type: "blob", ref: object, mimeType: string, size: number }
+    if (r.$type === "blob" && "ref" in r && typeof r.mimeType === "string" && typeof r.size === "number") {
+      return true;
+    }
+    // Untyped/legacy form: { cid: string, mimeType: string }
+    if (typeof r.cid === "string" && typeof r.mimeType === "string") {
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Applies an image field (avatar/banner) with format-specific wrapping.
    *
    * - null: removes the field
    * - undefined: no change
+   * - JsonBlobRef: uses the existing blob ref directly (no re-upload)
    * - Blob: uploads and wraps according to collection format
    *
    * @param result - The profile record being built
    * @param field - Field name ("avatar" or "banner")
-   * @param value - Blob to upload, null to remove, or undefined to skip
+   * @param input - BlobInput (Blob or JsonBlobRef) to use, null to remove, or undefined to skip
    * @param collection - Profile collection NSID (determines image wrapping format)
    *
    * @internal
@@ -134,17 +160,34 @@ export class ProfileOperationsImpl implements ProfileOperations {
   private async applyImageField(
     result: Record<string, unknown>,
     field: string,
-    value: Blob | null | undefined,
+    input: BlobInput | null | undefined,
     collection: ProfileCollection,
   ): Promise<void> {
-    if (value === undefined) return;
+    if (input === undefined) return;
 
-    if (value === null) {
+    if (input === null) {
       delete result[field];
       return;
     }
 
-    const blobRef = await this.blobs.upload(value);
+    // If the input is already a JSON blob ref, convert to BlobRef instance for validation
+    // and store without re-uploading
+    if (this.isJsonBlobRef(input)) {
+      const blobRef = LexiconBlobRef.fromJsonRef(input);
+      if (collection === BSKY_PROFILE_NSID) {
+        result[field] = blobRef;
+      } else {
+        const isLargeImage = field === "banner";
+        result[field] = {
+          $type: isLargeImage ? "org.hypercerts.defs#largeImage" : "org.hypercerts.defs#smallImage",
+          image: blobRef,
+        };
+      }
+      return;
+    }
+
+    // Otherwise it's a Blob — upload and store as BlobRef (validators require instanceof BlobRef)
+    const blobRef = await this.blobs.upload(input as Blob);
 
     // Bsky profiles use simple blob refs, Certified profiles wrap in smallImage/largeImage
     if (collection === BSKY_PROFILE_NSID) {

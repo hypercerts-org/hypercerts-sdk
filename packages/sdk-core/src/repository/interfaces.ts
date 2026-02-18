@@ -9,6 +9,7 @@
  */
 
 import type { AppBskyActorDefs, AppBskyActorProfile, AppBskyRichtextFacet, BlobRef } from "@atproto/api";
+import type { JsonBlobRef } from "@atproto/lexicon";
 import type { EventEmitter } from "eventemitter3";
 import type {
   AppCertifiedActorProfile,
@@ -672,6 +673,11 @@ export interface BlobOperations {
  * ```
  */
 /**
+ * Input type for blob fields — either a new Blob to upload or an existing JsonBlobRef to reuse.
+ */
+export type BlobInput = Blob | JsonBlobRef;
+
+/**
  * Bluesky profile type - direct from AT Protocol.
  * Returned by agent.getProfile() with avatar/banner as CDN URLs.
  */
@@ -696,7 +702,7 @@ type Nullable<T> = { [K in keyof T]?: T[K] | null };
 
 export type CreateBskyProfileParams = OverrideProperties<
   SetOptional<AppBskyActorProfile.Record, "$type" | "createdAt">,
-  { avatar?: Blob; banner?: Blob }
+  { avatar?: BlobInput; banner?: BlobInput }
 >;
 
 /**
@@ -706,7 +712,7 @@ export type CreateBskyProfileParams = OverrideProperties<
  */
 export type UpdateBskyProfileParams = OverrideProperties<
   Nullable<Except<CreateBskyProfileParams, "$type" | "createdAt">>,
-  { avatar?: Blob | null; banner?: Blob | null }
+  { avatar?: BlobInput | null; banner?: BlobInput | null }
 >;
 
 /**
@@ -716,7 +722,7 @@ export type UpdateBskyProfileParams = OverrideProperties<
 
 export type CreateCertifiedProfileParams = OverrideProperties<
   SetOptional<AppCertifiedActorProfile.Main, "$type" | "createdAt">,
-  { avatar?: Blob; banner?: Blob }
+  { avatar?: BlobInput; banner?: BlobInput }
 >;
 
 /**
@@ -726,7 +732,7 @@ export type CreateCertifiedProfileParams = OverrideProperties<
  */
 export type UpdateCertifiedProfileParams = OverrideProperties<
   Nullable<Except<CreateCertifiedProfileParams, "$type" | "createdAt">>,
-  { avatar?: Blob | null; banner?: Blob | null }
+  { avatar?: BlobInput | null; banner?: BlobInput | null }
 >;
 
 export interface ProfileOperations {

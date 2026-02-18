@@ -3,6 +3,7 @@
  * @packageDocumentation
  */
 
+import type { BlobRef, JsonBlobRef } from "@atproto/lexicon";
 import type { CollaboratorPermissions } from "../core/types.js";
 
 // ============================================================================
@@ -115,12 +116,9 @@ export interface ProgressStep {
 // ============================================================================
 
 /**
- * Result from BlobOperations.upload()
- *
- * @deprecated Use BlobRef from @atproto/api directly
+ * Converts a BlobRef from @atproto/lexicon to its JSON representation
+ * suitable for storing in AT Protocol records.
  */
-export interface BlobUploadResult {
-  ref: { $link: string };
-  mimeType: string;
-  size: number;
+export function blobRefToJsonRef(blobRef: BlobRef): JsonBlobRef {
+  return blobRef.ipld();
 }
