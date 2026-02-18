@@ -64,6 +64,8 @@ export type {
   OrganizationOperations,
   CreateHypercertParams,
   CreateHypercertResult,
+  CreateCertifiedProfileParams,
+  UpdateCertifiedProfileParams,
 } from "./repository/interfaces.js";
 
 // Hypercert types
@@ -84,9 +86,9 @@ export type {
   HypercertWithMetadata,
   HypercertProject,
   HypercertProjectWithMetadata,
+  CertifiedProfileRecord,
   CreateProjectParams,
   UpdateProjectParams,
-  JsonBlobRef,
 } from "./services/hypercerts/types.js";
 
 // BlobRef is a class, not just a type

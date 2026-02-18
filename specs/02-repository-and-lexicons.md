@@ -80,25 +80,65 @@ export class BlobManager {
 
 ### ProfileManager
 
+The ProfileManager supports dual profile types: Bluesky (standard AT Protocol) and Certified (hypercerts-specific with
+additional fields).
+
 ```typescript
 export class ProfileManager {
-  async get(repo: string): Promise<{
-    handle: string;
-    displayName?: string;
-    description?: string;
-    avatar?: string;
-    banner?: string;
-    website?: string;
-  }>;
+  // Bluesky profiles (app.bsky.actor.profile)
+  async getBskyProfile(): Promise<BskyProfile>;
+  async createBskyProfile(params: CreateBskyProfileParams): Promise<CreateResult>;
+  async updateBskyProfile(params: UpdateBskyProfileParams): Promise<UpdateResult>;
 
-  async update(params: {
-    repo: string;
-    displayName?: string | null;
-    description?: string | null;
-    avatar?: Blob | null;
-    banner?: Blob | null;
-    website?: string | null;
-  }): Promise<{ uri: string; cid: string }>;
+  // Certified profiles (app.certified.actor.profile)
+  async getCertifiedProfile(): Promise<CertifiedProfile>;
+  async createCertifiedProfile(params: CreateCertifiedProfileParams): Promise<CreateResult>;
+  async updateCertifiedProfile(params: UpdateCertifiedProfileParams): Promise<UpdateResult>;
+}
+
+// Types
+export type BskyProfile = AppBskyActorDefs.ProfileViewDetailed;
+
+export interface CertifiedProfile {
+  handle?: string;
+  displayName?: string;
+  description?: string;
+  avatar?: string; // Blob URL
+  banner?: string; // Blob URL
+  pronouns?: string; // Max 20 graphemes
+  website?: string;
+}
+
+export interface CreateBskyProfileParams {
+  displayName?: string;
+  description?: string;
+  avatar?: Blob;
+  banner?: Blob;
+}
+
+export interface UpdateBskyProfileParams {
+  displayName?: string | null;
+  description?: string | null;
+  avatar?: Blob | null;
+  banner?: Blob | null;
+}
+
+export interface CreateCertifiedProfileParams {
+  displayName?: string;
+  description?: string;
+  avatar?: Blob;
+  banner?: Blob;
+  pronouns?: string;
+  website?: string;
+}
+
+export interface UpdateCertifiedProfileParams {
+  displayName?: string | null;
+  description?: string | null;
+  avatar?: Blob | null;
+  banner?: Blob | null;
+  pronouns?: string | null;
+  website?: string | null;
 }
 ```
 

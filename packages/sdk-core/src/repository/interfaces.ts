@@ -8,22 +8,23 @@
  * @packageDocumentation
  */
 
-import type { AppBskyRichtextFacet } from "@atproto/api";
+import type { AppBskyActorDefs, AppBskyActorProfile, AppBskyRichtextFacet, BlobRef } from "@atproto/api";
 import type { EventEmitter } from "eventemitter3";
 import type {
-  LocationParams,
+  AppCertifiedActorProfile,
+  CreateAttachmentParams,
   CreateCollectionParams,
   CreateCollectionResult,
+  CreateMeasurementParams,
   CreateProjectParams,
   CreateProjectResult,
-  HypercertCollection,
   HypercertClaim,
-  UpdateCollectionParams,
-  UpdateProjectParams,
-  CreateMeasurementParams,
-  UpdateMeasurementParams,
-  CreateAttachmentParams,
+  HypercertCollection,
+  LocationParams,
   RefUri,
+  UpdateCollectionParams,
+  UpdateMeasurementParams,
+  UpdateProjectParams,
 } from "../services/hypercerts/types.js";
 import type {
   CreateResult,
@@ -35,6 +36,7 @@ import type {
   RepositoryRole,
   UpdateResult,
 } from "./types.js";
+import { Except, OverrideProperties, SetOptional } from "type-fest";
 
 // Re-export AttachLocationParams for convenience
 export type { LocationParams };
@@ -619,26 +621,9 @@ export interface BlobOperations {
    * Uploads a blob to the server.
    *
    * @param blob - The blob to upload
-   * @returns Promise resolving to blob reference and metadata
+   * @returns Promise resolving to blob reference
    */
-  upload(blob: Blob): Promise<{
-    /**
-     * Blob reference to use in records.
-     *
-     * Contains `$link` property with the CID.
-     */
-    ref: { $link: string };
-
-    /**
-     * MIME type of the uploaded blob.
-     */
-    mimeType: string;
-
-    /**
-     * Size of the blob in bytes.
-     */
-    size: number;
-  }>;
+  upload(blob: Blob): Promise<BlobRef>;
 
   /**
    * Retrieves a blob by its CID.
@@ -664,104 +649,241 @@ export interface BlobOperations {
  *
  * @example
  * ```typescript
- * // Get profile
- * const profile = await repo.profile.get();
- * console.log(profile.displayName);
+ * // Get Bluesky profile (standard AT Protocol)
+ * const bskyProfile = await repo.profile.getBskyProfile();
+ * console.log(bskyProfile.displayName);
  *
- * // Update profile
- * await repo.profile.update({
+ * // Get Certified profile (with hypercerts fields)
+ * const certProfile = await repo.profile.getCertifiedProfile();
+ * console.log(certProfile.pronouns); // "she/her"
+ *
+ * // Update Bluesky profile
+ * await repo.profile.updateBskyProfile({
  *   displayName: "New Name",
  *   description: "Updated bio",
  * });
  *
- * // Update avatar
- * await repo.profile.update({
- *   avatar: new Blob([avatarData], { type: "image/png" }),
- * });
- *
- * // Clear a field by passing null
- * await repo.profile.update({
+ * // Update Certified profile with pronouns
+ * await repo.profile.updateCertifiedProfile({
+ *   displayName: "New Name",
+ *   pronouns: "they/them",
  *   website: null,  // Removes website
  * });
  * ```
  */
 /**
- * Parameters for creating or updating a profile.
- *
- * Follows the established pattern used in other record creation params
- * (CreateAttachmentParams, CreateLocationParams, etc.) where `$type` and
- * `createdAt` are optional and auto-populated if not provided.
+ * Bluesky profile type - direct from AT Protocol.
+ * Returned by agent.getProfile() with avatar/banner as CDN URLs.
  */
-export interface ProfileParams {
-  /** Record type identifier. Defaults to "app.bsky.actor.profile". */
-  $type?: string;
-  /** ISO timestamp of when the profile was created. Auto-populated if not provided. */
-  createdAt?: string;
-  displayName?: string | null;
-  description?: string | null;
-  avatar?: Blob | null;
-  banner?: Blob | null;
-  website?: string | null;
-}
+export type BskyProfile = AppBskyActorDefs.ProfileViewDetailed;
+
+/**
+ * Certified profile type - AT Protocol record with converted image URLs.
+ * Images are converted from HypercertImageRecord format to blob URL strings.
+ */
+export type CertifiedProfile = OverrideProperties<
+  AppCertifiedActorProfile.Main,
+  { avatar?: string; banner?: string }
+> & { handle?: string };
+
+// Helper to allow setting optional fields to null
+type Nullable<T> = { [K in keyof T]?: T[K] | null };
+
+/**
+ * Parameters for creating/updating Bluesky profile (app.bsky.actor.profile).
+ * Images are uploaded as simple blob refs (not wrapped in hypercerts format).
+ */
+
+export type CreateBskyProfileParams = OverrideProperties<
+  SetOptional<AppBskyActorProfile.Record, "$type" | "createdAt">,
+  { avatar?: Blob; banner?: Blob }
+>;
+
+/**
+ * Parameters for updating Bluesky profile (app.bsky.actor.profile).
+ * All fields are optional and nullable - pass null to delete a field.
+ * System fields ($type, createdAt) cannot be modified.
+ */
+export type UpdateBskyProfileParams = OverrideProperties<
+  Nullable<Except<CreateBskyProfileParams, "$type" | "createdAt">>,
+  { avatar?: Blob | null; banner?: Blob | null }
+>;
+
+/**
+ * Parameters for creating/updating Certified profile (app.certified.actor.profile).
+ * Images are uploaded and wrapped in hypercerts image format (smallImage/largeImage).
+ */
+
+export type CreateCertifiedProfileParams = OverrideProperties<
+  SetOptional<AppCertifiedActorProfile.Main, "$type" | "createdAt">,
+  { avatar?: Blob; banner?: Blob }
+>;
+
+/**
+ * Parameters for updating Certified profile (app.certified.actor.profile).
+ * All fields are optional and nullable - pass null to delete a field.
+ * System fields ($type, createdAt) cannot be modified.
+ */
+export type UpdateCertifiedProfileParams = OverrideProperties<
+  Nullable<Except<CreateCertifiedProfileParams, "$type" | "createdAt">>,
+  { avatar?: Blob | null; banner?: Blob | null }
+>;
 
 export interface ProfileOperations {
   /**
-   * Gets the repository's profile.
+   * Gets Bluesky profile (app.bsky.actor.profile).
    *
-   * @returns Promise resolving to profile data
+   * Returns the profile as fetched from agent.getProfile(), which includes
+   * avatar and banner as CDN URLs.
+   *
+   * @returns Promise resolving to Bluesky profile data
+   * @throws {NetworkError} If profile cannot be fetched
+   *
+   * @example
+   * ```typescript
+   * const bskyProfile = await repo.profile.getBskyProfile();
+   * console.log(bskyProfile.displayName); // "Alice"
+   * console.log(bskyProfile.avatar); // "https://cdn.bsky.app/..."
+   * ```
    */
-  get(): Promise<{
-    /**
-     * User's handle (e.g., "alice.bsky.social").
-     */
-    handle: string;
-
-    /**
-     * Display name.
-     */
-    displayName?: string;
-
-    /**
-     * Profile description/bio.
-     */
-    description?: string;
-
-    /**
-     * Avatar image URL or blob reference.
-     */
-    avatar?: string;
-
-    /**
-     * Banner image URL or blob reference.
-     */
-    banner?: string;
-
-    /**
-     * Website URL.
-     */
-    website?: string;
-  }>;
+  getBskyProfile(): Promise<BskyProfile>;
 
   /**
-   * Creates a new profile for the repository.
+   * Gets Certified profile (app.certified.actor.profile).
    *
-   * Use this when no profile exists yet. If a profile already exists,
-   * use {@link update} instead.
+   * Returns the profile record with avatar and banner converted to blob URLs.
+   * Includes the user's handle fetched from getProfile().
+   *
+   * @returns Promise resolving to Certified profile data, or null if no profile exists
+   * @throws {NetworkError} If profile fetch fails due to network/server issues
+   *
+   * @example
+   * ```typescript
+   * const certifiedProfile = await repo.profile.getCertifiedProfile();
+   * if (certifiedProfile) {
+   *   console.log(certifiedProfile.displayName); // "Alice"
+   *   console.log(certifiedProfile.pronouns); // "she/her"
+   *   console.log(certifiedProfile.avatar); // "https://pds.../xrpc/..."
+   * } else {
+   *   console.log("User hasn't created a certified profile yet");
+   * }
+   * ```
+   */
+  getCertifiedProfile(): Promise<CertifiedProfile | null>;
+
+  /**
+   * Creates Bluesky profile (app.bsky.actor.profile).
    *
    * @param params - Profile fields to set
-   * @returns Promise resolving to create result
+   * @returns Promise resolving to create result with URI and CID
+   * @throws {NetworkError} If creation fails
+   *
+   * @example
+   * ```typescript
+   * await repo.profile.createBskyProfile({
+   *   displayName: "Alice",
+   *   description: "Building impact certificates",
+   * });
+   * ```
    */
-  create(params: ProfileParams): Promise<CreateResult>;
+  createBskyProfile(params: CreateBskyProfileParams): Promise<CreateResult>;
 
   /**
-   * Updates the repository's profile.
+   * Updates Bluesky profile (app.bsky.actor.profile).
    *
-   * Pass `null` to clear a field. Omitted fields are unchanged.
+   * @param params - Fields to update (pass null to remove)
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} If update fails
    *
-   * @param params - Fields to update
-   * @returns Promise resolving to update result
+   * @example
+   * ```typescript
+   * await repo.profile.updateBskyProfile({
+   *   displayName: "New Name",
+   *   description: null,  // Remove description
+   * });
+   * ```
    */
-  update(params: ProfileParams): Promise<UpdateResult>;
+  updateBskyProfile(params: UpdateBskyProfileParams): Promise<UpdateResult>;
+
+  /**
+   * Creates Certified profile (app.certified.actor.profile).
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to create result with URI and CID
+   * @throws {NetworkError} If creation fails
+   *
+   * @example
+   * ```typescript
+   * await repo.profile.createCertifiedProfile({
+   *   displayName: "Alice",
+   *   description: "Building impact certificates",
+   *   pronouns: "she/her",
+   *   website: "https://alice.com",
+   * });
+   * ```
+   */
+  createCertifiedProfile(params: CreateCertifiedProfileParams): Promise<CreateResult>;
+
+  /**
+   * Updates Certified profile (app.certified.actor.profile).
+   *
+   * @param params - Fields to update (pass null to remove)
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} If update fails
+   *
+   * @example
+   * ```typescript
+   * await repo.profile.updateCertifiedProfile({
+   *   displayName: "New Name",
+   *   pronouns: null,  // Remove pronouns
+   * });
+   * ```
+   */
+  updateCertifiedProfile(params: UpdateCertifiedProfileParams): Promise<UpdateResult>;
+
+  /**
+   * Upserts Bluesky profile (creates if missing, updates if exists).
+   *
+   * Automatically detects whether the profile exists and creates or updates accordingly.
+   * This is the recommended method for most use cases.
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} If operation fails
+   * @throws {ValidationError} If validation fails
+   *
+   * @example
+   * ```typescript
+   * // Works whether profile exists or not
+   * await repo.profile.upsertBskyProfile({
+   *   displayName: "Alice",
+   *   description: "Building on AT Protocol",
+   * });
+   * ```
+   */
+  upsertBskyProfile(params: CreateBskyProfileParams): Promise<UpdateResult>;
+
+  /**
+   * Upserts Certified profile (creates if missing, updates if exists).
+   *
+   * Automatically detects whether the profile exists and creates or updates accordingly.
+   * This is the recommended method for most use cases.
+   *
+   * @param params - Profile fields to set
+   * @returns Promise resolving to update result with URI and CID
+   * @throws {NetworkError} If operation fails
+   * @throws {ValidationError} If validation fails
+   *
+   * @example
+   * ```typescript
+   * // Works whether profile exists or not
+   * await repo.profile.upsertCertifiedProfile({
+   *   displayName: "Alice",
+   *   pronouns: "she/her",
+   * });
+   * ```
+   */
+  upsertCertifiedProfile(params: CreateCertifiedProfileParams): Promise<UpdateResult>;
 }
 
 /**

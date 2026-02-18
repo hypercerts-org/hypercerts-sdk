@@ -30,6 +30,9 @@ export type {
   ProgressStep,
 } from "./repository/types.js";
 
+// Blob URL Utilities
+export { getBlobUrl, extractCidFromImage } from "./lib/blob-url.js";
+
 // Lexicon Development Utilities
 export {
   parseAtUri,
@@ -97,6 +100,8 @@ export type {
   CreateContributionDetailsParams,
   ContributorIdentityParams,
   CreateContributorInformationParams,
+  CreateCertifiedProfileParams,
+  UpdateCertifiedProfileParams,
 } from "./repository/interfaces.js";
 
 // ============================================================================
@@ -158,6 +163,7 @@ export type {
   BadgeDefinition,
   BadgeResponse,
   FundingReceipt,
+  CertifiedProfileRecord,
   // SDK-specific types
   HypercertAttachment,
   HypercertImage,
@@ -172,9 +178,6 @@ export type {
   UpdateAttachmentParams,
   AttachmentParams,
 } from "./services/hypercerts/types.js";
-
-// Re-export ATProto lexicon types
-export type { JsonBlobRef } from "./services/hypercerts/types.js";
 
 // Errors
 export {

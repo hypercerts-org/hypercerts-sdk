@@ -145,8 +145,8 @@ export function createMockATProtoReact(options: MockATProtoReactOptions = {}): A
     profile: createMockProfile(),
     isLoading: false,
     error: null,
-    update: async () => {},
-    isUpdating: false,
+    save: async () => {},
+    isSaving: false,
     refetch: async () => {},
     ...options.mockHooks?.useProfile,
   };

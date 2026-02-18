@@ -8,53 +8,51 @@
  * @packageDocumentation
  */
 
-import type { Agent } from "@atproto/api";
+import type { Agent, BlobRef } from "@atproto/api";
+import { $Typed } from "@atproto/api";
 import { validate } from "@hypercerts-org/lexicon";
 import { EventEmitter } from "eventemitter3";
-import { NetworkError, ValidationError } from "../errors.js";
 import type { LoggerInterface } from "../core/interfaces.js";
+import { NetworkError, ValidationError } from "../errors.js";
+import { sha256Hash } from "../lib/crypto.js";
+import { isValidUri } from "../lib/url-utils.js";
 import {
   HYPERCERT_COLLECTIONS,
+  type CreateAttachmentParams,
   type CreateCollectionParams,
   type CreateCollectionResult,
+  type CreateLocationParams,
+  type CreateMeasurementParams,
   type CreateProjectParams,
   type CreateProjectResult,
+  type HypercertAttachment,
   type HypercertClaim,
   type HypercertCollection,
   type HypercertContributionDetails,
   type HypercertContributorInformation,
   type HypercertEvaluation,
-  type HypercertAttachment,
   type HypercertLocation,
-  type CreateLocationParams,
   type HypercertMeasurement,
   type HypercertRights,
-  type JsonBlobRef,
   type OrgHypercertsDefs,
   type RefUri,
   type StrongRef,
   type UpdateCollectionParams,
-  type UpdateProjectParams,
-  type CreateMeasurementParams,
   type UpdateMeasurementParams,
-  type CreateAttachmentParams,
+  type UpdateProjectParams,
 } from "../services/hypercerts/types.js";
 import type {
   BlobOperations,
-  LocationParams,
+  ContributionDetailsParams,
+  ContributorIdentityParams,
   CreateHypercertParams,
   UpdateHypercertParams,
   CreateHypercertResult,
   HypercertEvents,
   HypercertOperations,
-  ContributionDetailsParams,
-  ContributorIdentityParams,
+  LocationParams,
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
-import { uploadResultToBlobRef } from "./types.js";
-import { $Typed } from "@atproto/api";
-import { sha256Hash } from "../lib/crypto.js";
-import { isValidUri } from "../lib/url-utils.js";
 import { parseAtUri, isValidAtUri, type AtUriComponents } from "../lexicons/utils.js";
 
 /**
@@ -142,17 +140,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Converts a blob upload result to JsonBlobRef format.
-   *
-   * @param uploadResult - Result from BlobOperations.upload()
-   * @returns JsonBlobRef formatted for records
-   * @internal
-   */
-  private blobToJsonRef(uploadResult: { ref: { $link: string }; mimeType: string; size: number }): JsonBlobRef {
-    return uploadResultToBlobRef(uploadResult);
-  }
-
-  /**
    * Uploads an image blob and returns a blob reference.
    *
    * @param image - Image blob to upload
@@ -161,10 +148,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @throws {@link NetworkError} if upload fails
    * @internal
    */
-  private async uploadImageBlob(
-    image: Blob,
-    onProgress?: (step: ProgressStep) => void,
-  ): Promise<JsonBlobRef | undefined> {
+  private async uploadImageBlob(image: Blob, onProgress?: (step: ProgressStep) => void) {
     this.emitProgress(onProgress, { name: "uploadImage", status: "start" });
     try {
       const uploadResult = await this.blobs.upload(image);
@@ -173,7 +157,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         status: "success",
         data: { size: image.size },
       });
-      return this.blobToJsonRef(uploadResult);
+      return uploadResult;
     } catch (error) {
       this.emitProgress(onProgress, { name: "uploadImage", status: "error", error: error as Error });
       throw new NetworkError(`Failed to upload image: ${error instanceof Error ? error.message : "Unknown"}`, error);
@@ -270,7 +254,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     params: CreateHypercertParams,
     rightsUri: string,
     rightsCid: string,
-    imageBlobRef: JsonBlobRef | undefined,
+    imageBlobRef: BlobRef | undefined,
     locationRefs: Array<{ uri: string; cid: string }> | undefined,
     contributorsData:
       | Array<{
@@ -296,7 +280,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     };
 
     if (imageBlobRef) {
-      hypercertRecord.image = imageBlobRef;
+      hypercertRecord.image = {
+        $type: "org.hypercerts.defs#smallImage",
+        image: imageBlobRef,
+      };
     }
 
     // Add locations as embedded StrongRefs if provided
@@ -334,6 +321,12 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error?.message}`);
     }
 
+    // if its a blob ref guaranteed to have ref and a .toString method
+    let imageRef: string | undefined;
+    if (imageBlobRef) {
+      imageRef = imageBlobRef.ref.toString();
+    }
+
     // Generate rKey from stable content hash (idempotency)
     // Use NORMALIZED values (already resolved StrongRefs and processed data)
     // to ensure JSON-serializability and deterministic hashing.
@@ -346,15 +339,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       workScope: params.workScope,
       startDate: params.startDate,
       endDate: params.endDate,
-      // Image: extract CID string from blob ref (stable content hash)
-      // JsonBlobRef can have ref.$link (upload result) or cid (existing record)
-      imageRef: imageBlobRef
-        ? "ref" in imageBlobRef && imageBlobRef.ref
-          ? imageBlobRef.ref.$link
-          : "cid" in imageBlobRef
-            ? imageBlobRef.cid
-            : undefined
-        : undefined,
+      imageRef,
       // Rights: canonical object with only known fields
       rights: {
         name: params.rights.name,
@@ -670,7 +655,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           // Remove image
         } else {
           const uploadResult = await this.blobs.upload(params.image);
-          recordForUpdate.image = this.blobToJsonRef(uploadResult);
+          recordForUpdate.image = {
+            $type: "org.hypercerts.defs#smallImage",
+            image: uploadResult,
+          };
         }
       } else if (existingRecord.image) {
         // Preserve existing image
@@ -1393,7 +1381,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         };
 
         // Handle image upload if it's a Blob
-        let imageRef: JsonBlobRef | string | undefined;
+        let imageRef: BlobRef | string | undefined;
         if (image instanceof Blob) {
           const uploadResult = await this.uploadImageBlob(image, onProgress);
           imageRef = uploadResult;
@@ -1589,7 +1577,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   async addContributorInformation(params: {
     identifier: string;
     displayName?: string;
-    image?: JsonBlobRef | string;
+    image?: BlobRef | string;
     [key: string]: unknown;
   }): Promise<CreateResult> {
     try {
@@ -1603,7 +1591,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           // URI string - wrap in typed object
           resolvedImage = { $type: "org.hypercerts.defs#uri", uri: image } as HypercertContributorInformation["image"];
         } else {
-          // JsonBlobRef from upload - wrap in smallImage
+          // BlobRef from upload - wrap in smallImage
           resolvedImage = {
             $type: "org.hypercerts.defs#smallImage",
             image: image,
@@ -1830,7 +1818,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const evaluationRecord: HypercertEvaluation = {
         $type: HYPERCERT_COLLECTIONS.EVALUATION,
         subject: { uri: subject.uri, cid: subject.cid },
-        evaluators: params.evaluators,
+        evaluators: params.evaluators.map((evaluator) => ({ did: evaluator })),
         summary: params.summary,
         createdAt,
       };
@@ -2030,8 +2018,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param params - Optional pagination parameters
    * @returns Promise resolving to paginated list of collections
    * @throws {@link NetworkError} if the list operation fails
-   *
-   * @example
+   * * @example
    * ```typescript
    * const { records } = await repo.hypercerts.listCollections();
    * for (const { record } of records) {

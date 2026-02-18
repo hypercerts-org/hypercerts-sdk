@@ -8,11 +8,11 @@
 
 // Re-export BlobRef from ATProto lexicon
 export { BlobRef } from "@atproto/lexicon";
-export type { JsonBlobRef } from "@atproto/lexicon";
 import type { Except, OverrideProperties, SetOptional } from "type-fest";
 
 // Re-export everything from lexicon package
 export {
+  AppCertifiedActorProfile,
   AppCertifiedBadgeAward,
   AppCertifiedBadgeDefinition,
   AppCertifiedBadgeResponse,
@@ -55,6 +55,7 @@ export type { AppCertifiedDefs, OrgHypercertsDefs } from "@hypercerts-org/lexico
  * when defining `type HypercertClaim = OrgHypercertsClaimActivity.Main`.
  */
 import type {
+  AppCertifiedActorProfile,
   AppCertifiedBadgeAward,
   AppCertifiedBadgeDefinition,
   AppCertifiedBadgeResponse,
@@ -72,6 +73,9 @@ import type {
   OrgHypercertsFundingReceipt,
   OrgHypercertsHelperWorkScopeTag,
 } from "@hypercerts-org/lexicon";
+
+// Re-export Bluesky profile types
+export type { AppBskyActorProfile } from "@atproto/api";
 // Re-export AppBskyRichtextFacet for rich text annotations
 export type { AppBskyRichtextFacet } from "@atproto/api";
 
@@ -184,6 +188,12 @@ export type HypercertEvaluation = OrgHypercertsClaimEvaluation.Main;
  */
 export type HypercertAttachment = OrgHypercertsClaimAttachment.Main;
 export type HypercertCollection = OrgHypercertsClaimCollection.Main;
+
+/**
+ * Certified actor profile record (app.certified.actor.profile).
+ * Extended profile with additional fields beyond Bluesky profiles.
+ */
+export type CertifiedProfileRecord = AppCertifiedActorProfile.Main;
 
 /**
  * Collection item with optional weight.
@@ -689,3 +699,5 @@ export type UpdateAttachmentParams = Partial<CreateAttachmentParams>;
  * - Full attachment params object to create new attachment
  */
 export type AttachmentParams = RefUri | CreateAttachmentParams;
+
+export type CreateCertifiedProfileParams = SetOptional<AppCertifiedActorProfile.Main, "createdAt" | "$type">;
