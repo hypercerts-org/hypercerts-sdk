@@ -10,7 +10,8 @@
 import type { Agent } from "@atproto/api";
 import { BlobRef } from "@atproto/lexicon";
 import { CID } from "multiformats/cid";
-import { NetworkError } from "../core/errors.js";
+import { NetworkError, ValidationError } from "../core/errors.js";
+import { isValidDid } from "../core/types.js";
 import type { BlobOperations } from "./interfaces.js";
 
 /**
@@ -68,7 +69,13 @@ export class BlobOperationsImpl implements BlobOperations {
     private repoDid: string,
     private _serverUrl: string,
     private isSDS: boolean,
-  ) {}
+  ) {
+    if (!isValidDid(repoDid)) {
+      throw new ValidationError(
+        `Invalid DID format: "${repoDid}". DIDs must start with "did:" (e.g., "did:plc:abc123")`,
+      );
+    }
+  }
 
   /**
    * Uploads a blob to the server.
