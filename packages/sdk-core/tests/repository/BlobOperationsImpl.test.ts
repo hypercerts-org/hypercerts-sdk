@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Agent } from "@atproto/api";
 import { BlobOperationsImpl } from "../../src/repository/BlobOperationsImpl.js";
-import { NetworkError } from "../../src/core/errors.js";
+import { NetworkError, ValidationError } from "../../src/core/errors.js";
 import { createMockAgent, TEST_REPO_DID, TEST_PDS_URL, TEST_SDS_URL } from "../utils/mocks.js";
 
 describe("BlobOperationsImpl", () => {
@@ -11,6 +11,26 @@ describe("BlobOperationsImpl", () => {
   beforeEach(() => {
     mockAgent = createMockAgent(vi);
     blobOps = new BlobOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_PDS_URL, false);
+  });
+
+  describe("constructor", () => {
+    it("should accept valid DID", () => {
+      expect(
+        () => new BlobOperationsImpl(mockAgent as unknown as Agent, "did:plc:abc123", TEST_PDS_URL, false),
+      ).not.toThrow();
+    });
+
+    it("should throw ValidationError for invalid DID", () => {
+      expect(() => new BlobOperationsImpl(mockAgent as unknown as Agent, "not-a-did", TEST_PDS_URL, false)).toThrow(
+        ValidationError,
+      );
+    });
+
+    it("should include helpful error message with the invalid DID", () => {
+      expect(() => new BlobOperationsImpl(mockAgent as unknown as Agent, "invalid", TEST_PDS_URL, false)).toThrow(
+        /Invalid DID format: "invalid"/,
+      );
+    });
   });
 
   describe("upload", () => {
