@@ -3075,6 +3075,30 @@ describe("HypercertOperationsImpl", () => {
         }),
       ).rejects.toThrow(NetworkError);
     });
+
+    it("should throw NetworkError when putRecord fails", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.collection/abc123",
+          cid: "collection-cid",
+          value: {
+            $type: "org.hypercerts.claim.collection",
+            title: "Test Collection",
+            items: [],
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({ success: false });
+
+      await expect(
+        hypercertOps.attachLocationToCollection(`at://${TEST_REPO_DID}/org.hypercerts.collection/abc123`, {
+          uri: `at://${TEST_REPO_DID}/app.certified.location/loc123`,
+          cid: "location-cid",
+        }),
+      ).rejects.toThrow(NetworkError);
+    });
   });
 
   describe("removeLocationFromCollection", () => {
@@ -3126,6 +3150,28 @@ describe("HypercertOperationsImpl", () => {
 
       await expect(
         hypercertOps.removeLocationFromCollection("at://did:plc:test/org.hypercerts.collection/missing"),
+      ).rejects.toThrow(NetworkError);
+    });
+
+    it("should throw NetworkError when putRecord fails", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.collection/abc123",
+          cid: "collection-cid",
+          value: {
+            $type: "org.hypercerts.claim.collection",
+            title: "Test Collection",
+            items: [],
+            createdAt: "2024-01-01T00:00:00Z",
+            location: { uri: "at://location", cid: "location-cid" },
+          },
+        },
+      });
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({ success: false });
+
+      await expect(
+        hypercertOps.removeLocationFromCollection(`at://${TEST_REPO_DID}/org.hypercerts.collection/abc123`),
       ).rejects.toThrow(NetworkError);
     });
   });
@@ -3816,6 +3862,14 @@ describe("HypercertOperationsImpl", () => {
         ).rejects.toThrow(NetworkError);
       });
 
+      it("should call getRecord exactly once per updateProject invocation", async () => {
+        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
+          title: "New Title",
+        });
+
+        expect(mockAgent.com.atproto.repo.getRecord).toHaveBeenCalledTimes(1);
+      });
+
       it("should throw ValidationError when record is not a project", async () => {
         // Mock a collection with type='favorites' instead of type='project'
         mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
@@ -4248,6 +4302,58 @@ describe("HypercertOperationsImpl", () => {
         // @ts-expect-error - accessing private method with intentionally invalid input for testing
         hypercertOps.resolveToStrongRef(invalidInput),
       ).rejects.toThrow("Invalid input: expected string URI or StrongRef");
+    });
+  });
+
+  describe("fetchRecord (private helper)", () => {
+    it("should throw NetworkError when getRecord returns success:false", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({ success: false });
+
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.fetchRecord("at://did:plc:test/org.hypercerts.claim.collection/abc123"),
+      ).rejects.toThrow(NetworkError);
+    });
+
+    it("should throw NetworkError when getRecord returns no CID", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123",
+          cid: undefined,
+          value: {},
+        },
+      });
+
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.fetchRecord("at://did:plc:test/org.hypercerts.claim.collection/abc123"),
+      ).rejects.toThrow(NetworkError);
+
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.fetchRecord("at://did:plc:test/org.hypercerts.claim.collection/abc123"),
+      ).rejects.toThrow("returned no CID");
+    });
+  });
+
+  describe("saveRecord (private helper)", () => {
+    it("should throw NetworkError when putRecord returns success:false", async () => {
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({ success: false });
+
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.saveRecord("org.hypercerts.claim.collection", "abc123", {
+          $type: "org.hypercerts.claim.collection",
+        }),
+      ).rejects.toThrow(NetworkError);
+
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.saveRecord("org.hypercerts.claim.collection", "abc123", {
+          $type: "org.hypercerts.claim.collection",
+        }),
+      ).rejects.toThrow("Failed to save record");
     });
   });
 });
