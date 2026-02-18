@@ -22,7 +22,6 @@ import type {
   HypercertCollection,
   LocationParams,
   RefUri,
-  StrongRef,
   UpdateCollectionParams,
   UpdateMeasurementParams,
   UpdateProjectParams,
