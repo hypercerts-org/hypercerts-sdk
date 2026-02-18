@@ -7,7 +7,8 @@
  * @packageDocumentation
  */
 
-import type { Agent, BlobRef } from "@atproto/api";
+import type { Agent } from "@atproto/api";
+import { BlobRef } from "@atproto/lexicon";
 import { NetworkError } from "../core/errors.js";
 import type { BlobOperations } from "./interfaces.js";
 
@@ -168,11 +169,23 @@ export class BlobOperationsImpl implements BlobOperations {
       throw new NetworkError(`SDS blob upload failed: ${response.statusText}`);
     }
 
+    // SDS returns { blob: { ref: { $link: string }, mimeType: string, size: number } }
+    // which is a JSON-serialized blob ref, not a BlobRef instance.
+    // Use BlobRef.asBlobRef with the untyped format ({ cid, mimeType }) to construct a proper BlobRef.
     const result = (await response.json()) as {
-      blob: BlobRef;
+      blob: { ref: { $link: string }; mimeType: string; size: number };
     };
 
-    return result.blob;
+    const blobRef = BlobRef.asBlobRef({
+      cid: result.blob.ref.$link,
+      mimeType: result.blob.mimeType,
+    });
+
+    if (!blobRef) {
+      throw new NetworkError("SDS blob upload returned an invalid blob reference");
+    }
+
+    return blobRef;
   }
 
   /**

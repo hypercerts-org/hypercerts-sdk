@@ -1084,7 +1084,7 @@ describe("Scope Utility Functions", () => {
       expect(result.invalidPermissions).toEqual([]);
     });
 
-    it("should validate query-param style permissions without colon separator", () => {
+    it("should validate mixed-format permissions including query-param style", () => {
       const queryParamScopes = [
         "rpc?lxm=*&aud=did:web:api.example.com%23svc_appview",
         "blob?accept=video/*&accept=text/html",

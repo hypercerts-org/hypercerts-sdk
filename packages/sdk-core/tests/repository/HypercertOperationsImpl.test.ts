@@ -932,6 +932,8 @@ describe("HypercertOperationsImpl", () => {
       mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
         success: true,
         data: {
+          cid: "bafyreiabc123",
+          uri: "at://did:plc:test/org.hypercerts.claim.record/abc123",
           value: {
             title: "Title",
             description: "Desc",
@@ -4219,7 +4221,7 @@ describe("HypercertOperationsImpl", () => {
       await expect(
         // @ts-expect-error - accessing private method for testing
         hypercertOps.resolveToStrongRef(uri),
-      ).rejects.toThrow("Record missing CID");
+      ).rejects.toThrow("returned no CID");
     });
 
     it("should throw ValidationError for invalid input type", async () => {

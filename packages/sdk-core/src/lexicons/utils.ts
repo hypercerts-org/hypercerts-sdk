@@ -40,7 +40,7 @@ import type { CreateResult, UpdateResult } from "../repository/types.js";
  * For most use cases, prefer using {@link parseAtUri} which provides
  * better error messages and returns a typed object.
  */
-export const AT_URI_REGEX = /^at:\/\/([^/]+)\/([^/]+)\/(.+)$/;
+export const AT_URI_REGEX = /^at:\/\/([^/]+)\/([^/]+)\/([^/]+)$/;
 
 /**
  * Components of an AT-URI (AT Protocol Uniform Resource Identifier).

@@ -53,7 +53,7 @@ import type {
   LocationParams,
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
-import { parseAtUri, isValidAtUri, type AtUriComponents } from "../lexicons/utils.js";
+import { parseAtUri } from "../lexicons/utils.js";
 
 /**
  * Implementation of high-level hypercert operations.
@@ -176,9 +176,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       throw new NetworkError(`Failed to fetch record: ${uri}`);
     }
 
+    const cid = result.data.cid;
+    if (!cid) {
+      throw new NetworkError(`Record at ${uri} returned no CID`);
+    }
+
     return {
       uri: result.data.uri,
-      cid: result.data.cid ?? "",
+      cid,
       record: result.data.value as T,
       collection,
       rkey,
@@ -204,7 +209,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     });
 
     if (!result.success) {
-      throw new NetworkError("Failed to save record:", `${collection}:${rkey}`);
+      throw new NetworkError(`Failed to save record: ${collection}/${rkey}`);
     }
 
     return { uri: result.data.uri, cid: result.data.cid };
@@ -250,24 +255,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       this.emitProgress(onProgress, { name: "uploadImage", status: "error", error: error as Error });
       throw new NetworkError(`Failed to upload image: ${error instanceof Error ? error.message : "Unknown"}`, error);
     }
-  }
-
-  /**
-   * Parse and validate an AT-URI, throwing ValidationError on failure.
-   *
-   * Extracts the DID, collection NSID, and record key from an AT-URI string.
-   * Validates the URI format and throws a descriptive error if invalid.
-   *
-   * @param uri - The AT-URI to parse (e.g., "at://did:plc:abc/collection/rkey")
-   * @returns The parsed URI components (did, collection, rkey)
-   * @throws {@link ValidationError} If the URI format is invalid
-   * @internal
-   */
-  private parseAndValidateUri(uri: string): AtUriComponents {
-    if (!isValidAtUri(uri)) {
-      throw new ValidationError(`Invalid AT-URI format: ${uri}`);
-    }
-    return parseAtUri(uri);
   }
 
   /**
@@ -1040,13 +1027,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   private async resolveStrongRefFromUri(uri: string): Promise<StrongRef> {
-    const { collection, rkey, did } = this.parseUri(uri);
-    const record = await this.fetchRecord(uri);
-    if (!record.cid) {
-      throw new NetworkError(`Record missing CID for repo=${did}, collection=${collection}, rkey=${rkey}`);
-    }
-
-    return { $type: "com.atproto.repo.strongRef" as const, uri, cid: record.cid };
+    // fetchRecord already validates CID presence and throws NetworkError if absent
+    const fetchResult = await this.fetchRecord(uri);
+    return { $type: "com.atproto.repo.strongRef" as const, uri, cid: fetchResult.cid };
   }
 
   /**
@@ -2261,14 +2244,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async updateProject(uri: string, updates: UpdateProjectParams): Promise<UpdateResult> {
     // Verify it's a project before updating
-    const { record } = await this.fetchRecord<HypercertCollection>(uri);
+    const fetchResult = await this.fetchRecord<HypercertCollection>(uri);
 
-    if (record.type !== "project") {
-      throw new ValidationError(`Record is not a project (type='${record.type}')`);
+    if (fetchResult.record.type !== "project") {
+      throw new ValidationError(`Record is not a project (type='${fetchResult.record.type}')`);
     }
 
-    // Delegate to updateCollection
-    const result = await this.updateCollection(uri, updates);
+    // Pass pre-fetched record to avoid a second fetch in updateCollectionRecord
+    const result = await this.updateCollectionRecord(fetchResult, updates);
 
     this.emit("projectUpdated", { uri: result.uri, cid: result.cid });
     return result;
@@ -2339,8 +2322,29 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * ```
    */
   async updateCollection(uri: string, updates: UpdateCollectionParams): Promise<UpdateResult> {
+    const fetchResult = await this.fetchRecord<HypercertCollection>(uri);
+    const result = await this.updateCollectionRecord(fetchResult, updates);
+    this.emit("collectionUpdated", { uri: result.uri, cid: result.cid });
+    return result;
+  }
+
+  /**
+   * Core collection update logic operating on a pre-fetched record.
+   *
+   * Extracted so that callers like {@link updateProject} can fetch once,
+   * validate the type, and then delegate here without a redundant fetch.
+   *
+   * @param fetchResult - The pre-fetched record, collection, and rkey
+   * @param updates - Fields to update (partial)
+   * @returns Promise resolving to updated URI and CID
+   * @internal
+   */
+  private async updateCollectionRecord(
+    fetchResult: { record: HypercertCollection; collection: string; rkey: string },
+    updates: UpdateCollectionParams,
+  ): Promise<UpdateResult> {
     try {
-      const { record: existingRecord, collection, rkey } = await this.fetchRecord<HypercertCollection>(uri);
+      const { record: existingRecord, collection, rkey } = fetchResult;
 
       const recordForUpdate: Record<string, unknown> = {
         ...existingRecord,
@@ -2406,8 +2410,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       }
 
       const result = await this.saveRecord(collection, rkey, recordForUpdate);
-
-      this.emit("collectionUpdated", { uri: result.uri, cid: result.cid });
       return result;
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
