@@ -61,8 +61,8 @@ describe("isValidDid", () => {
       expect(isValidDid("did:plc:")).toBe(false);
     });
 
-    it("should reject did:method: with empty identifier", () => {
-      expect(isValidDid("did:plc:")).toBe(false);
+    it("should reject DID with trailing colon in identifier", () => {
+      expect(isValidDid("did:example:abc:")).toBe(false);
     });
 
     it("should reject method with uppercase letters", () => {

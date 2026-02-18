@@ -46,7 +46,8 @@ export function isValidDid(did: string): boolean {
   // DID format: did:<method>:<method-specific-id>
   // Method: lowercase letters and digits (per W3C DID Core spec)
   // Identifier: alphanumeric plus . _ : % -
-  return /^did:[a-z0-9]+:[a-zA-Z0-9._:%-]+$/.test(did);
+  // method-specific-id must end with at least one non-colon idchar (W3C DID Core 1.0)
+  return /^did:[a-z0-9]+:(?:[a-zA-Z0-9._%-]+:)*[a-zA-Z0-9._%-]+$/.test(did);
 }
 
 /**
