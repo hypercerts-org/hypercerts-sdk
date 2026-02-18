@@ -101,13 +101,13 @@ describe("BlobOperationsImpl", () => {
       sdsBlobOps = new BlobOperationsImpl(mockAgent as unknown as Agent, TEST_REPO_DID, TEST_SDS_URL, true);
     });
 
-    it("should upload a blob via SDS fetchHandler", async () => {
+    it("should upload a blob via SDS fetchHandler and return a real BlobRef", async () => {
       const mockBlob = new Blob(["test content"], { type: "image/png" });
       mockAgent.fetchHandler.mockResolvedValue({
         ok: true,
         json: async () => ({
           blob: {
-            ref: { $link: "bafyrei-sds-123" },
+            ref: { $link: "bafkreih2lkrpuecmhbfuqkapcuy5n3r6bniibdes65v5j2yogi7jdsecia" },
             mimeType: "image/png",
             size: 12,
           },
@@ -116,7 +116,7 @@ describe("BlobOperationsImpl", () => {
 
       const result = await sdsBlobOps.upload(mockBlob);
 
-      expect(result.ref).toEqual({ $link: "bafyrei-sds-123" });
+      expect(result.ref.toString()).toBe("bafkreih2lkrpuecmhbfuqkapcuy5n3r6bniibdes65v5j2yogi7jdsecia");
       expect(result.mimeType).toBe("image/png");
       expect(result.size).toBe(12);
       expect(mockAgent.fetchHandler).toHaveBeenCalledWith(
@@ -128,22 +128,20 @@ describe("BlobOperationsImpl", () => {
       );
     });
 
-    it("should handle string blob ref from SDS", async () => {
+    it("should throw NetworkError for invalid SDS blob ref", async () => {
       const mockBlob = new Blob(["test"], { type: "text/plain" });
       mockAgent.fetchHandler.mockResolvedValue({
         ok: true,
         json: async () => ({
           blob: {
-            ref: "bafyrei-string-ref",
+            ref: { $link: "not-a-valid-cid" },
             mimeType: "text/plain",
             size: 4,
           },
         }),
       });
 
-      const result = await sdsBlobOps.upload(mockBlob);
-
-      expect(result.ref).toBe("bafyrei-string-ref");
+      await expect(sdsBlobOps.upload(mockBlob)).rejects.toThrow(NetworkError);
     });
 
     it("should throw NetworkError when SDS returns non-ok response", async () => {
@@ -169,7 +167,7 @@ describe("BlobOperationsImpl", () => {
         ok: true,
         json: async () => ({
           blob: {
-            ref: { $link: "bafyrei-sds" },
+            ref: { $link: "bafkreih2lkrpuecmhbfuqkapcuy5n3r6bniibdes65v5j2yogi7jdsecia" },
             mimeType: "image/jpeg",
             size: 4,
           },

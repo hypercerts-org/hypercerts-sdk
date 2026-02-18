@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  AT_URI_REGEX,
   parseAtUri,
   buildAtUri,
   extractRkeyFromUri,
@@ -9,6 +10,20 @@ import {
   validateStrongRef,
   isStrongRef,
 } from "../../src/lexicons/utils.js";
+
+describe("AT_URI_REGEX", () => {
+  it("should match a standard AT-URI", () => {
+    expect(AT_URI_REGEX.test("at://did:plc:abc123/org.example.col/rkey123")).toBe(true);
+  });
+
+  it("should not match when rkey contains a slash", () => {
+    expect(AT_URI_REGEX.test("at://did:plc:abc123/org.example.col/rkey/extra")).toBe(false);
+  });
+
+  it("should not match a URI with only two path segments (no rkey)", () => {
+    expect(AT_URI_REGEX.test("at://did:plc:abc123/org.example.col")).toBe(false);
+  });
+});
 
 describe("AT-URI Utilities", () => {
   describe("parseAtUri", () => {

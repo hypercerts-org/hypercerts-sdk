@@ -12,6 +12,37 @@ import type { StrongRef } from "../services/hypercerts/types.js";
 import type { CreateResult, UpdateResult } from "../repository/types.js";
 
 /**
+ * Regular expression for parsing AT-URIs.
+ *
+ * AT-URIs follow the format: `at://{did}/{collection}/{rkey}`
+ *
+ * Capture groups:
+ * - [1] did - The DID of the repository owner (e.g., "did:plc:abc123")
+ * - [2] collection - The NSID of the record type (e.g., "org.hypercerts.claim.activity")
+ * - [3] rkey - The record key (e.g., "3km2vj4kfqp2a")
+ *
+ * @example Direct regex usage
+ * ```typescript
+ * const match = AT_URI_REGEX.exec("at://did:plc:abc/org.hypercerts.claim.activity/xyz");
+ * if (match) {
+ *   const [, did, collection, rkey] = match;
+ * }
+ * ```
+ *
+ * @example Validation
+ * ```typescript
+ * if (AT_URI_REGEX.test(userInput)) {
+ *   // Valid AT-URI format
+ * }
+ * ```
+ *
+ * @remarks
+ * For most use cases, prefer using {@link parseAtUri} which provides
+ * better error messages and returns a typed object.
+ */
+export const AT_URI_REGEX = /^at:\/\/([^/]+)\/([^/]+)\/([^/]+)$/;
+
+/**
  * Components of an AT-URI (AT Protocol Uniform Resource Identifier).
  *
  * AT-URIs follow the format: `at://{did}/{collection}/{rkey}`

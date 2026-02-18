@@ -1233,7 +1233,7 @@ export function validateScope(scope: string): {
   const invalidPermissions: string[] = [];
 
   // Pattern for valid permission prefixes
-  const validPrefixes = /^(atproto|transition:|account:|repo:|blob:?|rpc:|identity:|include:)/;
+  const validPrefixes = /^(atproto$|transition:|account:|repo[:?]|blob[:?]|rpc[:?]|identity:|include:)/;
 
   for (const permission of permissions) {
     if (!validPrefixes.test(permission)) {
