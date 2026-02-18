@@ -20,8 +20,8 @@ New utility functions to simplify creating rich text facets:
 import { createFacetsFromText, createFacetsFromTextSync } from "@hypercerts-org/sdk-core";
 
 // Sync (no DID resolution)
-const facets = createFacetsFromTextSync("Check out #hypercerts by @alice");
+const facetsSync = createFacetsFromTextSync("Check out #hypercerts by @alice");
 
 // Async with DID resolution (requires authenticated agent)
-const facets = await createFacetsFromText("Check out #hypercerts by @alice", agent);
+const facetsAsync = await createFacetsFromText("Check out #hypercerts by @alice", agent);
 ```
