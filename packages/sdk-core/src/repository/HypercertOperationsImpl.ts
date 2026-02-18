@@ -51,11 +51,8 @@ import type {
   HypercertEvents,
   HypercertOperations,
   LocationParams,
-  ResolvedContributionDetails,
-  ResolvedContributorIdentity,
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
-import { uploadResultToBlobRef } from "./types.js";
 import { parseAtUri, isValidAtUri, type AtUriComponents } from "../lexicons/utils.js";
 
 /**

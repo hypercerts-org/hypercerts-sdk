@@ -100,7 +100,6 @@ export type {
   CreateContributionDetailsParams,
   ContributorIdentityParams,
   CreateContributorInformationParams,
-  ResolvedContributorIdentity,
   CreateCertifiedProfileParams,
   UpdateCertifiedProfileParams,
 } from "./repository/interfaces.js";
