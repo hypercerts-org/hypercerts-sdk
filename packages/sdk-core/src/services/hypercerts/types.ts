@@ -246,6 +246,43 @@ export type HypercertLocation = AppCertifiedLocation.Main;
 export type BadgeAward = AppCertifiedBadgeAward.Main;
 export type BadgeDefinition = AppCertifiedBadgeDefinition.Main;
 export type BadgeResponse = AppCertifiedBadgeResponse.Main;
+
+/**
+ * Well-known values for a badge response, but any string is accepted.
+ *
+ * The lexicon currently defines this as a closed enum (`'accepted' | 'rejected'`),
+ * but the SDK exposes an open type so callers are not blocked when the server
+ * returns — or a future lexicon version allows — additional values.
+ * The `(string & {})` trick keeps `'accepted'` and `'rejected'` as autocomplete
+ * suggestions while still accepting arbitrary strings at the type level.
+ */
+export type BadgeResponseValue = "accepted" | "rejected" | (string & {});
+
+/**
+ * Parameters for creating a badge response record.
+ *
+ * Identical to {@link BadgeResponse} except that `$type` and `createdAt` are
+ * optional (the SDK auto-populates them), and `response` is widened to
+ * {@link BadgeResponseValue} so any string is accepted.
+ */
+export type CreateBadgeResponseParams = SetOptional<
+  OverrideProperties<AppCertifiedBadgeResponse.Main, { response: BadgeResponseValue }>,
+  "$type" | "createdAt"
+>;
+
+/** Parameters for partially updating a badge response record. */
+export type UpdateBadgeResponseParams = Partial<CreateBadgeResponseParams>;
+
+/**
+ * Union type for referencing a badge response in SDK methods.
+ *
+ * Accepts:
+ * 1. **string** — AT-URI pointing to an existing badge response record
+ * 2. **StrongRef** — Direct reference with uri and cid
+ * 3. **CreateBadgeResponseParams** — Inline object to create a new record
+ */
+export type BadgeResponseParams = string | StrongRef | CreateBadgeResponseParams;
+
 export type FundingReceipt = OrgHypercertsFundingReceipt.Main;
 
 // ============================================================================

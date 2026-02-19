@@ -163,6 +163,10 @@ export type {
   BadgeAward,
   BadgeDefinition,
   BadgeResponse,
+  BadgeResponseValue,
+  CreateBadgeResponseParams,
+  UpdateBadgeResponseParams,
+  BadgeResponseParams,
   FundingReceipt,
   CertifiedProfileRecord,
   // SDK-specific types
