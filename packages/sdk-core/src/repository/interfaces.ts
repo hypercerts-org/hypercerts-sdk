@@ -20,6 +20,8 @@ import type {
   CreateProjectResult,
   HypercertClaim,
   HypercertCollection,
+  HypercertContributorRole,
+  HypercertWorkScopeString,
   LocationParams,
   RefUri,
   UpdateCollectionParams,
@@ -83,11 +85,16 @@ export interface CreateContributionDetailsParams {
 
 /**
  * Reference to contribution details. Can be:
- * - A string for inline role (e.g., "Developer")
+ * - A string for inline role (e.g., "Developer") — auto-wrapped in `{ $type: "...#contributorRole", role }` object
+ * - A `HypercertContributorRole` object wrapper (explicit inline form)
  * - A StrongRef to an existing contributionDetails record
  * - A CreateContributionDetailsParams object to auto-create a record
  */
-export type ContributionDetailsParams = string | { uri: string; cid: string } | CreateContributionDetailsParams;
+export type ContributionDetailsParams =
+  | string
+  | HypercertContributorRole
+  | { uri: string; cid: string }
+  | CreateContributionDetailsParams;
 
 // ============================================================================
 // Contributor Identity Types
@@ -221,13 +228,19 @@ export interface CreateHypercertParams {
   /**
    * Scope of work or impact area.
    *
-   * Can be either:
-   * - A simple string describing the work scope
+   * Can be:
+   * - A simple string (auto-wrapped in `{ $type: "...#workScopeString", scope }` object)
+   * - A `HypercertWorkScopeString` object wrapper (explicit inline form)
    * - A StrongRef to a work scope logic record for complex nested definitions
    *
-   * @example Simple string scope
+   * @example Simple string scope (auto-wrapped)
    * ```typescript
    * workScope: "Climate Action"
+   * ```
+   *
+   * @example Explicit object wrapper
+   * ```typescript
+   * workScope: workScopeString("Climate Action")
    * ```
    *
    * @example StrongRef to work scope record
@@ -235,7 +248,7 @@ export interface CreateHypercertParams {
    * workScope: { uri: "at://did:plc:.../org.hypercerts.helper.workScopeTag/...", cid: "..." }
    * ```
    */
-  workScope?: RefUri;
+  workScope?: string | HypercertWorkScopeString | RefUri;
 
   /**
    * Start date of the work period.

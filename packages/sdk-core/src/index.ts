@@ -178,7 +178,15 @@ export type {
   CreateAttachmentParams,
   UpdateAttachmentParams,
   AttachmentParams,
+  // Object wrapper type aliases
+  HypercertContributorIdentity,
+  HypercertContributorRole,
+  HypercertWorkScopeString,
+  CertifiedDid,
 } from "./services/hypercerts/types.js";
+
+// Input helper functions for object wrapper types
+export { contributorIdentity, contributorRole, workScopeString, certifiedDid } from "./services/hypercerts/types.js";
 
 // Errors
 export {

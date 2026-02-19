@@ -59,6 +59,7 @@ import type {
   AppCertifiedBadgeAward,
   AppCertifiedBadgeDefinition,
   AppCertifiedBadgeResponse,
+  AppCertifiedDefs,
   AppCertifiedLocation,
   ComAtprotoRepoStrongRef,
   OrgHypercertsClaimActivity,
@@ -242,6 +243,102 @@ export type CertifiedProfileRecord = AppCertifiedActorProfile.Main;
 export type HypercertCollectionItem = OrgHypercertsClaimCollection.Item;
 /** Work scope tag for creating reusable scope atoms */
 export type HypercertWorkScopeTag = OrgHypercertsHelperWorkScopeTag.Main;
+
+// ============================================================================
+// Lexicon Object Wrapper Type Aliases
+// ============================================================================
+
+/**
+ * Inline contributor identity object wrapper.
+ * Stores a DID or other identifier directly in the activity record without
+ * creating a separate contributorInformation record.
+ */
+export type HypercertContributorIdentity = OrgHypercertsClaimActivity.ContributorIdentity;
+
+/**
+ * Inline contributor role object wrapper.
+ * Stores a role string directly in the activity record without
+ * creating a separate contributionDetails record.
+ */
+export type HypercertContributorRole = OrgHypercertsClaimActivity.ContributorRole;
+
+/**
+ * Inline work scope string object wrapper.
+ * Stores a free-form scope string directly in the activity record.
+ */
+export type HypercertWorkScopeString = OrgHypercertsClaimActivity.WorkScopeString;
+
+/**
+ * Certified DID object wrapper used in evaluator lists.
+ */
+export type CertifiedDid = AppCertifiedDefs.Did;
+
+// ============================================================================
+// Input Helper Functions
+// ============================================================================
+
+/**
+ * Creates a contributorIdentity inline object from a string.
+ *
+ * Use this when you want to embed a contributor DID directly in the activity
+ * record without creating a separate contributorInformation record.
+ *
+ * @example
+ * ```typescript
+ * contributorIdentity("did:plc:alice123")
+ * // → { $type: "org.hypercerts.claim.activity#contributorIdentity", identity: "did:plc:alice123" }
+ * ```
+ */
+export function contributorIdentity(identity: string): HypercertContributorIdentity {
+  return { $type: "org.hypercerts.claim.activity#contributorIdentity", identity };
+}
+
+/**
+ * Creates a contributorRole inline object from a string.
+ *
+ * Use this when you want to embed a role string directly in the activity
+ * record without creating a separate contributionDetails record.
+ *
+ * @example
+ * ```typescript
+ * contributorRole("Developer")
+ * // → { $type: "org.hypercerts.claim.activity#contributorRole", role: "Developer" }
+ * ```
+ */
+export function contributorRole(role: string): HypercertContributorRole {
+  return { $type: "org.hypercerts.claim.activity#contributorRole", role };
+}
+
+/**
+ * Creates a workScopeString inline object from a string.
+ *
+ * Use this when you want to embed a work scope string directly in the
+ * activity record.
+ *
+ * @example
+ * ```typescript
+ * workScopeString("Climate Action")
+ * // → { $type: "org.hypercerts.claim.activity#workScopeString", scope: "Climate Action" }
+ * ```
+ */
+export function workScopeString(scope: string): HypercertWorkScopeString {
+  return { $type: "org.hypercerts.claim.activity#workScopeString", scope };
+}
+
+/**
+ * Creates a certified DID object from a plain DID string.
+ *
+ * Use this when building evaluator arrays for evaluation records.
+ *
+ * @example
+ * ```typescript
+ * certifiedDid("did:plc:evaluator123")
+ * // → { $type: "app.certified.defs#did", did: "did:plc:evaluator123" }
+ * ```
+ */
+export function certifiedDid(did: string): CertifiedDid {
+  return { $type: "app.certified.defs#did", did };
+}
 export type HypercertLocation = AppCertifiedLocation.Main;
 export type BadgeAward = AppCertifiedBadgeAward.Main;
 export type BadgeDefinition = AppCertifiedBadgeDefinition.Main;

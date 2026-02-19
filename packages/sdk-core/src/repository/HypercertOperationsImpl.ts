@@ -45,6 +45,7 @@ import type {
   BlobOperations,
   ContributionDetailsParams,
   ContributorIdentityParams,
+  CreateContributionDetailsParams,
   CreateHypercertParams,
   UpdateHypercertParams,
   CreateHypercertResult,
@@ -54,6 +55,14 @@ import type {
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
 import { parseAtUri } from "../lexicons/utils.js";
+
+/**
+ * Internal union type for a resolved contributor identity or contribution details value.
+ * Can be a StrongRef, AT-URI string, or an inline object wrapper (contributorIdentity /
+ * contributorRole) as defined by the lexicon.
+ * @internal
+ */
+type ResolvedContributorField = RefUri | { $type: string; identity: string } | { $type: string; role: string };
 
 /**
  * Implementation of high-level hypercert operations.
@@ -333,9 +342,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     locationRefs: Array<{ uri: string; cid: string }> | undefined,
     contributorsData:
       | Array<{
-          contributorIdentity: RefUri;
+          contributorIdentity: ResolvedContributorField;
           contributionWeight?: string;
-          contributionDetails?: RefUri;
+          contributionDetails?: ResolvedContributorField;
         }>
       | undefined,
     createdAt: string,
@@ -347,12 +356,19 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       title: params.title,
       shortDescription: params.shortDescription,
       description: params.description,
-      workScope: params.workScope,
       startDate: params.startDate,
       endDate: params.endDate,
       rights: { uri: rightsUri, cid: rightsCid },
       createdAt,
     };
+
+    // Wrap plain string workScope in the required object wrapper
+    if (params.workScope !== undefined) {
+      hypercertRecord.workScope =
+        typeof params.workScope === "string"
+          ? { $type: "org.hypercerts.claim.activity#workScopeString", scope: params.workScope }
+          : params.workScope;
+    }
 
     if (imageBlobRef) {
       hypercertRecord.image = {
@@ -1292,9 +1308,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     onProgress?: (step: ProgressStep) => void,
   ): Promise<
     | Array<{
-        contributorIdentity: RefUri;
+        contributorIdentity: ResolvedContributorField;
         contributionWeight?: string;
-        contributionDetails?: RefUri;
+        contributionDetails?: ResolvedContributorField;
       }>
     | undefined
   > {
@@ -1357,10 +1373,13 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   private async resolveContributionDetails(
     details: ContributionDetailsParams,
     onProgress?: (step: ProgressStep) => void,
-  ): Promise<RefUri> {
+  ): Promise<ResolvedContributorField> {
     if (typeof details === "string") {
-      // Inline role string
-      return details;
+      // Inline role string — wrap in contributorRole object
+      return { $type: "org.hypercerts.claim.activity#contributorRole", role: details };
+    } else if ("$type" in details && typeof details.$type === "string" && "role" in details && !("uri" in details)) {
+      // Already a HypercertContributorRole object wrapper — pass through as-is
+      return details as { $type: string; role: string };
     } else if ("uri" in details && "cid" in details && !("role" in details)) {
       // StrongRef to existing record
       return { uri: details.uri as string, cid: details.cid as string, $type: "com.atproto.repo.strongRef" };
@@ -1368,7 +1387,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // CreateContributionDetailsParams - auto-create record
       try {
         this.emitProgress(onProgress, { name: "createContribution", status: "start" });
-        const result = await this.createContributionDetailsRecord(details);
+        const result = await this.createContributionDetailsRecord(details as CreateContributionDetailsParams);
         this.emitProgress(onProgress, {
           name: "createContribution",
           status: "success",
@@ -1395,11 +1414,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   private async resolveContributorIdentity(
     identity: ContributorIdentityParams,
     onProgress?: (step: ProgressStep) => void,
-  ): Promise<RefUri> {
+  ): Promise<ResolvedContributorField> {
     if (typeof identity === "string") {
-      // we still store as contributorInformation since it can't directly be a string
-      const result = await this.addContributorInformation({ identifier: identity });
-      return { uri: result.uri, cid: result.cid, $type: "com.atproto.repo.strongRef" };
+      // Inline object wrapper — no separate contributorInformation record needed
+      return { $type: "org.hypercerts.claim.activity#contributorIdentity", identity };
     } else if ("uri" in identity && "cid" in identity && !("identifier" in identity)) {
       // StrongRef to existing record
       return { $type: "com.atproto.repo.strongRef", uri: identity.uri as string, cid: identity.cid as string };
@@ -1469,9 +1487,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     onProgress?: (step: ProgressStep) => void,
   ): Promise<
     Array<{
-      contributorIdentity: RefUri;
+      contributorIdentity: ResolvedContributorField;
       contributionWeight?: string;
-      contributionDetails?: RefUri;
+      contributionDetails?: ResolvedContributorField;
     }>
   > {
     const detailsRef = await this.resolveContributionDetails(detailsParams, onProgress);
@@ -1502,9 +1520,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   protected async attachContributorsToHypercert(
     hypercertUri: string,
     newContributors: Array<{
-      contributorIdentity: RefUri;
+      contributorIdentity: ResolvedContributorField;
       contributionWeight?: string;
-      contributionDetails?: RefUri;
+      contributionDetails?: ResolvedContributorField;
     }>,
   ): Promise<UpdateResult> {
     const existing = await this.get(hypercertUri);
@@ -1835,7 +1853,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const evaluationRecord: HypercertEvaluation = {
         $type: HYPERCERT_COLLECTIONS.EVALUATION,
         subject: { uri: subject.uri, cid: subject.cid },
-        evaluators: params.evaluators.map((evaluator) => ({ did: evaluator })),
+        evaluators: params.evaluators.map((evaluator) => ({
+          $type: "app.certified.defs#did" as const,
+          did: evaluator,
+        })),
         summary: params.summary,
         createdAt,
       };
