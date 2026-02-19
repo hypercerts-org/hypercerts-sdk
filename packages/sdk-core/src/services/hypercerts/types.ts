@@ -36,6 +36,7 @@ export {
   OrgHypercertsClaimRights,
   OrgHypercertsFundingReceipt,
   OrgHypercertsHelperWorkScopeTag,
+  OrgHypercertsAcknowledgement,
   // Validation utilities
   validate,
 } from "@hypercerts-org/lexicon";
@@ -72,6 +73,7 @@ import type {
   OrgHypercertsDefs,
   OrgHypercertsFundingReceipt,
   OrgHypercertsHelperWorkScopeTag,
+  OrgHypercertsAcknowledgement,
 } from "@hypercerts-org/lexicon";
 
 // Re-export Bluesky profile types
@@ -701,3 +703,49 @@ export type UpdateAttachmentParams = Partial<CreateAttachmentParams>;
 export type AttachmentParams = RefUri | CreateAttachmentParams;
 
 export type CreateCertifiedProfileParams = SetOptional<AppCertifiedActorProfile.Main, "createdAt" | "$type">;
+
+// ============================================================================
+// Acknowledgement Types
+// ============================================================================
+
+/**
+ * Acknowledgement record.
+ *
+ * Records a user's explicit acknowledgement or rejection of a record's
+ * inclusion in a given context (e.g. acknowledging that an activity
+ * belongs to a collection).
+ */
+export type HypercertAcknowledgement = OrgHypercertsAcknowledgement.Main;
+
+/**
+ * SDK input parameters for creating an acknowledgement.
+ *
+ * `$type` and `createdAt` are auto-populated if omitted.
+ *
+ * @example Acknowledge inclusion
+ * ```typescript
+ * const params: CreateAcknowledgementParams = {
+ *   subject: { uri: "at://did:plc:abc/org.hypercerts.claim.activity/xyz", cid: "bafyrei..." },
+ *   context: { uri: "at://did:plc:abc/org.hypercerts.claim.collection/col", cid: "bafyrei..." },
+ *   acknowledged: true,
+ *   comment: "Confirmed participation in this collection.",
+ * };
+ * ```
+ *
+ * @example Reject inclusion
+ * ```typescript
+ * const params: CreateAcknowledgementParams = {
+ *   subject: { uri: "at://did:plc:abc/org.hypercerts.claim.activity/xyz", cid: "bafyrei..." },
+ *   context: { uri: "at://did:plc:abc/org.hypercerts.claim.collection/col", cid: "bafyrei..." },
+ *   acknowledged: false,
+ *   comment: "Did not participate in this project.",
+ * };
+ * ```
+ */
+export type CreateAcknowledgementParams = SetOptional<HypercertAcknowledgement, "$type" | "createdAt">;
+
+/**
+ * SDK input parameters for updating an acknowledgement.
+ * All fields are optional for partial updates.
+ */
+export type UpdateAcknowledgementParams = Partial<CreateAcknowledgementParams>;

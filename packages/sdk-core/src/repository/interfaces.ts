@@ -12,16 +12,19 @@ import type { AppBskyActorDefs, AppBskyActorProfile, AppBskyRichtextFacet, BlobR
 import type { EventEmitter } from "eventemitter3";
 import type {
   AppCertifiedActorProfile,
+  CreateAcknowledgementParams,
   CreateAttachmentParams,
   CreateCollectionParams,
   CreateCollectionResult,
   CreateMeasurementParams,
   CreateProjectParams,
   CreateProjectResult,
+  HypercertAcknowledgement,
   HypercertClaim,
   HypercertCollection,
   LocationParams,
   RefUri,
+  UpdateAcknowledgementParams,
   UpdateCollectionParams,
   UpdateMeasurementParams,
   UpdateProjectParams,
@@ -1333,6 +1336,41 @@ export interface HypercertOperations extends EventEmitter<HypercertEvents> {
    * @returns Promise resolving when location is removed
    */
   removeLocationFromProject(uri: string): Promise<void>;
+
+  /**
+   * Creates an acknowledgement record.
+   *
+   * Records a user's explicit decision to acknowledge or reject the inclusion
+   * of a `subject` record within a `context` record.
+   *
+   * @param params - Acknowledgement parameters
+   * @returns Promise resolving to acknowledgement record URI and CID
+   */
+  createAcknowledgement(params: CreateAcknowledgementParams): Promise<CreateResult>;
+
+  /**
+   * Gets an acknowledgement record by AT-URI.
+   *
+   * @param uri - AT-URI of the acknowledgement
+   * @returns Promise resolving to the acknowledgement record, or null if not found
+   */
+  getAcknowledgement(uri: string): Promise<HypercertAcknowledgement | null>;
+
+  /**
+   * Updates an existing acknowledgement record.
+   *
+   * @param uri - AT-URI of the acknowledgement to update
+   * @param updates - Fields to update (partial)
+   * @returns Promise resolving to updated acknowledgement URI and CID
+   */
+  updateAcknowledgement(uri: string, updates: UpdateAcknowledgementParams): Promise<UpdateResult>;
+
+  /**
+   * Deletes an acknowledgement record.
+   *
+   * @param uri - AT-URI of the acknowledgement to delete
+   */
+  deleteAcknowledgement(uri: string): Promise<void>;
 }
 
 /**

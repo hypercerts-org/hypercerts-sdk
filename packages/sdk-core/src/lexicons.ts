@@ -79,6 +79,7 @@ import {
   BADGE_RESPONSE_LEXICON_JSON,
   FUNDING_RECEIPT_LEXICON_JSON,
   WORK_SCOPE_TAG_LEXICON_JSON,
+  HYPERCERTS_ACKNOWLEDGEMENT_LEXICON_JSON,
   // NSID constants
   ACTIVITY_NSID,
   RIGHTS_NSID,
@@ -95,6 +96,7 @@ import {
   FUNDING_RECEIPT_NSID,
   WORK_SCOPE_TAG_NSID,
   ACTOR_PROFILE_NSID,
+  HYPERCERTS_ACKNOWLEDGEMENT_NSID,
 } from "@hypercerts-org/lexicon";
 
 // Export LexiconRegistry for custom lexicon management
@@ -124,6 +126,7 @@ export const HYPERCERT_LEXICONS: LexiconDoc[] = [
   BADGE_RESPONSE_LEXICON_JSON as LexiconDoc,
   FUNDING_RECEIPT_LEXICON_JSON as LexiconDoc,
   WORK_SCOPE_TAG_LEXICON_JSON as LexiconDoc,
+  HYPERCERTS_ACKNOWLEDGEMENT_LEXICON_JSON as LexiconDoc,
 ];
 
 /**
@@ -206,6 +209,12 @@ export const HYPERCERT_COLLECTIONS = {
    * For defining reusable work scope atoms.
    */
   WORK_SCOPE_TAG: WORK_SCOPE_TAG_NSID,
+
+  /**
+   * Acknowledgement record collection.
+   * For acknowledging or rejecting inclusion of a record in a context.
+   */
+  ACKNOWLEDGEMENT: HYPERCERTS_ACKNOWLEDGEMENT_NSID,
 
   /**
    * Bluesky profile collection (app.bsky.actor.profile).

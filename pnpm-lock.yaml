@@ -63,8 +63,8 @@ importers:
         specifier: ^0.3.12
         version: 0.3.12
       '@hypercerts-org/lexicon':
-        specifier: 0.10.0-beta.14
-        version: 0.10.0-beta.14(@atproto/xrpc@0.7.7)
+        specifier: 0.10.0-beta.15
+        version: 0.10.0-beta.15(@atproto/xrpc@0.7.7)
       eventemitter3:
         specifier: ^5.0.1
         version: 5.0.1
@@ -595,8 +595,8 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
 
-  '@hypercerts-org/lexicon@0.10.0-beta.14':
-    resolution: {integrity: sha512-/IsVvqVScjuwRMtu/4S4FarcjHd8BkEchbMOKWOmCH1DNp0XSwh+O9h2HSnBcaMr5lMtUtghLyWSd70YsQ0N4Q==}
+  '@hypercerts-org/lexicon@0.10.0-beta.15':
+    resolution: {integrity: sha512-PCIsk8NWBeSDJ1oYmKX2hs9a1TChE23WnU2RQdi78cZJMrzdn0kWtbQ6bov8j9SiOYgkd3yn6+lnoWehJ+8KyA==}
     peerDependencies:
       '@atproto/xrpc': '*'
 
@@ -2757,7 +2757,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@hypercerts-org/lexicon@0.10.0-beta.14(@atproto/xrpc@0.7.7)':
+  '@hypercerts-org/lexicon@0.10.0-beta.15(@atproto/xrpc@0.7.7)':
     dependencies:
       '@atcute/bluesky': 3.2.17
       '@atcute/leaflet': 1.0.18

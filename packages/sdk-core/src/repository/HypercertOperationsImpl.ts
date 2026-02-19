@@ -18,6 +18,7 @@ import { sha256Hash } from "../lib/crypto.js";
 import { isValidUri } from "../lib/url-utils.js";
 import {
   HYPERCERT_COLLECTIONS,
+  type CreateAcknowledgementParams,
   type CreateAttachmentParams,
   type CreateCollectionParams,
   type CreateCollectionResult,
@@ -25,6 +26,7 @@ import {
   type CreateMeasurementParams,
   type CreateProjectParams,
   type CreateProjectResult,
+  type HypercertAcknowledgement,
   type HypercertAttachment,
   type HypercertClaim,
   type HypercertCollection,
@@ -37,6 +39,7 @@ import {
   type OrgHypercertsDefs,
   type RefUri,
   type StrongRef,
+  type UpdateAcknowledgementParams,
   type UpdateCollectionParams,
   type UpdateMeasurementParams,
   type UpdateProjectParams,
@@ -2536,6 +2539,190 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
 
     await this.removeLocationFromCollection(uri);
     this.emit("locationRemovedFromProject", { projectUri: uri });
+  }
+
+  // ============================================================================
+  // Acknowledgement Operations
+  // ============================================================================
+
+  /**
+   * Creates an acknowledgement record.
+   *
+   * An acknowledgement records a user's explicit decision to acknowledge
+   * or reject the inclusion of a `subject` record within a `context` record
+   * (e.g., acknowledging that an activity belongs to a collection).
+   *
+   * @param params - Acknowledgement parameters (see {@link CreateAcknowledgementParams})
+   * @returns Promise resolving to acknowledgement record URI and CID
+   * @throws {@link ValidationError} if validation fails
+   * @throws {@link NetworkError} if the operation fails
+   *
+   * @example Acknowledge inclusion
+   * ```typescript
+   * await repo.hypercerts.createAcknowledgement({
+   *   subject: { uri: "at://did:plc:abc/org.hypercerts.claim.activity/xyz", cid: "bafyrei..." },
+   *   context: { uri: "at://did:plc:abc/org.hypercerts.claim.collection/col", cid: "bafyrei..." },
+   *   acknowledged: true,
+   *   comment: "Confirmed participation in this collection.",
+   * });
+   * ```
+   *
+   * @example Reject inclusion
+   * ```typescript
+   * await repo.hypercerts.createAcknowledgement({
+   *   subject: { uri: "at://did:plc:abc/org.hypercerts.claim.activity/xyz", cid: "bafyrei..." },
+   *   context: { uri: "at://did:plc:abc/org.hypercerts.claim.collection/col", cid: "bafyrei..." },
+   *   acknowledged: false,
+   *   comment: "Did not participate in this project.",
+   * });
+   * ```
+   */
+  async createAcknowledgement(params: CreateAcknowledgementParams): Promise<CreateResult> {
+    try {
+      const createdAt = params.createdAt ?? new Date().toISOString();
+
+      const record: HypercertAcknowledgement = {
+        ...params,
+        $type: params.$type ?? HYPERCERT_COLLECTIONS.ACKNOWLEDGEMENT,
+        createdAt,
+      };
+
+      const validation = validate(record, HYPERCERT_COLLECTIONS.ACKNOWLEDGEMENT, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid acknowledgement record: ${validation.error?.message}`);
+      }
+
+      const result = await this.agent.com.atproto.repo.createRecord({
+        repo: this.repoDid,
+        collection: HYPERCERT_COLLECTIONS.ACKNOWLEDGEMENT,
+        record: record as Record<string, unknown>,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to create acknowledgement");
+      }
+
+      return { uri: result.data.uri, cid: result.data.cid };
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
+      throw new NetworkError(
+        `Failed to create acknowledgement: ${error instanceof Error ? error.message : "Unknown"}`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Gets an acknowledgement record by AT-URI.
+   *
+   * @param uri - AT-URI of the acknowledgement record
+   * @returns Promise resolving to the acknowledgement record, or null if not found
+   * @throws {@link ValidationError} if the URI format is invalid
+   * @throws {@link NetworkError} if the fetch fails for reasons other than not-found
+   *
+   * @example
+   * ```typescript
+   * const ack = await repo.hypercerts.getAcknowledgement(ackUri);
+   * if (ack) {
+   *   console.log(`Acknowledged: ${ack.acknowledged}`);
+   * }
+   * ```
+   */
+  async getAcknowledgement(uri: string): Promise<HypercertAcknowledgement | null> {
+    try {
+      const { record } = await this.fetchRecord<HypercertAcknowledgement>(uri);
+      return record;
+    } catch (error) {
+      // Return null for not-found errors to match the interface contract
+      if (error instanceof NetworkError) {
+        return null;
+      }
+      if (error instanceof ValidationError) throw error;
+      throw new NetworkError(
+        `Failed to get acknowledgement: ${error instanceof Error ? error.message : "Unknown"}`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Updates an existing acknowledgement record.
+   *
+   * @param uri - AT-URI of the acknowledgement to update
+   * @param updates - Fields to update (partial)
+   * @returns Promise resolving to updated acknowledgement URI and CID
+   * @throws {@link ValidationError} if validation fails or URI format is invalid
+   * @throws {@link NetworkError} if the record is not found or update fails
+   *
+   * @example Change the decision
+   * ```typescript
+   * await repo.hypercerts.updateAcknowledgement(ackUri, {
+   *   acknowledged: true,
+   *   comment: "On reflection, participation is confirmed.",
+   * });
+   * ```
+   */
+  async updateAcknowledgement(uri: string, updates: UpdateAcknowledgementParams): Promise<UpdateResult> {
+    try {
+      const { record: existingRecord, collection, rkey } = await this.fetchRecord<HypercertAcknowledgement>(uri);
+
+      const recordForUpdate: HypercertAcknowledgement = {
+        ...existingRecord,
+        ...updates,
+        // Preserve immutable fields
+        $type: existingRecord.$type,
+        createdAt: existingRecord.createdAt,
+        subject: existingRecord.subject,
+        context: existingRecord.context,
+      };
+
+      const validation = validate(recordForUpdate, HYPERCERT_COLLECTIONS.ACKNOWLEDGEMENT, "main", false);
+      if (!validation.success) {
+        throw new ValidationError(`Invalid acknowledgement record: ${validation.error?.message}`);
+      }
+
+      return await this.saveRecord(collection, rkey, recordForUpdate as Record<string, unknown>);
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
+      throw new NetworkError(
+        `Failed to update acknowledgement: ${error instanceof Error ? error.message : "Unknown"}`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Deletes an acknowledgement record.
+   *
+   * @param uri - AT-URI of the acknowledgement to delete
+   * @throws {@link ValidationError} if the URI format is invalid
+   * @throws {@link NetworkError} if the deletion fails
+   *
+   * @example
+   * ```typescript
+   * await repo.hypercerts.deleteAcknowledgement(ackUri);
+   * ```
+   */
+  async deleteAcknowledgement(uri: string): Promise<void> {
+    try {
+      const { collection, rkey } = this.parseUri(uri);
+
+      const result = await this.agent.com.atproto.repo.deleteRecord({
+        repo: this.repoDid,
+        collection,
+        rkey,
+      });
+
+      if (!result.success) {
+        throw new NetworkError("Failed to delete acknowledgement");
+      }
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NetworkError) throw error;
+      throw new NetworkError(
+        `Failed to delete acknowledgement: ${error instanceof Error ? error.message : "Unknown"}`,
+        error,
+      );
+    }
   }
 
   /**

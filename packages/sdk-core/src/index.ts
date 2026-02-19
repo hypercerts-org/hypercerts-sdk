@@ -120,6 +120,7 @@ export {
   OrgHypercertsClaimAttachment,
   OrgHypercertsClaimCollection,
   OrgHypercertsHelperWorkScopeTag,
+  OrgHypercertsAcknowledgement,
   AppCertifiedLocation,
   AppCertifiedBadgeAward,
   AppCertifiedBadgeDefinition,
@@ -160,6 +161,7 @@ export type {
   HypercertCollectionItem,
   HypercertWorkScopeTag,
   HypercertLocation,
+  HypercertAcknowledgement,
   BadgeAward,
   BadgeDefinition,
   BadgeResponse,
@@ -178,6 +180,8 @@ export type {
   CreateAttachmentParams,
   UpdateAttachmentParams,
   AttachmentParams,
+  CreateAcknowledgementParams,
+  UpdateAcknowledgementParams,
 } from "./services/hypercerts/types.js";
 
 // Errors
