@@ -347,13 +347,20 @@ export type CollectionItemInput = SetOptional<OrgHypercertsClaimCollection.Item,
  * };
  * ```
  *
+ * @remarks
+ * The `locationType` field accepts any string value (open knownValues). Well-known values include:
+ * - `"coordinate-decimal"` — decimal latitude/longitude coordinates
+ * - `"geojson-point"` — GeoJSON point geometry
+ * Additional values such as `"geojson"`, `"h3"`, `"geohash"`, `"wkt"`, `"address"`,
+ * `"scaledCoordinates"` are defined in newer lexicon versions.
+ *
  * @example Blob upload (GeoJSON file)
  * ```typescript
  * const geojsonBlob = new Blob([JSON.stringify(geojsonData)], { type: "application/geo+json" });
  * const location: CreateLocationParams = {
  *   lpVersion: "1.0.0",
  *   srs: "EPSG:4326",
- *   locationType: "geojson",
+ *   locationType: "geojson-point",
  *   location: geojsonBlob,  // Will be uploaded and stored as blob ref
  *   name: "Protected Area",
  * };

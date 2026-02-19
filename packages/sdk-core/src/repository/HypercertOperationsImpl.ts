@@ -2567,7 +2567,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * const ref = await this.createLocationRecord({
    *   lpVersion: "1.0.0",
    *   srs: "EPSG:4326",
-   *   locationType: "geojson",
+   *   locationType: "geojson-point",
    *   location: geojsonBlob,  // Uploaded and stored as blob ref
    *   name: "Protected Area",
    * });
