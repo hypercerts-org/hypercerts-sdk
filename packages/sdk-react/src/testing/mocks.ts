@@ -4,7 +4,13 @@
  * @packageDocumentation
  */
 
-import type { Session, Collaborator, CollaboratorPermissions, OrganizationInfo } from "@hypercerts-org/sdk-core";
+import type {
+  Session,
+  Collaborator,
+  CollaboratorPermissions,
+  OrganizationInfo,
+  OrgHypercertsClaimActivity,
+} from "@hypercerts-org/sdk-core";
 import type { Profile, Hypercert } from "../types.js";
 
 /**
@@ -199,19 +205,23 @@ export function createMockHypercert(overrides: Partial<Hypercert> = {}): Hyperce
   const now = new Date();
   const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
-  return {
+  const base: Hypercert = {
     uri: "at://did:plc:mock123/org.hypercerts.claim.activity/mock-rkey",
     cid: "bafyreimockhypercertcid123456789",
     $type: "org.hypercerts.claim.activity",
     title: "Mock Hypercert",
     shortDescription: "A mock hypercert",
     description: "A mock hypercert for testing purposes",
-    workScope: "Testing, Environment" as Hypercert["workScope"],
+    workScope: {
+      $type: "org.hypercerts.claim.activity#workScopeString",
+      scope: "Testing, Environment",
+    } as unknown as OrgHypercertsClaimActivity.Main["workScope"],
     startDate: yearAgo.toISOString(),
     endDate: now.toISOString(),
     workTimeFrameFrom: yearAgo.toISOString().split("T")[0],
     workTimeFrameTo: now.toISOString().split("T")[0],
     createdAt: now.toISOString(),
-    ...overrides,
   };
+
+  return { ...base, ...overrides };
 }

@@ -51,11 +51,11 @@ importers:
   packages/sdk-core:
     dependencies:
       '@atproto/api':
-        specifier: ^0.17.5
-        version: 0.17.7
+        specifier: 0.18.10
+        version: 0.18.10
       '@atproto/lexicon':
-        specifier: ^0.5.1
-        version: 0.5.2
+        specifier: 0.6.0
+        version: 0.6.0
       '@atproto/oauth-client':
         specifier: ^0.5.10
         version: 0.5.10
@@ -63,8 +63,8 @@ importers:
         specifier: ^0.3.12
         version: 0.3.12
       '@hypercerts-org/lexicon':
-        specifier: 0.10.0-beta.13
-        version: 0.10.0-beta.13(@atproto/xrpc@0.7.6)
+        specifier: 0.10.0-beta.14
+        version: 0.10.0-beta.14(@atproto/xrpc@0.7.7)
       eventemitter3:
         specifier: ^5.0.1
         version: 5.0.1
@@ -87,12 +87,24 @@ importers:
       '@rollup/plugin-typescript':
         specifier: ^12.3.0
         version: 12.3.0(rollup@4.53.3)(tslib@2.8.1)(typescript@5.9.3)
+      '@types/chai':
+        specifier: ^5.2.3
+        version: 5.2.3
+      '@types/deep-eql':
+        specifier: ^4.0.2
+        version: 4.0.2
+      '@types/json-schema':
+        specifier: ^7.0.15
+        version: 7.0.15
       '@types/node':
         specifier: '>=20.10.0'
         version: 24.10.1
       jose:
         specifier: ^6.1.3
         version: 6.1.3
+      multiformats:
+        specifier: ^13.4.2
+        version: 13.4.2
       rollup:
         specifier: ^4.53.3
         version: 4.53.3
@@ -154,20 +166,20 @@ packages:
   '@atcute/atproto@3.1.10':
     resolution: {integrity: sha512-+GKZpOc0PJcdWMQEkTfg/rSNDAAHxmAUGBl60g2az15etqJn5WaUPNGFE2sB7hKpwi5Ue2h/L0OacINcE/JDDQ==}
 
-  '@atcute/bluesky@3.2.15':
-    resolution: {integrity: sha512-H4RW3WffjfdKvOZ9issEUQnuSR4KfuAwwJnYu0fclA9VDa99JTJ+pa8tTl9lFeBV9DINtWJAx7rdIbICoVCstQ==}
+  '@atcute/bluesky@3.2.17':
+    resolution: {integrity: sha512-Li+RsPkcRNC6AnNlqOGnlmAcjSwBdXIKFubJL1nwACDngKNXG4ooGL5cvzeekdDEfHmtFhS/tyZNaUx9QXYEUw==}
 
-  '@atcute/leaflet@1.0.16':
-    resolution: {integrity: sha512-YS0+93C+bG2AlB1M5Cvf8v7GMnP/67l5G+RUQQltXydqugcAEW6ZgasXN/ZlsTJJl5tdWBTS4HsRYwdS576SkA==}
+  '@atcute/leaflet@1.0.18':
+    resolution: {integrity: sha512-6EKNy8Pdv99BqoRloeY3Vw+JZ1NtsmgxugUjeu1n6lwk0oPXwWO+D/0JDLmqDxYgoH//E+z1vH2OqJ+TD0mOZA==}
 
-  '@atcute/lexicons@1.2.6':
-    resolution: {integrity: sha512-s76UQd8D+XmHIzrjD9CJ9SOOeeLPHc+sMmcj7UFakAW/dDFXc579fcRdRfuUKvXBL5v1Gs2VgDdlh/IvvQZAwA==}
+  '@atcute/lexicons@1.2.8':
+    resolution: {integrity: sha512-3WPyU5droiovgVyWYuhsNibFAknna7uuVqvcnCd++oVp7ZPvXtXPFVx1MuAjJV7FspYwkuMh/GlTPsdfIOetBQ==}
 
-  '@atcute/uint8array@1.0.6':
-    resolution: {integrity: sha512-ucfRBQc7BFT8n9eCyGOzDHEMKF/nZwhS2pPao4Xtab1ML3HdFYcX2DM1tadCzas85QTGxHe5urnUAAcNKGRi9A==}
+  '@atcute/uint8array@1.1.0':
+    resolution: {integrity: sha512-JtHXIVW6LPU9FMWp7SgE4HbUs3uV2WdfkK/2RWdEGjr4EgMV50P3FdU6fPeGlTfDNBJVYMIsuD2wwaKRPV/Aqg==}
 
-  '@atcute/util-text@0.0.1':
-    resolution: {integrity: sha512-t1KZqvn0AYy+h2KcJyHnKF9aEqfRfMUmyY8j1ELtAEIgqN9CxINAjxnoRCJIFUlvWzb+oY3uElQL/Vyk3yss0g==}
+  '@atcute/util-text@1.1.0':
+    resolution: {integrity: sha512-34G9KD5Z9f7oEdFpZOmqrMnU86p8ne6LlxJowfZzKNszRcl1GH+FtEPh3N1woelJT2SkPXMK2anwT8DESTluwA==}
 
   '@atproto-labs/did-resolver@0.2.4':
     resolution: {integrity: sha512-sbXxBnAJWsKv/FEGG6a/WLz7zQYUr1vA2TXvNnPwwJQJCjPwEJMOh1vM22wBr185Phy7D2GD88PcRokn7eUVyw==}
@@ -198,14 +210,11 @@ packages:
   '@atproto-labs/simple-store@0.3.0':
     resolution: {integrity: sha512-nOb6ONKBRJHRlukW1sVawUkBqReLlLx6hT35VS3imaNPwiXDxLnTK7lxw3Lrl9k5yugSBDQAkZAq3MPTEFSUBQ==}
 
-  '@atproto/api@0.17.7':
-    resolution: {integrity: sha512-V+OJBZq9chcrD21xk1bUa6oc5DSKfQj5DmUPf5rmZncqL1w9ZEbS38H5cMyqqdhfgo2LWeDRdZHD0rvNyJsIaw==}
+  '@atproto/api@0.18.10':
+    resolution: {integrity: sha512-q23wreAGhktrMLepulvljZWHsUOrTIDwhU3gr/uSX3R1TZIZ3i4SxQZVlMqaQHpNJ/5Xj8J1hozkwVpaOX37eA==}
 
-  '@atproto/common-web@0.4.13':
-    resolution: {integrity: sha512-TewRUyB/dVJ5PtI3QmJzEgT3wDsvpnLJ+48hPl+LuUueJPamZevXKJN6dFjtbKAMFRnl2bKfdsf79qwvdSaLKQ==}
-
-  '@atproto/common-web@0.4.5':
-    resolution: {integrity: sha512-Tx0xUafLm3vRvOQpbBl5eb9V8xlC7TaRXs6dAulHRkDG3Kb+P9qn3pkDteq+aeMshbVXbVa1rm3Ok4vFyuoyYA==}
+  '@atproto/common-web@0.4.16':
+    resolution: {integrity: sha512-Ufvaff5JgxUyUyTAG0/3o7ltpy3lnZ1DvLjyAnvAf+hHfiK7OMQg+8byr+orN+KP9MtIQaRTsCgYPX+PxMKUoA==}
 
   '@atproto/did@0.2.3':
     resolution: {integrity: sha512-VI8JJkSizvM2cHYJa37WlbzeCm5tWpojyc1/Zy8q8OOjyoy6X4S4BEfoP941oJcpxpMTObamibQIXQDo7tnIjg==}
@@ -219,23 +228,17 @@ packages:
   '@atproto/jwk@0.6.0':
     resolution: {integrity: sha512-bDoJPvt7TrQVi/rBfBrSSpGykhtIriKxeYCYQTiPRKFfyRhbgpElF0wPXADjIswnbzZdOwbY63az4E/CFVT3Tw==}
 
-  '@atproto/lex-data@0.0.1':
-    resolution: {integrity: sha512-DrS/8cQcQs3s5t9ELAFNtyDZ8/PdiCx47ALtFEP2GnX2uCBHZRkqWG7xmu6ehjc787nsFzZBvlnz3T/gov5fGA==}
+  '@atproto/lex-data@0.0.11':
+    resolution: {integrity: sha512-4+KTtHdqwlhiTKA7D4SACea4jprsNpCQsNALW09wsZ6IHhCDGO5tr1cmV+QnLYe3G3mu1E1yXHXbPUHrUUDT/A==}
 
-  '@atproto/lex-data@0.0.9':
-    resolution: {integrity: sha512-1slwe4sG0cyWtsq16+rBoWIxNDqGPkkvN+PV6JuzA7dgUK9bjUmXBGQU4eZlUPSS43X1Nhmr/9VjgKmEzU9vDw==}
-
-  '@atproto/lex-json@0.0.1':
-    resolution: {integrity: sha512-ivcF7+pDRuD/P97IEKQ/9TruunXj0w58Khvwk3M6psaI5eZT6LRsRZ4cWcKaXiFX4SHnjy+x43g0f7pPtIsERg==}
-
-  '@atproto/lex-json@0.0.9':
-    resolution: {integrity: sha512-Q2v1EVZcnd+ndyZj1r2UlGikA7q6It24CFPLbxokcf5Ba4RBupH8IkkQX7mqUDSRWPgQdmZYIdW9wUln+MKDqw==}
+  '@atproto/lex-json@0.0.11':
+    resolution: {integrity: sha512-2IExAoQ4KsR5fyPa1JjIvtR316PvdgRH/l3BVGLBd3cSxM3m5MftIv1B6qZ9HjNiK60SgkWp0mi9574bTNDhBQ==}
 
   '@atproto/lexicon@0.5.2':
     resolution: {integrity: sha512-lRmJgMA8f5j7VB5Iu5cp188ald5FuI4FlmZ7nn6EBrk1dgOstWVrI5Ft6K3z2vjyLZRG6nzknlsw+tDP63p7bQ==}
 
-  '@atproto/lexicon@0.6.1':
-    resolution: {integrity: sha512-/vI1kVlY50Si+5MXpvOucelnYwb0UJ6Qto5mCp+7Q5C+Jtp+SoSykAPVvjVtTnQUH2vrKOFOwpb3C375vSKzXw==}
+  '@atproto/lexicon@0.6.0':
+    resolution: {integrity: sha512-5veb8aD+J5M0qszLJ+73KSFsFrJBgAY/nM1TSAJvGY7fNc9ZAT+PSUlmIyrdye9YznAZ07yktalls/TwNV7cHQ==}
 
   '@atproto/oauth-client-node@0.3.12':
     resolution: {integrity: sha512-9ejfO1H8qo3EbiAJgxKcdcR5Ay/9hgaC5OdxtTN63bcOrkIhvBN0xpVPGZYLL1iJQyNeK1T5m/LDrv4gUS1B+g==}
@@ -247,14 +250,14 @@ packages:
   '@atproto/oauth-types@0.5.2':
     resolution: {integrity: sha512-9DCDvtvCanTwAaU5UakYDO0hzcOITS3RutK5zfLytE5Y9unj0REmTDdN8Xd8YCfUJl7T/9pYpf04Uyq7bFTASg==}
 
-  '@atproto/syntax@0.4.1':
-    resolution: {integrity: sha512-CJdImtLAiFO+0z3BWTtxwk6aY5w4t8orHTMVJgkf++QRJWTxPbIFko/0hrkADB7n2EruDxDSeAgfUGehpH6ngw==}
-
   '@atproto/syntax@0.4.3':
     resolution: {integrity: sha512-YoZUz40YAJr5nPwvCDWgodEOlt5IftZqPJvA0JDWjuZKD8yXddTwSzXSaKQAzGOpuM+/A3uXRtPzJJqlScc+iA==}
 
   '@atproto/xrpc@0.7.6':
     resolution: {integrity: sha512-RvCf4j0JnKYWuz3QzsYCntJi3VuiAAybQsMIUw2wLWcHhchO9F7UaBZINLL2z0qc/cYWPv5NSwcVydMseoCZLA==}
+
+  '@atproto/xrpc@0.7.7':
+    resolution: {integrity: sha512-K1ZyO/BU8JNtXX5dmPp7b5UrkLMMqpsIa/Lrj5D3Su+j1Xwq1m6QJ2XJ1AgjEjkI1v4Muzm7klianLE6XGxtmA==}
 
   '@babel/code-frame@7.27.1':
     resolution: {integrity: sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg==}
@@ -592,8 +595,8 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
 
-  '@hypercerts-org/lexicon@0.10.0-beta.13':
-    resolution: {integrity: sha512-QXgHZjn6ngbcmTh3QV/T7yu2sxgeCKURUcOGcXjRoY+M9Gnld40KVsiJ+KFR5iH3sIXOCd5uuo5KAvB1sLpkSg==}
+  '@hypercerts-org/lexicon@0.10.0-beta.14':
+    resolution: {integrity: sha512-/IsVvqVScjuwRMtu/4S4FarcjHd8BkEchbMOKWOmCH1DNp0XSwh+O9h2HSnBcaMr5lMtUtghLyWSd70YsQ0N4Q==}
     peerDependencies:
       '@atproto/xrpc': '*'
 
@@ -2048,9 +2051,6 @@ packages:
     resolution: {integrity: sha512-hU/10obOIu62MGYjdskASR3CUAiYaFTtC9Pa6vHyf//mAipSvSQg6od2CnJswq7fvzNS3zJhxoRkgNVaHurWKw==}
     engines: {node: '>=18.17'}
 
-  unicode-segmenter@0.14.0:
-    resolution: {integrity: sha512-AH4lhPCJANUnSLEKnM4byboctePJzltF4xj8b+NbNiYeAkAXGh7px2K/4NANFp7dnr6+zB3e6HLu8Jj8SKyvYg==}
-
   unicode-segmenter@0.14.5:
     resolution: {integrity: sha512-jHGmj2LUuqDcX3hqY12Ql+uhUTn8huuxNZGq7GvtF6bSybzH3aFgedYu/KTzQStEgt1Ra2F3HxadNXsNjb3m3g==}
 
@@ -2225,28 +2225,28 @@ snapshots:
 
   '@atcute/atproto@3.1.10':
     dependencies:
-      '@atcute/lexicons': 1.2.6
+      '@atcute/lexicons': 1.2.8
 
-  '@atcute/bluesky@3.2.15':
+  '@atcute/bluesky@3.2.17':
     dependencies:
       '@atcute/atproto': 3.1.10
-      '@atcute/lexicons': 1.2.6
+      '@atcute/lexicons': 1.2.8
 
-  '@atcute/leaflet@1.0.16':
+  '@atcute/leaflet@1.0.18':
     dependencies:
       '@atcute/atproto': 3.1.10
-      '@atcute/lexicons': 1.2.6
+      '@atcute/lexicons': 1.2.8
 
-  '@atcute/lexicons@1.2.6':
+  '@atcute/lexicons@1.2.8':
     dependencies:
-      '@atcute/uint8array': 1.0.6
-      '@atcute/util-text': 0.0.1
+      '@atcute/uint8array': 1.1.0
+      '@atcute/util-text': 1.1.0
       '@standard-schema/spec': 1.1.0
       esm-env: 1.2.2
 
-  '@atcute/uint8array@1.0.6': {}
+  '@atcute/uint8array@1.1.0': {}
 
-  '@atcute/util-text@0.0.1':
+  '@atcute/util-text@1.1.0':
     dependencies:
       unicode-segmenter: 0.14.5
 
@@ -2297,28 +2297,22 @@ snapshots:
 
   '@atproto-labs/simple-store@0.3.0': {}
 
-  '@atproto/api@0.17.7':
+  '@atproto/api@0.18.10':
     dependencies:
-      '@atproto/common-web': 0.4.5
-      '@atproto/lexicon': 0.5.2
-      '@atproto/syntax': 0.4.1
-      '@atproto/xrpc': 0.7.6
+      '@atproto/common-web': 0.4.16
+      '@atproto/lexicon': 0.6.0
+      '@atproto/syntax': 0.4.3
+      '@atproto/xrpc': 0.7.7
       await-lock: 2.2.2
       multiformats: 9.9.0
       tlds: 1.261.0
       zod: 3.25.76
 
-  '@atproto/common-web@0.4.13':
+  '@atproto/common-web@0.4.16':
     dependencies:
-      '@atproto/lex-data': 0.0.9
-      '@atproto/lex-json': 0.0.9
+      '@atproto/lex-data': 0.0.11
+      '@atproto/lex-json': 0.0.11
       '@atproto/syntax': 0.4.3
-      zod: 3.25.76
-
-  '@atproto/common-web@0.4.5':
-    dependencies:
-      '@atproto/lex-data': 0.0.1
-      '@atproto/lex-json': 0.0.1
       zod: 3.25.76
 
   '@atproto/did@0.2.3':
@@ -2341,42 +2335,29 @@ snapshots:
       multiformats: 9.9.0
       zod: 3.25.76
 
-  '@atproto/lex-data@0.0.1':
-    dependencies:
-      '@atproto/syntax': 0.4.1
-      multiformats: 9.9.0
-      tslib: 2.8.1
-      uint8arrays: 3.0.0
-      unicode-segmenter: 0.14.0
-
-  '@atproto/lex-data@0.0.9':
+  '@atproto/lex-data@0.0.11':
     dependencies:
       multiformats: 9.9.0
       tslib: 2.8.1
       uint8arrays: 3.0.0
-      unicode-segmenter: 0.14.0
+      unicode-segmenter: 0.14.5
 
-  '@atproto/lex-json@0.0.1':
+  '@atproto/lex-json@0.0.11':
     dependencies:
-      '@atproto/lex-data': 0.0.1
-      tslib: 2.8.1
-
-  '@atproto/lex-json@0.0.9':
-    dependencies:
-      '@atproto/lex-data': 0.0.9
+      '@atproto/lex-data': 0.0.11
       tslib: 2.8.1
 
   '@atproto/lexicon@0.5.2':
     dependencies:
-      '@atproto/common-web': 0.4.5
-      '@atproto/syntax': 0.4.1
+      '@atproto/common-web': 0.4.16
+      '@atproto/syntax': 0.4.3
       iso-datestring-validator: 2.2.2
       multiformats: 9.9.0
       zod: 3.25.76
 
-  '@atproto/lexicon@0.6.1':
+  '@atproto/lexicon@0.6.0':
     dependencies:
-      '@atproto/common-web': 0.4.13
+      '@atproto/common-web': 0.4.16
       '@atproto/syntax': 0.4.3
       iso-datestring-validator: 2.2.2
       multiformats: 9.9.0
@@ -2416,8 +2397,6 @@ snapshots:
       '@atproto/jwk': 0.6.0
       zod: 3.25.76
 
-  '@atproto/syntax@0.4.1': {}
-
   '@atproto/syntax@0.4.3':
     dependencies:
       tslib: 2.8.1
@@ -2425,6 +2404,11 @@ snapshots:
   '@atproto/xrpc@0.7.6':
     dependencies:
       '@atproto/lexicon': 0.5.2
+      zod: 3.25.76
+
+  '@atproto/xrpc@0.7.7':
+    dependencies:
+      '@atproto/lexicon': 0.6.0
       zod: 3.25.76
 
   '@babel/code-frame@7.27.1':
@@ -2773,12 +2757,12 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@hypercerts-org/lexicon@0.10.0-beta.13(@atproto/xrpc@0.7.6)':
+  '@hypercerts-org/lexicon@0.10.0-beta.14(@atproto/xrpc@0.7.7)':
     dependencies:
-      '@atcute/bluesky': 3.2.15
-      '@atcute/leaflet': 1.0.16
-      '@atproto/lexicon': 0.6.1
-      '@atproto/xrpc': 0.7.6
+      '@atcute/bluesky': 3.2.17
+      '@atcute/leaflet': 1.0.18
+      '@atproto/lexicon': 0.6.0
+      '@atproto/xrpc': 0.7.7
       multiformats: 13.4.2
 
   '@inquirer/external-editor@1.0.3(@types/node@24.10.1)':
@@ -4190,8 +4174,6 @@ snapshots:
   undici-types@7.16.0: {}
 
   undici@6.22.0: {}
-
-  unicode-segmenter@0.14.0: {}
 
   unicode-segmenter@0.14.5: {}
 

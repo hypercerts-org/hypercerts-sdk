@@ -87,7 +87,7 @@ import type {
  * const repo = sdk.repository(session);
  *
  * // Access user profile
- * const profile = await repo.profile.get();
+ * const bskyProfile = await repo.profile.getBskyProfile();
  *
  * // Create a hypercert
  * const result = await repo.hypercerts.create({
@@ -111,7 +111,7 @@ import type {
  *
  * // Get another user's repo (read-only for most operations)
  * const otherRepo = myRepo.repo("did:plc:other-user-did");
- * const theirProfile = await otherRepo.profile.get();
+ * const theirProfile = await otherRepo.profile.getCertifiedProfile();
  * ```
  *
  * @example SDS operations
@@ -250,7 +250,7 @@ export class Repository {
    * ```typescript
    * // Read another user's profile
    * const otherRepo = repo.repo("did:plc:other-user");
-   * const profile = await otherRepo.profile.get();
+   * const profile = await otherRepo.profile.getBskyProfile();
    *
    * // List their public hypercerts
    * const hypercerts = await otherRepo.hypercerts.list();
@@ -378,21 +378,22 @@ export class Repository {
    *
    * @example
    * ```typescript
-   * // Get current profile
-   * const profile = await repo.profile.get();
-   * console.log(profile.displayName);
+   * // Get Certified profile (with hypercerts fields)
+   * const certProfile = await repo.profile.getCertifiedProfile();
+   * console.log(certProfile.displayName);
+   * console.log(certProfile.pronouns);
    *
-   * // Update profile
-   * await repo.profile.update({
+   * // Update Certified profile
+   * await repo.profile.updateCertifiedProfile({
    *   displayName: "New Name",
-   *   description: "Updated bio",
+   *   pronouns: "they/them",
    *   avatar: avatarBlob,  // Optional: update avatar image
    * });
    * ```
    */
   get profile(): ProfileOperations {
     if (!this._profile) {
-      this._profile = new ProfileOperationsImpl(this.agent, this.repoDid, this.blobs);
+      this._profile = new ProfileOperationsImpl(this.agent, this.repoDid, this.blobs, this.serverUrl);
     }
     return this._profile;
   }

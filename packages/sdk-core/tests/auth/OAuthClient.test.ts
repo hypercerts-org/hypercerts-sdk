@@ -60,7 +60,7 @@ describe("OAuthClient", () => {
       const client = new OAuthClient(config);
       // This will fail due to network, but we can verify the error handling
       await expect(client.authorize("test.bsky.social", { scope: "custom-scope" })).rejects.toThrow();
-    });
+    }, 10000);
   });
 
   describe("callback", () => {

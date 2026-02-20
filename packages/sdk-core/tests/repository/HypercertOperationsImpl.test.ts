@@ -1,9 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { Agent } from "@atproto/api";
+import { BlobRef, type Agent } from "@atproto/api";
 import { HypercertOperationsImpl } from "../../src/repository/HypercertOperationsImpl.js";
 import { NetworkError, ValidationError } from "../../src/core/errors.js";
-import type { BlobOperations } from "../../src/repository/interfaces.js";
-import { createMockAgent, createMockBlobOperations, TEST_REPO_DID } from "../utils/mocks.js";
+import type {
+  BlobOperations,
+  ContributorIdentityParams,
+  ContributionDetailsParams,
+} from "../../src/repository/interfaces.js";
+import type { RefUri } from "../../src/services/hypercerts/types.js";
+import type { ProgressStep, UpdateResult } from "../../src/repository/types.js";
+import { createMockAgent, createMockBlobOperations, createMockBlobRef, TEST_REPO_DID } from "../utils/mocks.js";
 
 /**
  * Create a simple string work scope for testing.
@@ -12,6 +18,34 @@ import { createMockAgent, createMockBlobOperations, TEST_REPO_DID } from "../uti
  */
 function createWorkScopeString(scopes: string[]): string {
   return scopes.join(", ");
+}
+
+/**
+ * Test-only subclass that exposes protected methods for unit testing.
+ * This allows us to test internal implementation details while maintaining
+ * type safety and avoiding ESLint warnings from 'as any' assertions.
+ */
+class TestableHypercertOperations extends HypercertOperationsImpl {
+  // Expose protected methods as public for testing
+  public async testBuildContributorEntries(
+    contributorParams: Array<ContributorIdentityParams>,
+    detailsParams: ContributionDetailsParams,
+    weight?: string,
+    onProgress?: (step: ProgressStep) => void,
+  ) {
+    return this.buildContributorEntries(contributorParams, detailsParams, weight, onProgress);
+  }
+
+  public async testAttachContributorsToHypercert(
+    hypercertUri: string,
+    newContributors: Array<{
+      contributorIdentity: RefUri;
+      contributionWeight?: string;
+      contributionDetails?: RefUri;
+    }>,
+  ): Promise<UpdateResult> {
+    return this.attachContributorsToHypercert(hypercertUri, newContributors);
+  }
 }
 
 // Mock the validate function from lexicon package
@@ -26,12 +60,12 @@ vi.mock("@hypercerts-org/lexicon", async (importOriginal) => {
 describe("HypercertOperationsImpl", () => {
   let mockAgent: ReturnType<typeof createMockAgent>;
   let mockBlobs: ReturnType<typeof createMockBlobOperations>;
-  let hypercertOps: HypercertOperationsImpl;
+  let hypercertOps: TestableHypercertOperations;
 
   beforeEach(() => {
     mockAgent = createMockAgent(vi);
     mockBlobs = createMockBlobOperations(vi);
-    hypercertOps = new HypercertOperationsImpl(
+    hypercertOps = new TestableHypercertOperations(
       mockAgent as unknown as Agent,
       TEST_REPO_DID,
       mockBlobs as BlobOperations,
@@ -76,13 +110,10 @@ describe("HypercertOperationsImpl", () => {
       expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledTimes(2);
     });
 
-    it("should upload image and include in hypercert", async () => {
+    it("should upload image and include in hypercert with correct wrapper", async () => {
       const imageBlob = new Blob(["image data"], { type: "image/png" });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "image-cid" },
-        mimeType: "image/png",
-        size: 100,
-      });
+      const mockBlobRef = createMockBlobRef({ mimeType: "image/png", size: 1024 });
+      mockBlobs.upload.mockResolvedValue(mockBlobRef);
 
       await hypercertOps.create({
         ...validParams,
@@ -90,6 +121,15 @@ describe("HypercertOperationsImpl", () => {
       });
 
       expect(mockBlobs.upload).toHaveBeenCalledWith(imageBlob);
+
+      // Verify the hypercert record (second createRecord call)
+      const hypercertCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+      expect(hypercertCall.record.image).toEqual({
+        $type: "org.hypercerts.defs#smallImage",
+        image: mockBlobRef,
+      });
+      expect(hypercertCall.record.image.$type).toBe("org.hypercerts.defs#smallImage");
+      expect(hypercertCall.record.image.image).toBeInstanceOf(BlobRef);
     });
 
     it("should include shortDescription when provided", async () => {
@@ -865,13 +905,10 @@ describe("HypercertOperationsImpl", () => {
       expect(putCall.record.rights).toEqual({ uri: "at://rights", cid: "rights-cid" });
     });
 
-    it("should upload new image", async () => {
+    it("should upload new image with correct wrapper", async () => {
       const imageBlob = new Blob(["new image"], { type: "image/png" });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "new-image-cid" },
-        mimeType: "image/png",
-        size: 100,
-      });
+      const mockBlobRef = createMockBlobRef({ mimeType: "image/png", size: 2048 });
+      mockBlobs.upload.mockResolvedValue(mockBlobRef);
 
       await hypercertOps.update({
         uri: "at://did:plc:test/org.hypercerts.claim.record/abc123",
@@ -880,12 +917,23 @@ describe("HypercertOperationsImpl", () => {
       });
 
       expect(mockBlobs.upload).toHaveBeenCalledWith(imageBlob);
+
+      // Verify the putRecord call
+      const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(putCall.record.image).toEqual({
+        $type: "org.hypercerts.defs#smallImage",
+        image: mockBlobRef,
+      });
+      expect(putCall.record.image.$type).toBe("org.hypercerts.defs#smallImage");
+      expect(putCall.record.image.image).toBeInstanceOf(BlobRef);
     });
 
     it("should remove image when set to null", async () => {
       mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
         success: true,
         data: {
+          cid: "bafyreiabc123",
+          uri: "at://did:plc:test/org.hypercerts.claim.record/abc123",
           value: {
             title: "Title",
             description: "Desc",
@@ -919,6 +967,30 @@ describe("HypercertOperationsImpl", () => {
       });
 
       expect(handler).toHaveBeenCalled();
+    });
+
+    it("should update contributors array", async () => {
+      const newContributors = [
+        {
+          contributorIdentity: {
+            uri: `at://${TEST_REPO_DID}/org.hypercerts.claim.contributorInformation/xyz`,
+            cid: "contributor-cid",
+            $type: "com.atproto.repo.strongRef" as const,
+          },
+          contributionDetails: "Lead Developer",
+          contributionWeight: "2.0",
+        },
+      ];
+
+      await hypercertOps.update({
+        uri: `at://${TEST_REPO_DID}/org.hypercerts.claim.activity/abc123`,
+        updates: {
+          contributors: newContributors,
+        },
+      });
+
+      const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(putCall.record.contributors).toEqual(newContributors);
     });
   });
 
@@ -973,11 +1045,7 @@ describe("HypercertOperationsImpl", () => {
       const blob = new Blob([JSON.stringify({ type: "Point", coordinates: [0, 0] })], {
         type: "application/geo+json",
       });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "blob-cid" },
-        mimeType: "application/geo+json",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRef({ mimeType: "application/geo+json" }));
 
       const result = await hypercertOps.attachLocation(hypercertUri, {
         lpVersion: "1.0.0",
@@ -991,15 +1059,15 @@ describe("HypercertOperationsImpl", () => {
 
       // Check the location record that was created
       const call = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-      expect(call.record.location).toEqual({
-        $type: "org.hypercerts.defs#smallBlob", // Your code wraps it in smallBlob
-        blob: {
-          // The actual blob data is nested here
-          ref: { $link: "blob-cid" },
-          mimeType: "application/geo+json",
-          size: 100,
-        },
-      });
+
+      // Verify the location wrapper type
+      expect(call.record.location.$type).toBe("org.hypercerts.defs#smallBlob");
+
+      // Verify blob is a BlobRef instance with correct properties
+      expect(call.record.location.blob).toBeInstanceOf(BlobRef);
+      expect(call.record.location.blob.mimeType).toBe("application/geo+json");
+      expect(call.record.location.blob.size).toBe(100);
+      expect(call.record.location.blob.ref).toBeDefined();
     });
 
     it("should attach a location using a simple text string (beta.13+ format)", async () => {
@@ -1059,60 +1127,498 @@ describe("HypercertOperationsImpl", () => {
     });
   });
 
-  describe("addContribution", () => {
+  describe("buildContributorEntries (helper)", () => {
+    beforeEach(() => {
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/xyz", cid: "record-cid" },
+      });
+    });
+
+    it("should resolve inline role string", async () => {
+      const result = await hypercertOps.testBuildContributorEntries(
+        ["did:plc:user1"],
+        "Developer",
+        undefined,
+        undefined,
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].contributionDetails).toBe("Developer");
+      expect(result[0].contributorIdentity).toMatchObject({
+        uri: expect.stringContaining("contributorInformation"),
+        cid: "record-cid",
+      });
+    });
+
+    it("should create contributionDetails record from object", async () => {
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValueOnce({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+      });
+
+      const result = await hypercertOps.testBuildContributorEntries(
+        ["did:plc:user1"],
+        {
+          role: "Project Lead",
+          contributionDescription: "Led project",
+          startDate: "2024-01-01",
+          endDate: "2024-06-30",
+        },
+        "2.0",
+        undefined,
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].contributionDetails).toMatchObject({
+        uri: expect.stringContaining("contributionDetails"),
+        cid: "details-cid",
+      });
+      expect(result[0].contributionWeight).toBe("2.0");
+    });
+
+    it("should handle multiple contributors with shared details", async () => {
+      const result = await hypercertOps.testBuildContributorEntries(
+        ["did:plc:user1", "did:plc:user2", "did:plc:user3"],
+        "Volunteer",
+        "1.0",
+        undefined,
+      );
+
+      expect(result).toHaveLength(3);
+      expect(result[0].contributionDetails).toBe("Volunteer");
+      expect(result[1].contributionDetails).toBe("Volunteer");
+      expect(result[2].contributionDetails).toBe("Volunteer");
+    });
+
+    it("should create contributorInformation from create params", async () => {
+      await hypercertOps.testBuildContributorEntries(
+        [{ identifier: "did:plc:alice", displayName: "Alice Smith" }],
+        "Coordinator",
+        undefined,
+        undefined,
+      );
+
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: "org.hypercerts.claim.contributorInformation",
+          record: expect.objectContaining({
+            identifier: "did:plc:alice",
+            displayName: "Alice Smith",
+          }),
+        }),
+      );
+    });
+  });
+
+  describe("attachContributorsToHypercert (helper)", () => {
     beforeEach(() => {
       mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
         success: true,
         data: {
-          uri: "at://did:plc:test/org.hypercerts.claim.record/abc",
+          uri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
           cid: "hypercert-cid",
           value: {
+            $type: "org.hypercerts.claim.activity",
             title: "Test",
             description: "Test",
+            shortDescription: "Test",
             workScope: createWorkScopeString(["Climate"]),
             startDate: "2024-01-01",
             endDate: "2024-12-31",
-            createdAt: "2024-01-01",
+            rights: { uri: "at://rights", cid: "rights-cid" },
+            contributors: [],
+            createdAt: "2024-01-01T00:00:00Z",
           },
         },
       });
 
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://did:plc:test/org.hypercerts.claim.activity/abc", cid: "updated-cid" },
+      });
+    });
+
+    it("should append contributors to empty array", async () => {
+      const newContributors = [
+        {
+          contributorIdentity: { uri: "at://test/info/1", cid: "cid1", $type: "com.atproto.repo.strongRef" as const },
+          contributionDetails: "Developer" as const,
+          contributionWeight: "1.0",
+        },
+      ];
+
+      const result = await hypercertOps.testAttachContributorsToHypercert(
+        "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        newContributors,
+      );
+
+      expect(result.uri).toBe("at://did:plc:test/org.hypercerts.claim.activity/abc");
+      expect(result.cid).toBe("updated-cid");
+
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors).toHaveLength(1);
+    });
+
+    it("should preserve existing contributors when appending", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValueOnce({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          cid: "hypercert-cid",
+          value: {
+            $type: "org.hypercerts.claim.activity",
+            title: "Test",
+            description: "Test",
+            shortDescription: "Test",
+            workScope: createWorkScopeString(["Climate"]),
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            rights: { uri: "at://rights", cid: "rights-cid" },
+            contributors: [
+              {
+                contributorIdentity: { uri: "at://existing", cid: "cid0", $type: "com.atproto.repo.strongRef" },
+                contributionDetails: "Existing Role",
+              },
+            ],
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+
+      const newContributors = [
+        {
+          contributorIdentity: { uri: "at://test/info/1", cid: "cid1", $type: "com.atproto.repo.strongRef" as const },
+          contributionDetails: "New Role" as const,
+        },
+      ];
+
+      await hypercertOps.testAttachContributorsToHypercert(
+        "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        newContributors,
+      );
+
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors).toHaveLength(2);
+      expect(updateCall.record.contributors[0].contributionDetails).toBe("Existing Role");
+      expect(updateCall.record.contributors[1].contributionDetails).toBe("New Role");
+    });
+
+    it("should handle hypercert with no contributors field", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValueOnce({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          cid: "hypercert-cid",
+          value: {
+            $type: "org.hypercerts.claim.activity",
+            title: "Test",
+            description: "Test",
+            shortDescription: "Test",
+            workScope: createWorkScopeString(["Climate"]),
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            rights: { uri: "at://rights", cid: "rights-cid" },
+            // No contributors field
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+
+      const newContributors = [
+        {
+          contributorIdentity: { uri: "at://test/info/1", cid: "cid1", $type: "com.atproto.repo.strongRef" as const },
+          contributionDetails: "Developer" as const,
+        },
+      ];
+
+      await hypercertOps.testAttachContributorsToHypercert(
+        "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        newContributors,
+      );
+
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors).toHaveLength(1);
+    });
+  });
+
+  describe("addContribution (refactored)", () => {
+    beforeEach(() => {
+      // Mock getRecord - hypercert with empty contributors
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: `at://${TEST_REPO_DID}/org.hypercerts.claim.activity/abc`,
+          cid: "hypercert-cid",
+          value: {
+            $type: "org.hypercerts.claim.activity",
+            title: "Test Hypercert",
+            description: "Test",
+            shortDescription: "Test",
+            workScope: createWorkScopeString(["Climate"]),
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            rights: { uri: "at://rights", cid: "rights-cid" },
+            contributors: [],
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+
+      // Mock createRecord - for contributionDetails/contributorInformation
       mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
         success: true,
-        data: { uri: "at://did:plc:test/org.hypercerts.claim.contribution/xyz", cid: "contrib-cid" },
+        data: {
+          uri: `at://${TEST_REPO_DID}/org.hypercerts.claim.contributionDetails/xyz`,
+          cid: "record-cid",
+        },
+      });
+
+      // Mock putRecord - for updating hypercert
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: `at://${TEST_REPO_DID}/org.hypercerts.claim.activity/abc`,
+          cid: "updated-cid",
+        },
       });
     });
 
-    it("should create a contribution linked to hypercert", async () => {
+    it("should add single contributor with inline role", async () => {
       const result = await hypercertOps.addContribution({
-        hypercertUri: "at://did:plc:test/org.hypercerts.claim.record/abc",
-        contributors: ["did:plc:contributor1"],
-        role: "Developer",
-        description: "Built the thing",
+        hypercertUri: `at://${TEST_REPO_DID}/org.hypercerts.claim.activity/abc`,
+        contributors: ["did:plc:user1"],
+        contributionDetails: "Developer",
       });
 
-      expect(result.uri).toContain("contribution");
+      // Verify hypercert was updated
+      expect(mockAgent.com.atproto.repo.putRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          repo: TEST_REPO_DID,
+          collection: "org.hypercerts.claim.activity",
+          record: expect.objectContaining({
+            contributors: expect.arrayContaining([
+              expect.objectContaining({
+                contributionDetails: "Developer",
+              }),
+            ]),
+          }),
+        }),
+      );
+
+      expect(result.uri).toBe(`at://${TEST_REPO_DID}/org.hypercerts.claim.activity/abc`);
+      expect(result.cid).toBe("updated-cid");
     });
 
-    it("should create standalone contribution without hypercert", async () => {
-      const result = await hypercertOps.addContribution({
-        contributors: ["did:plc:contributor1"],
-        role: "Developer",
+    it("should add multiple contributors with shared role", async () => {
+      await hypercertOps.addContribution({
+        hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        contributors: ["did:plc:user1", "did:plc:user2", "did:plc:user3"],
+        contributionDetails: "Volunteer",
       });
 
-      expect(result.uri).toBeDefined();
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors).toHaveLength(3);
     });
 
-    it("should emit contributionCreated event", async () => {
-      const handler = vi.fn();
-      hypercertOps.on("contributionCreated", handler);
+    it("should create contributionDetails record from object", async () => {
+      await hypercertOps.addContribution({
+        hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        contributors: ["did:plc:user1"],
+        contributionDetails: {
+          role: "Project Lead",
+          contributionDescription: "Led the project",
+          startDate: "2024-01-01",
+          endDate: "2024-06-30",
+        },
+      });
+
+      // Verify contributionDetails record was created
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: "org.hypercerts.claim.contributionDetails",
+          record: expect.objectContaining({
+            role: "Project Lead",
+            contributionDescription: "Led the project",
+          }),
+        }),
+      );
+
+      // Verify hypercert references the created record
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors[0].contributionDetails).toMatchObject({
+        uri: expect.stringContaining("contributionDetails"),
+        cid: "record-cid",
+      });
+    });
+
+    it("should use existing contributionDetails StrongRef", async () => {
+      await hypercertOps.addContribution({
+        hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        contributors: ["did:plc:user1"],
+        contributionDetails: {
+          uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/existing",
+          cid: "existing-cid",
+        },
+      });
+
+      // Verify no new contributionDetails record created (only contributorInformation)
+      const createCalls = mockAgent.com.atproto.repo.createRecord.mock.calls;
+      expect(createCalls.some((call) => call[0].collection === "org.hypercerts.claim.contributionDetails")).toBe(false);
+
+      // Verify hypercert uses the provided StrongRef
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors[0].contributionDetails).toMatchObject({
+        uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/existing",
+        cid: "existing-cid",
+      });
+    });
+
+    it("should create contributorInformation from create params", async () => {
+      await hypercertOps.addContribution({
+        hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        contributors: [
+          {
+            identifier: "did:plc:alice",
+            displayName: "Alice Smith",
+          },
+        ],
+        contributionDetails: "Coordinator",
+      });
+
+      expect(mockAgent.com.atproto.repo.createRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: "org.hypercerts.claim.contributorInformation",
+          record: expect.objectContaining({
+            identifier: "did:plc:alice",
+            displayName: "Alice Smith",
+          }),
+        }),
+      );
+    });
+
+    it("should include weight when provided", async () => {
+      await hypercertOps.addContribution({
+        hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        contributors: ["did:plc:user1"],
+        contributionDetails: "Lead Developer",
+        weight: "2.5",
+      });
+
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors[0]).toMatchObject({
+        contributionWeight: "2.5",
+      });
+    });
+
+    it("should append to existing contributors without replacing", async () => {
+      // Mock hypercert with existing contributor
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValueOnce({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          cid: "hypercert-cid",
+          value: {
+            $type: "org.hypercerts.claim.activity",
+            title: "Test",
+            description: "Test",
+            shortDescription: "Test",
+            workScope: createWorkScopeString(["Climate"]),
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            rights: { uri: "at://rights", cid: "rights-cid" },
+            contributors: [
+              {
+                contributorIdentity: {
+                  uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/existing",
+                  cid: "existing-cid",
+                  $type: "com.atproto.repo.strongRef",
+                },
+                contributionDetails: "Existing Role",
+              },
+            ],
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
 
       await hypercertOps.addContribution({
-        contributors: ["did:plc:test"],
-        role: "Tester",
+        hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+        contributors: ["did:plc:new-user"],
+        contributionDetails: "New Role",
       });
 
-      expect(handler).toHaveBeenCalled();
+      const updateCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(updateCall.record.contributors).toHaveLength(2);
+      expect(updateCall.record.contributors[0].contributionDetails).toBe("Existing Role");
+    });
+
+    it("should throw NetworkError if hypercert not found", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValueOnce({
+        success: false,
+      });
+
+      await expect(
+        hypercertOps.addContribution({
+          hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/missing",
+          contributors: ["did:plc:user"],
+          contributionDetails: "Developer",
+        }),
+      ).rejects.toThrow(NetworkError);
+    });
+
+    it("should throw NetworkError if update fails", async () => {
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValueOnce({
+        success: false,
+      });
+
+      await expect(
+        hypercertOps.addContribution({
+          hypercertUri: "at://did:plc:test/org.hypercerts.claim.activity/abc",
+          contributors: ["did:plc:user"],
+          contributionDetails: "Developer",
+        }),
+      ).rejects.toThrow(NetworkError);
+    });
+  });
+
+  describe("processContributors (integration check)", () => {
+    it("should still work after refactor", async () => {
+      // Set up mocks for record creation
+      mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
+        success: true,
+        data: { uri: "at://test/record", cid: "test-cid" },
+      });
+
+      // Test the create() flow which uses processContributors
+      await hypercertOps.create({
+        title: "Test",
+        description: "Test",
+        shortDescription: "Test",
+        workScope: createWorkScopeString(["Climate"]),
+        startDate: "2024-01-01",
+        endDate: "2024-12-31",
+        rights: { name: "CC-BY", type: "license", description: "Open" },
+        contributions: [
+          {
+            contributors: ["did:plc:user1", "did:plc:user2"],
+            contributionDetails: "Developer",
+            weight: "1.0",
+          },
+          {
+            contributors: ["did:plc:user3"],
+            contributionDetails: { role: "Lead", contributionDescription: "Led project" },
+            weight: "2.0",
+          },
+        ],
+      });
+
+      // Verify contributors were processed and included in hypercert
+      const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls.find(
+        (call) => call[0].collection === "org.hypercerts.claim.activity",
+      );
+      expect(createCall).toBeDefined();
+      expect(createCall![0].record.contributors).toHaveLength(3); // 2 + 1
     });
   });
 
@@ -1174,11 +1680,7 @@ describe("HypercertOperationsImpl", () => {
 
     it("should add attachment with single subject (StrongRef) and single Blob content", async () => {
       const blob = new Blob(["evidence data"], { type: "application/pdf" });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "blob-cid" },
-        mimeType: "application/pdf",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRef({ mimeType: "application/pdf" }));
 
       const result = await hypercertOps.addAttachment({
         subjects: { uri: "at://did:plc:test/org.hypercerts.claim.activity/abc", cid: "hypercert-cid" },
@@ -1200,12 +1702,16 @@ describe("HypercertOperationsImpl", () => {
       ]);
 
       // Verify content array with blob
-      expect(call.record.content).toEqual([
-        {
-          $type: "org.hypercerts.defs#smallBlob",
-          blob: { ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
-        },
-      ]);
+      expect(call.record.content).toHaveLength(1);
+
+      // Verify content wrapper type
+      expect(call.record.content[0].$type).toBe("org.hypercerts.defs#smallBlob");
+
+      // Verify blob is a BlobRef instance with correct properties
+      expect(call.record.content[0].blob).toBeInstanceOf(BlobRef);
+      expect(call.record.content[0].blob.mimeType).toBe("application/pdf");
+      expect(call.record.content[0].blob.size).toBe(100);
+      expect(call.record.content[0].blob.ref).toBeDefined();
     });
 
     it("should add attachment with multiple subjects", async () => {
@@ -1242,11 +1748,7 @@ describe("HypercertOperationsImpl", () => {
 
     it("should add attachment with multiple content items (mixed URIs and Blobs)", async () => {
       const blob = new Blob(["evidence data"], { type: "application/pdf" });
-      mockBlobs.upload.mockResolvedValue({
-        ref: { $link: "blob-cid" },
-        mimeType: "application/pdf",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValue(createMockBlobRef({ mimeType: "application/pdf" }));
 
       const result = await hypercertOps.addAttachment({
         subjects: "at://did:plc:test/org.hypercerts.claim.activity/abc",
@@ -1264,10 +1766,15 @@ describe("HypercertOperationsImpl", () => {
         $type: "org.hypercerts.defs#uri",
         uri: "https://example.com/report.pdf",
       });
-      expect(call.record.content[1]).toEqual({
-        $type: "org.hypercerts.defs#smallBlob",
-        blob: { ref: { $link: "blob-cid" }, mimeType: "application/pdf", size: 100 },
-      });
+
+      // Verify blob content wrapper type
+      expect(call.record.content[1].$type).toBe("org.hypercerts.defs#smallBlob");
+
+      // Verify blob is a BlobRef instance with correct properties
+      expect(call.record.content[1].blob).toBeInstanceOf(BlobRef);
+      expect(call.record.content[1].blob.mimeType).toBe("application/pdf");
+      expect(call.record.content[1].blob.size).toBe(100);
+      expect(call.record.content[1].blob.ref).toBeDefined();
     });
 
     it("should add attachment with contentType", async () => {
@@ -1543,7 +2050,7 @@ describe("HypercertOperationsImpl", () => {
         metric: "CO2 Reduced",
         unit: "tons",
         value: "100",
-        measurers: ["did:plc:measurer1"],
+        measurers: [{ did: "did:plc:measurer1" }],
       });
 
       expect(result.uri).toContain("measurement");
@@ -1557,7 +2064,7 @@ describe("HypercertOperationsImpl", () => {
         value: "500",
         startDate: "2024-01-01T00:00:00Z",
         endDate: "2024-12-31T23:59:59Z",
-        measurers: ["did:plc:auditor1"],
+        measurers: [{ did: "did:plc:auditor1" }],
         methodType: "satellite-imagery",
         methodURI: "https://example.com/methodology",
         evidenceURI: ["https://example.com/report"],
@@ -2025,17 +2532,9 @@ describe("HypercertOperationsImpl", () => {
       const bannerBlob = new Blob(["banner"], { type: "image/jpeg" });
 
       // Mock blob upload via BlobOperations (not agent.uploadBlob)
-      mockBlobs.upload.mockResolvedValueOnce({
-        ref: { $link: "bafyrei-avatar" },
-        mimeType: "image/png",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef());
 
-      mockBlobs.upload.mockResolvedValueOnce({
-        ref: { $link: "bafyrei-banner" },
-        mimeType: "image/jpeg",
-        size: 200,
-      });
+      mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef({ mimeType: "image/jpeg", size: 200 }));
 
       mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
         success: true,
@@ -2100,29 +2599,9 @@ describe("HypercertOperationsImpl", () => {
       const logoBlob = new Blob(["logo"], { type: "image/png" });
       const headerBlob = new Blob(["header"], { type: "image/jpeg" });
 
-      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValueOnce({
-        success: true,
-        data: {
-          blob: {
-            $type: "blob",
-            ref: { $link: "bafyrei-logo" },
-            mimeType: "image/png",
-            size: 150,
-          },
-        },
-      });
+      mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef({ size: 150 }));
 
-      mockAgent.com.atproto.repo.uploadBlob.mockResolvedValueOnce({
-        success: true,
-        data: {
-          blob: {
-            $type: "blob",
-            ref: { $link: "bafyrei-header" },
-            mimeType: "image/jpeg",
-            size: 250,
-          },
-        },
-      });
+      mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef({ mimeType: "image/jpeg", size: 250 }));
 
       mockAgent.com.atproto.repo.createRecord.mockResolvedValue({
         success: true,
@@ -2379,17 +2858,9 @@ describe("HypercertOperationsImpl", () => {
       const newBanner = new Blob(["new-banner"], { type: "image/jpeg" });
 
       // Mock blob upload via BlobOperations (not agent.uploadBlob)
-      mockBlobs.upload.mockResolvedValueOnce({
-        ref: { $link: "bafyrei-new-avatar" },
-        mimeType: "image/png",
-        size: 100,
-      });
+      mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef());
 
-      mockBlobs.upload.mockResolvedValueOnce({
-        ref: { $link: "bafyrei-new-banner" },
-        mimeType: "image/jpeg",
-        size: 200,
-      });
+      mockBlobs.upload.mockResolvedValueOnce(createMockBlobRef({ mimeType: "image/jpeg", size: 200 }));
 
       const result = await hypercertOps.updateCollection("at://did:plc:test/org.hypercerts.collection/abc123", {
         avatar: newAvatar,
@@ -2604,6 +3075,30 @@ describe("HypercertOperationsImpl", () => {
         }),
       ).rejects.toThrow(NetworkError);
     });
+
+    it("should throw NetworkError when putRecord fails", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.collection/abc123",
+          cid: "collection-cid",
+          value: {
+            $type: "org.hypercerts.claim.collection",
+            title: "Test Collection",
+            items: [],
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      });
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({ success: false });
+
+      await expect(
+        hypercertOps.attachLocationToCollection(`at://${TEST_REPO_DID}/org.hypercerts.collection/abc123`, {
+          uri: `at://${TEST_REPO_DID}/app.certified.location/loc123`,
+          cid: "location-cid",
+        }),
+      ).rejects.toThrow(NetworkError);
+    });
   });
 
   describe("removeLocationFromCollection", () => {
@@ -2655,6 +3150,28 @@ describe("HypercertOperationsImpl", () => {
 
       await expect(
         hypercertOps.removeLocationFromCollection("at://did:plc:test/org.hypercerts.collection/missing"),
+      ).rejects.toThrow(NetworkError);
+    });
+
+    it("should throw NetworkError when putRecord fails", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.collection/abc123",
+          cid: "collection-cid",
+          value: {
+            $type: "org.hypercerts.claim.collection",
+            title: "Test Collection",
+            items: [],
+            createdAt: "2024-01-01T00:00:00Z",
+            location: { uri: "at://location", cid: "location-cid" },
+          },
+        },
+      });
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({ success: false });
+
+      await expect(
+        hypercertOps.removeLocationFromCollection(`at://${TEST_REPO_DID}/org.hypercerts.collection/abc123`),
       ).rejects.toThrow(NetworkError);
     });
   });
@@ -2714,11 +3231,7 @@ describe("HypercertOperationsImpl", () => {
 
       it("should upload avatar blob when provided", async () => {
         const avatarBlob = new Blob(["avatar data"], { type: "image/png" });
-        mockBlobs.upload.mockResolvedValue({
-          ref: { $link: "avatar-cid" },
-          mimeType: "image/png",
-          size: 100,
-        });
+        mockBlobs.upload.mockResolvedValue(createMockBlobRef());
 
         await hypercertOps.createProject({
           title: "Project with Avatar",
@@ -2728,19 +3241,20 @@ describe("HypercertOperationsImpl", () => {
 
         expect(mockBlobs.upload).toHaveBeenCalledWith(avatarBlob);
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-        expect(createCall.record.avatar).toEqual({
-          $type: "org.hypercerts.defs#smallImage",
-          image: { ref: { $link: "avatar-cid" }, mimeType: "image/png", size: 100 },
-        });
+
+        // Verify wrapper type
+        expect(createCall.record.avatar.$type).toBe("org.hypercerts.defs#smallImage");
+
+        // Verify image is a BlobRef instance with correct properties
+        expect(createCall.record.avatar.image).toBeInstanceOf(BlobRef);
+        expect(createCall.record.avatar.image.mimeType).toBe("image/png");
+        expect(createCall.record.avatar.image.size).toBe(100);
+        expect(createCall.record.avatar.image.ref).toBeDefined();
       });
 
       it("should upload banner blob when provided", async () => {
         const bannerBlob = new Blob(["banner data"], { type: "image/jpeg" });
-        mockBlobs.upload.mockResolvedValue({
-          ref: { $link: "banner-cid" },
-          mimeType: "image/jpeg",
-          size: 200,
-        });
+        mockBlobs.upload.mockResolvedValue(createMockBlobRef({ mimeType: "image/jpeg", size: 200 }));
 
         await hypercertOps.createProject({
           title: "Project with Banner",
@@ -2750,10 +3264,15 @@ describe("HypercertOperationsImpl", () => {
 
         expect(mockBlobs.upload).toHaveBeenCalledWith(bannerBlob);
         const createCall = mockAgent.com.atproto.repo.createRecord.mock.calls[0][0];
-        expect(createCall.record.banner).toEqual({
-          $type: "org.hypercerts.defs#largeImage",
-          image: { ref: { $link: "banner-cid" }, mimeType: "image/jpeg", size: 200 },
-        });
+
+        // Verify wrapper type
+        expect(createCall.record.banner.$type).toBe("org.hypercerts.defs#largeImage");
+
+        // Verify image is a BlobRef instance with correct properties
+        expect(createCall.record.banner.image).toBeInstanceOf(BlobRef);
+        expect(createCall.record.banner.image.mimeType).toBe("image/jpeg");
+        expect(createCall.record.banner.image.size).toBe(200);
+        expect(createCall.record.banner.image.ref).toBeDefined();
       });
 
       it("should upload both avatar and banner when provided", async () => {
@@ -2761,16 +3280,8 @@ describe("HypercertOperationsImpl", () => {
         const bannerBlob = new Blob(["banner"], { type: "image/jpeg" });
 
         mockBlobs.upload
-          .mockResolvedValueOnce({
-            ref: { $link: "avatar-cid" },
-            mimeType: "image/png",
-            size: 50,
-          })
-          .mockResolvedValueOnce({
-            ref: { $link: "banner-cid" },
-            mimeType: "image/jpeg",
-            size: 100,
-          });
+          .mockResolvedValueOnce(createMockBlobRef({ size: 50 }))
+          .mockResolvedValueOnce(createMockBlobRef({ mimeType: "image/jpeg", size: 100 }));
 
         await hypercertOps.createProject({
           title: "Full Project",
@@ -3253,11 +3764,7 @@ describe("HypercertOperationsImpl", () => {
 
       it("should upload and update avatar", async () => {
         const newAvatar = new Blob(["new avatar"], { type: "image/png" });
-        mockBlobs.upload.mockResolvedValue({
-          ref: { $link: "new-avatar-cid" },
-          mimeType: "image/png",
-          size: 150,
-        });
+        mockBlobs.upload.mockResolvedValue(createMockBlobRef({ size: 150 }));
 
         await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           avatar: newAvatar,
@@ -3265,19 +3772,20 @@ describe("HypercertOperationsImpl", () => {
 
         expect(mockBlobs.upload).toHaveBeenCalledWith(newAvatar);
         const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
-        expect(putCall.record.avatar).toEqual({
-          $type: "org.hypercerts.defs#smallImage",
-          image: { ref: { $link: "new-avatar-cid" }, mimeType: "image/png", size: 150 },
-        });
+
+        // Verify wrapper type
+        expect(putCall.record.avatar.$type).toBe("org.hypercerts.defs#smallImage");
+
+        // Verify image is a BlobRef instance with correct properties
+        expect(putCall.record.avatar.image).toBeInstanceOf(BlobRef);
+        expect(putCall.record.avatar.image.mimeType).toBe("image/png");
+        expect(putCall.record.avatar.image.size).toBe(150);
+        expect(putCall.record.avatar.image.ref).toBeDefined();
       });
 
       it("should upload and update banner", async () => {
         const newBanner = new Blob(["new banner"], { type: "image/jpeg" });
-        mockBlobs.upload.mockResolvedValue({
-          ref: { $link: "new-banner-cid" },
-          mimeType: "image/jpeg",
-          size: 250,
-        });
+        mockBlobs.upload.mockResolvedValue(createMockBlobRef({ mimeType: "image/jpeg", size: 250 }));
 
         await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
           banner: newBanner,
@@ -3352,6 +3860,14 @@ describe("HypercertOperationsImpl", () => {
         await expect(
           hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", { title: "New" }),
         ).rejects.toThrow(NetworkError);
+      });
+
+      it("should call getRecord exactly once per updateProject invocation", async () => {
+        await hypercertOps.updateProject("at://did:plc:test/org.hypercerts.claim.collection/abc123", {
+          title: "New Title",
+        });
+
+        expect(mockAgent.com.atproto.repo.getRecord).toHaveBeenCalledTimes(1);
       });
 
       it("should throw ValidationError when record is not a project", async () => {
@@ -3759,7 +4275,7 @@ describe("HypercertOperationsImpl", () => {
       await expect(
         // @ts-expect-error - accessing private method for testing
         hypercertOps.resolveToStrongRef(uri),
-      ).rejects.toThrow("Record missing CID");
+      ).rejects.toThrow("returned no CID");
     });
 
     it("should throw ValidationError for invalid input type", async () => {
@@ -3786,6 +4302,58 @@ describe("HypercertOperationsImpl", () => {
         // @ts-expect-error - accessing private method with intentionally invalid input for testing
         hypercertOps.resolveToStrongRef(invalidInput),
       ).rejects.toThrow("Invalid input: expected string URI or StrongRef");
+    });
+  });
+
+  describe("fetchRecord (private helper)", () => {
+    it("should throw NetworkError when getRecord returns success:false", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({ success: false });
+
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.fetchRecord("at://did:plc:test/org.hypercerts.claim.collection/abc123"),
+      ).rejects.toThrow(NetworkError);
+    });
+
+    it("should throw NetworkError when getRecord returns no CID", async () => {
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: "at://did:plc:test/org.hypercerts.claim.collection/abc123",
+          cid: undefined,
+          value: {},
+        },
+      });
+
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.fetchRecord("at://did:plc:test/org.hypercerts.claim.collection/abc123"),
+      ).rejects.toThrow(NetworkError);
+
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.fetchRecord("at://did:plc:test/org.hypercerts.claim.collection/abc123"),
+      ).rejects.toThrow("returned no CID");
+    });
+  });
+
+  describe("saveRecord (private helper)", () => {
+    it("should throw NetworkError when putRecord returns success:false", async () => {
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({ success: false });
+
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.saveRecord("org.hypercerts.claim.collection", "abc123", {
+          $type: "org.hypercerts.claim.collection",
+        }),
+      ).rejects.toThrow(NetworkError);
+
+      await expect(
+        // @ts-expect-error - accessing private method for testing
+        hypercertOps.saveRecord("org.hypercerts.claim.collection", "abc123", {
+          $type: "org.hypercerts.claim.collection",
+        }),
+      ).rejects.toThrow("Failed to save record");
     });
   });
 });

@@ -160,7 +160,9 @@ export interface Profile {
   handle: string;
   displayName?: string;
   description?: string;
+  /** Avatar image URL. */
   avatar?: string;
+  /** Banner image URL. */
   banner?: string;
   website?: string;
   followersCount?: number;
@@ -192,11 +194,11 @@ export interface UseProfileResult {
   /** Query error */
   error: Error | null;
 
-  /** Update profile */
-  update: (params: ProfileUpdate) => Promise<void>;
+  /** Save profile (creates if doesn't exist, updates if exists) */
+  save: (params: ProfileUpdate) => Promise<void>;
 
-  /** Update loading state */
-  isUpdating: boolean;
+  /** Save operation loading state */
+  isSaving: boolean;
 
   /** Refetch profile */
   refetch: () => Promise<void>;

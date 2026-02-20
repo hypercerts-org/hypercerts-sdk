@@ -1083,6 +1083,29 @@ describe("Scope Utility Functions", () => {
       expect(result.isValid).toBe(true);
       expect(result.invalidPermissions).toEqual([]);
     });
+
+    it("should validate mixed-format permissions including query-param style", () => {
+      const queryParamScopes = [
+        "rpc?lxm=*&aud=did:web:api.example.com%23svc_appview",
+        "blob?accept=video/*&accept=text/html",
+        "repo:app.example.profile?action=create&action=update&action=delete",
+        "identity:*",
+        "identity:*?",
+        "include:app.example.authFull?aud=did:web:api.example.com%23svc_chat",
+      ];
+
+      for (const scope of queryParamScopes) {
+        const result = validateScope(scope);
+        expect(result.isValid).toBe(true);
+        expect(result.invalidPermissions).toEqual([]);
+      }
+    });
+
+    it("should not match atproto as a prefix of longer strings", () => {
+      const result = validateScope("atprotofoo");
+      expect(result.isValid).toBe(false);
+      expect(result.invalidPermissions).toEqual(["atprotofoo"]);
+    });
   });
 
   describe("Integration: Builder with Utilities", () => {

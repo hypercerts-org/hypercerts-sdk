@@ -8,53 +8,52 @@
  * @packageDocumentation
  */
 
-import type { Agent } from "@atproto/api";
+import type { Agent, BlobRef } from "@atproto/api";
+import { $Typed } from "@atproto/api";
 import { validate } from "@hypercerts-org/lexicon";
 import { EventEmitter } from "eventemitter3";
-import { NetworkError, ValidationError } from "../errors.js";
 import type { LoggerInterface } from "../core/interfaces.js";
+import { NetworkError, ValidationError } from "../errors.js";
+import { sha256Hash } from "../lib/crypto.js";
+import { isValidUri } from "../lib/url-utils.js";
 import {
   HYPERCERT_COLLECTIONS,
+  type CreateAttachmentParams,
   type CreateCollectionParams,
   type CreateCollectionResult,
+  type CreateLocationParams,
+  type CreateMeasurementParams,
   type CreateProjectParams,
   type CreateProjectResult,
+  type HypercertAttachment,
   type HypercertClaim,
   type HypercertCollection,
   type HypercertContributionDetails,
   type HypercertContributorInformation,
   type HypercertEvaluation,
-  type HypercertAttachment,
   type HypercertLocation,
-  type CreateLocationParams,
   type HypercertMeasurement,
   type HypercertRights,
-  type JsonBlobRef,
   type OrgHypercertsDefs,
+  type RefUri,
   type StrongRef,
   type UpdateCollectionParams,
-  type UpdateProjectParams,
-  type CreateMeasurementParams,
   type UpdateMeasurementParams,
-  type CreateAttachmentParams,
+  type UpdateProjectParams,
 } from "../services/hypercerts/types.js";
 import type {
   BlobOperations,
-  LocationParams,
+  ContributionDetailsParams,
+  ContributorIdentityParams,
   CreateHypercertParams,
+  UpdateHypercertParams,
   CreateHypercertResult,
   HypercertEvents,
   HypercertOperations,
-  ContributionDetailsParams,
-  ResolvedContributionDetails,
-  ContributorIdentityParams,
-  ResolvedContributorIdentity,
+  LocationParams,
 } from "./interfaces.js";
 import type { CreateResult, ListParams, PaginatedList, ProgressStep, UpdateResult } from "./types.js";
-import { uploadResultToBlobRef } from "./types.js";
-import { $Typed } from "@atproto/api";
-import { sha256Hash } from "../lib/crypto.js";
-import { isValidUri } from "../lib/url-utils.js";
+import { parseAtUri } from "../lexicons/utils.js";
 
 /**
  * Implementation of high-level hypercert operations.
@@ -124,6 +123,99 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
+   * Parses an AT-URI and throws ValidationError if invalid.
+   *
+   * This wrapper converts the generic Error from parseAtUri() to a ValidationError
+   * for consistent error handling throughout the SDK.
+   *
+   * @param uri - AT-URI to parse
+   * @returns Parsed URI components
+   * @throws {@link ValidationError} if URI format is invalid
+   * @internal
+   */
+  private parseUri(uri: string): { did: string; collection: string; rkey: string } {
+    try {
+      return parseAtUri(uri);
+    } catch (error) {
+      throw new ValidationError(error instanceof Error ? error.message : `Invalid URI format: ${uri}`);
+    }
+  }
+
+  /**
+   * Fetches any record by AT-URI with generic typing.
+   *
+   * Returns the record along with parsed URI components needed for updates.
+   * Unlike the public `get()` method which is typed for HypercertClaim,
+   * this method can fetch any record type.
+   *
+   * @typeParam T - The expected type of the record
+   * @param uri - AT-URI of the record to fetch
+   * @returns Record data with parsed URI components
+   * @throws {@link ValidationError} if URI format is invalid
+   * @throws {@link NetworkError} if record cannot be fetched
+   * @internal
+   */
+  private async fetchRecord<T = unknown>(
+    uri: string,
+  ): Promise<{
+    uri: string;
+    cid: string;
+    record: T;
+    collection: string;
+    rkey: string;
+  }> {
+    const { did, collection, rkey } = this.parseUri(uri);
+
+    const result = await this.agent.com.atproto.repo.getRecord({
+      repo: did,
+      collection,
+      rkey,
+    });
+
+    if (!result.success) {
+      throw new NetworkError(`Failed to fetch record: ${uri}`);
+    }
+
+    const cid = result.data.cid;
+    if (!cid) {
+      throw new NetworkError(`Record at ${uri} returned no CID`);
+    }
+
+    return {
+      uri: result.data.uri,
+      cid,
+      record: result.data.value as T,
+      collection,
+      rkey,
+    };
+  }
+
+  /**
+   * Updates a record in the repository.
+   *
+   * @param collection - NSID of the collection
+   * @param rkey - Record key
+   * @param record - Updated record data
+   * @returns Update result with URI and CID
+   * @throws {@link NetworkError} if update fails
+   * @internal
+   */
+  private async saveRecord(collection: string, rkey: string, record: Record<string, unknown>): Promise<UpdateResult> {
+    const result = await this.agent.com.atproto.repo.putRecord({
+      repo: this.repoDid,
+      collection,
+      rkey,
+      record,
+    });
+
+    if (!result.success) {
+      throw new NetworkError(`Failed to save record: ${collection}/${rkey}`);
+    }
+
+    return { uri: result.data.uri, cid: result.data.cid };
+  }
+
+  /**
    * Emits a progress event to the optional progress handler.
    *
    * @param onProgress - Progress callback from create params
@@ -141,17 +233,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Converts a blob upload result to JsonBlobRef format.
-   *
-   * @param uploadResult - Result from BlobOperations.upload()
-   * @returns JsonBlobRef formatted for records
-   * @internal
-   */
-  private blobToJsonRef(uploadResult: { ref: { $link: string }; mimeType: string; size: number }): JsonBlobRef {
-    return uploadResultToBlobRef(uploadResult);
-  }
-
-  /**
    * Uploads an image blob and returns a blob reference.
    *
    * @param image - Image blob to upload
@@ -160,10 +241,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @throws {@link NetworkError} if upload fails
    * @internal
    */
-  private async uploadImageBlob(
-    image: Blob,
-    onProgress?: (step: ProgressStep) => void,
-  ): Promise<JsonBlobRef | undefined> {
+  private async uploadImageBlob(image: Blob, onProgress?: (step: ProgressStep) => void) {
     this.emitProgress(onProgress, { name: "uploadImage", status: "start" });
     try {
       const uploadResult = await this.blobs.upload(image);
@@ -172,7 +250,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         status: "success",
         data: { size: image.size },
       });
-      return this.blobToJsonRef(uploadResult);
+      return uploadResult;
     } catch (error) {
       this.emitProgress(onProgress, { name: "uploadImage", status: "error", error: error as Error });
       throw new NetworkError(`Failed to upload image: ${error instanceof Error ? error.message : "Unknown"}`, error);
@@ -251,13 +329,13 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     params: CreateHypercertParams,
     rightsUri: string,
     rightsCid: string,
-    imageBlobRef: JsonBlobRef | undefined,
+    imageBlobRef: BlobRef | undefined,
     locationRefs: Array<{ uri: string; cid: string }> | undefined,
     contributorsData:
       | Array<{
-          contributorIdentity: ResolvedContributorIdentity;
+          contributorIdentity: RefUri;
           contributionWeight?: string;
-          contributionDetails?: ResolvedContributionDetails;
+          contributionDetails?: RefUri;
         }>
       | undefined,
     createdAt: string,
@@ -277,7 +355,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     };
 
     if (imageBlobRef) {
-      hypercertRecord.image = imageBlobRef;
+      hypercertRecord.image = {
+        $type: "org.hypercerts.defs#smallImage",
+        image: imageBlobRef,
+      };
     }
 
     // Add locations as embedded StrongRefs if provided
@@ -315,6 +396,12 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       throw new ValidationError(`Invalid hypercert record: ${hypercertValidation.error?.message}`);
     }
 
+    // if its a blob ref guaranteed to have ref and a .toString method
+    let imageRef: string | undefined;
+    if (imageBlobRef) {
+      imageRef = imageBlobRef.ref.toString();
+    }
+
     // Generate rKey from stable content hash (idempotency)
     // Use NORMALIZED values (already resolved StrongRefs and processed data)
     // to ensure JSON-serializability and deterministic hashing.
@@ -327,15 +414,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       workScope: params.workScope,
       startDate: params.startDate,
       endDate: params.endDate,
-      // Image: extract CID string from blob ref (stable content hash)
-      // JsonBlobRef can have ref.$link (upload result) or cid (existing record)
-      imageRef: imageBlobRef
-        ? "ref" in imageBlobRef && imageBlobRef.ref
-          ? imageBlobRef.ref.$link
-          : "cid" in imageBlobRef
-            ? imageBlobRef.cid
-            : undefined
-        : undefined,
+      imageRef,
       // Rights: canonical object with only known fields
       rights: {
         name: params.rights.name,
@@ -400,50 +479,6 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     } catch (error) {
       this.emitProgress(onProgress, { name: "attachLocation", status: "error", error: error as Error });
       this.logger?.warn(`Failed to attach location: ${error instanceof Error ? error.message : "Unknown"}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Creates contribution records with progress tracking.
-   *
-   * @param hypercertUri - URI of the hypercert
-   * @param contributions - Array of contribution data
-   * @param onProgress - Optional progress callback
-   * @returns Promise resolving to array of contribution URIs
-   * @internal
-   */
-  private async createContributionsWithProgress(
-    hypercertUri: string,
-    contributions: Array<{
-      contributors: Array<string | { uri: string; cid: string }>;
-      role: string;
-      description?: string;
-      weight?: string;
-    }>,
-    onProgress?: (step: ProgressStep) => void,
-  ): Promise<string[]> {
-    this.emitProgress(onProgress, { name: "createContributions", status: "start" });
-    try {
-      const contributionUris: string[] = [];
-      for (const contrib of contributions) {
-        const contribResult = await this.addContribution({
-          hypercertUri,
-          contributors: contrib.contributors.filter((c): c is string => typeof c === "string"),
-          role: contrib.role,
-          description: contrib.description,
-        });
-        contributionUris.push(contribResult.uri);
-      }
-      this.emitProgress(onProgress, {
-        name: "createContributions",
-        status: "success",
-        data: { count: contributionUris.length },
-      });
-      return contributionUris;
-    } catch (error) {
-      this.emitProgress(onProgress, { name: "createContributions", status: "error", error: error as Error });
-      this.logger?.warn(`Failed to create contributions: ${error instanceof Error ? error.message : "Unknown"}`);
       throw error;
     }
   }
@@ -667,27 +702,9 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * });
    * ```
    */
-  async update(params: {
-    uri: string;
-    updates: Partial<CreateHypercertParams>;
-    image?: Blob | null;
-  }): Promise<UpdateResult> {
+  async update(params: { uri: string; updates: UpdateHypercertParams; image?: Blob | null }): Promise<UpdateResult> {
     try {
-      const uriMatch = params.uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${params.uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
-
-      const existing = await this.agent.com.atproto.repo.getRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-      });
-
-      // The existing record comes from ATProto, use it directly
-      // TypeScript ensures type safety through the HypercertClaim interface
-      const existingRecord = existing.data.value as HypercertClaim;
+      const { record: existingRecord, collection, rkey } = await this.fetchRecord<HypercertClaim>(params.uri);
 
       const recordForUpdate: Record<string, unknown> = {
         ...existingRecord,
@@ -703,7 +720,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           // Remove image
         } else {
           const uploadResult = await this.blobs.upload(params.image);
-          recordForUpdate.image = this.blobToJsonRef(uploadResult);
+          recordForUpdate.image = {
+            $type: "org.hypercerts.defs#smallImage",
+            image: uploadResult,
+          };
         }
       } else if (existingRecord.image) {
         // Preserve existing image
@@ -715,19 +735,10 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         throw new ValidationError(`Invalid hypercert record: ${validation.error?.message}`);
       }
 
-      const result = await this.agent.com.atproto.repo.putRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-        record: recordForUpdate,
-      });
+      const result = await this.saveRecord(collection, rkey, recordForUpdate);
 
-      if (!result.success) {
-        throw new NetworkError("Failed to update hypercert");
-      }
-
-      this.emit("recordUpdated", { uri: result.data.uri, cid: result.data.cid });
-      return { uri: result.data.uri, cid: result.data.cid };
+      this.emit("recordUpdated", { uri: result.uri, cid: result.cid });
+      return result;
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(
@@ -753,27 +764,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async get(uri: string): Promise<{ uri: string; cid: string; record: HypercertClaim }> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
-
-      const result = await this.agent.com.atproto.repo.getRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-      });
-
-      if (!result.success) {
-        throw new NetworkError("Failed to get hypercert");
-      }
-
-      return {
-        uri: result.data.uri,
-        cid: result.data.cid ?? "",
-        record: result.data.value as HypercertClaim,
-      };
+      const { uri: resultUri, cid, record } = await this.fetchRecord<HypercertClaim>(uri);
+      return { uri: resultUri, cid, record };
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(`Failed to get hypercert: ${error instanceof Error ? error.message : "Unknown"}`, error);
@@ -844,11 +836,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async delete(uri: string): Promise<void> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseUri(uri);
 
       const result = await this.agent.com.atproto.repo.deleteRecord({
         repo: this.repoDid,
@@ -1034,26 +1022,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       return this.createLocationRecord(location);
     }
 
-    // Otherwise it's string | StrongRef, resolve to StrongRef
+    // Otherwise it's RefUri, resolve to StrongRef
     return this.resolveToStrongRef(location);
   }
 
   private async resolveStrongRefFromUri(uri: string): Promise<StrongRef> {
-    const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-    if (!uriMatch) {
-      throw new ValidationError(`Invalid AT-URI format: "${uri}"`);
-    }
-
-    const [, repo, collection, rkey] = uriMatch;
-    const record = await this.agent.com.atproto.repo.getRecord({ repo, collection, rkey });
-    if (!record.success) {
-      throw new NetworkError(`Failed to fetch record for repo=${repo}, collection=${collection}, rkey=${rkey}`);
-    }
-    if (!record.data.cid) {
-      throw new NetworkError(`Record missing CID for repo=${repo}, collection=${collection}, rkey=${rkey}`);
-    }
-
-    return { $type: "com.atproto.repo.strongRef" as const, uri, cid: record.data.cid };
+    // fetchRecord already validates CID presence and throws NetworkError if absent
+    const fetchResult = await this.fetchRecord(uri);
+    return { $type: "com.atproto.repo.strongRef" as const, uri, cid: fetchResult.cid };
   }
 
   /**
@@ -1067,7 +1043,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @throws {@link NetworkError} When getRecord fails
    * @internal
    */
-  private async resolveToStrongRef(input: string | StrongRef): Promise<StrongRef> {
+  private async resolveToStrongRef(input: RefUri): Promise<StrongRef> {
     // Check if already a StrongRef
     if (typeof input === "object" && "uri" in input && "cid" in input) {
       return {
@@ -1095,9 +1071,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @throws {@link NetworkError} if fetching subject record fails
    * @internal
    */
-  private async resolveAttachmentSubjects(
-    subjectsInput: string | StrongRef | Array<string | StrongRef>,
-  ): Promise<StrongRef[]> {
+  private async resolveAttachmentSubjects(subjectsInput: RefUri | RefUri[]): Promise<StrongRef[]> {
     const subjectsArray = Array.isArray(subjectsInput) ? subjectsInput : [subjectsInput];
 
     return await Promise.all(subjectsArray.map((subject) => this.resolveToStrongRef(subject)));
@@ -1318,44 +1292,72 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     onProgress?: (step: ProgressStep) => void,
   ): Promise<
     | Array<{
-        contributorIdentity: ResolvedContributorIdentity;
+        contributorIdentity: RefUri;
         contributionWeight?: string;
-        contributionDetails?: ResolvedContributionDetails;
+        contributionDetails?: RefUri;
       }>
     | undefined
   > {
     if (!contributions || contributions.length === 0) return undefined;
 
-    const contributorsPromises = contributions.map(async (contrib) => {
-      // Resolve contributionDetails
-      const detailsRef = await this.resolveContributionDetails(contrib.contributionDetails, onProgress);
+    const contributorPromises = contributions.map((contrib) =>
+      this.buildContributorEntries(contrib.contributors, contrib.contributionDetails, contrib.weight, onProgress),
+    );
 
-      // Resolve each contributor identity
-      const resolvedContributors = await Promise.all(
-        contrib.contributors.map((identity) => this.resolveContributorIdentity(identity, onProgress)),
-      );
-
-      // Expand to one entry per contributor
-      return resolvedContributors.map((identity) => ({
-        contributorIdentity: identity,
-        contributionWeight: contrib.weight,
-        contributionDetails: detailsRef,
-      }));
-    });
-
-    const nestedContributors = await Promise.all(contributorsPromises);
+    const nestedContributors = await Promise.all(contributorPromises);
     return nestedContributors.flat();
   }
 
   /**
-   * Resolves ContributionDetailsParams to a ResolvedContributionDetails.
+   * Creates a standalone contributionDetails record.
+   * @internal
+   */
+  private async createContributionDetailsRecord(params: {
+    role: string;
+    contributionDescription?: string;
+    startDate?: string;
+    endDate?: string;
+    [key: string]: unknown;
+  }): Promise<CreateResult> {
+    const createdAt = new Date().toISOString();
+    const { role, contributionDescription, startDate, endDate, ...extraProps } = params;
+    const contributionRecord: HypercertContributionDetails = {
+      $type: HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
+      role,
+      createdAt,
+      contributionDescription,
+      startDate,
+      endDate,
+      ...extraProps,
+    };
+
+    const validation = validate(contributionRecord, HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS, "main", false);
+    if (!validation.success) {
+      throw new ValidationError(`Invalid contribution details record: ${validation.error?.message}`);
+    }
+
+    const result = await this.agent.com.atproto.repo.createRecord({
+      repo: this.repoDid,
+      collection: HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
+      record: contributionRecord as Record<string, unknown>,
+    });
+
+    if (!result.success) {
+      throw new NetworkError("Failed to create contribution details");
+    }
+
+    return { uri: result.data.uri, cid: result.data.cid };
+  }
+
+  /**
+   * Resolves ContributionDetailsParams to a RefUri.
    * Creates a record if CreateContributionDetailsParams is provided.
    * @internal
    */
   private async resolveContributionDetails(
     details: ContributionDetailsParams,
     onProgress?: (step: ProgressStep) => void,
-  ): Promise<ResolvedContributionDetails> {
+  ): Promise<RefUri> {
     if (typeof details === "string") {
       // Inline role string
       return details;
@@ -1366,20 +1368,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       // CreateContributionDetailsParams - auto-create record
       try {
         this.emitProgress(onProgress, { name: "createContribution", status: "start" });
-        const { role, contributionDescription, startDate, endDate, ...extraProps } = details as {
-          role: string;
-          contributionDescription?: string;
-          startDate?: string;
-          endDate?: string;
-          [key: string]: unknown;
-        };
-        const result = await this.addContribution({
-          role,
-          description: contributionDescription,
-          startDate,
-          endDate,
-          ...extraProps,
-        });
+        const result = await this.createContributionDetailsRecord(details);
         this.emitProgress(onProgress, {
           name: "createContribution",
           status: "success",
@@ -1399,16 +1388,16 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Resolves ContributorIdentityParams to a ResolvedContributorIdentity.
+   * Resolves ContributorIdentityParams to a RefUri.
    * Creates a contributorInformation record if CreateContributorInformationParams is provided.
    * @internal
    */
   private async resolveContributorIdentity(
     identity: ContributorIdentityParams,
     onProgress?: (step: ProgressStep) => void,
-  ): Promise<ResolvedContributorIdentity> {
+  ): Promise<RefUri> {
     if (typeof identity === "string") {
-      // we still store as contribtorInformation since it cant directly be a string
+      // we still store as contributorInformation since it can't directly be a string
       const result = await this.addContributorInformation({ identifier: identity });
       return { uri: result.uri, cid: result.cid, $type: "com.atproto.repo.strongRef" };
     } else if ("uri" in identity && "cid" in identity && !("identifier" in identity)) {
@@ -1426,7 +1415,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         };
 
         // Handle image upload if it's a Blob
-        let imageRef: JsonBlobRef | string | undefined;
+        let imageRef: BlobRef | string | undefined;
         if (image instanceof Blob) {
           const uploadResult = await this.uploadImageBlob(image, onProgress);
           imageRef = uploadResult;
@@ -1459,82 +1448,135 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   }
 
   /**
-   * Creates a contribution details record.
+   * Builds contributor entries from parameters by resolving identities and details.
    *
-   * This creates a standalone contribution details record that can be referenced
-   * from an activity's `contributors` array via a strong reference.
+   * This helper resolves contributor identities and contribution details,
+   * creating records as needed, then assembles them into the contributor entry
+   * format used in hypercert records.
+   *
+   * @param contributorParams - Array of contributor identity params (DID, StrongRef, or create params)
+   * @param detailsParams - Contribution details (inline role, StrongRef, or create params)
+   * @param weight - Optional contribution weight
+   * @param onProgress - Optional progress callback
+   * @returns Promise resolving to array of contributor entries ready for embedding
+   * @internal
+   * @protected
+   */
+  protected async buildContributorEntries(
+    contributorParams: Array<ContributorIdentityParams>,
+    detailsParams: ContributionDetailsParams,
+    weight?: string,
+    onProgress?: (step: ProgressStep) => void,
+  ): Promise<
+    Array<{
+      contributorIdentity: RefUri;
+      contributionWeight?: string;
+      contributionDetails?: RefUri;
+    }>
+  > {
+    const detailsRef = await this.resolveContributionDetails(detailsParams, onProgress);
+    const resolvedIdentities = await Promise.all(
+      contributorParams.map((identity) => this.resolveContributorIdentity(identity, onProgress)),
+    );
+    return resolvedIdentities.map((identity) => ({
+      contributorIdentity: identity,
+      contributionWeight: weight,
+      contributionDetails: detailsRef,
+    }));
+  }
+
+  /**
+   * Attaches contributor entries to a hypercert by appending to its contributors array.
+   *
+   * Fetches the existing hypercert, merges new contributors with existing ones,
+   * and updates the hypercert record.
+   *
+   * @param hypercertUri - URI of the hypercert to update
+   * @param newContributors - Array of contributor entries to add
+   * @returns Promise resolving to update result with new URI and CID
+   * @throws {@link ValidationError} if URI format is invalid or validation fails
+   * @throws {@link NetworkError} if fetching or updating fails
+   * @internal
+   * @protected
+   */
+  protected async attachContributorsToHypercert(
+    hypercertUri: string,
+    newContributors: Array<{
+      contributorIdentity: RefUri;
+      contributionWeight?: string;
+      contributionDetails?: RefUri;
+    }>,
+  ): Promise<UpdateResult> {
+    const existing = await this.get(hypercertUri);
+    const existingContributors = existing.record.contributors || [];
+    const updatedContributors = [...existingContributors, ...newContributors];
+
+    return await this.update({
+      uri: hypercertUri,
+      updates: {
+        contributors: updatedContributors,
+      },
+    });
+  }
+
+  /**
+   * Adds contributors to an existing hypercert.
+   *
+   * This method creates or references contribution records and updates the hypercert
+   * to include the new contributors in its contributors array.
    *
    * @param params - Contribution parameters
-   * @param params.hypercertUri - Optional hypercert (unused, kept for backward compatibility)
-   * @param params.contributors - Array of contributor DIDs (unused, kept for backward compatibility)
-   * @param params.role - Role of the contributor (e.g., "coordinator", "implementer")
-   * @param params.description - Optional description of the contribution
-   * @returns Promise resolving to contribution details record URI and CID
+   * @returns Promise resolving to updated hypercert URI and CID
    * @throws {@link ValidationError} if validation fails
    * @throws {@link NetworkError} if the operation fails
    *
-   * @remarks
-   * In the new lexicon structure, contributions are stored differently:
-   * - Use `contributionDetails` for detailed contribution records (role, description, timeframe)
-   * - Use `contributorInformation` for contributor profiles (identifier, displayName, image)
-   * - Reference these from the activity's `contributors` array using strong refs
-   *
-   * @example
+   * @example Add multiple contributors with inline role
    * ```typescript
    * await repo.hypercerts.addContribution({
-   *   role: "implementer",
-   *   description: "On-ground implementation team",
+   *   hypercertUri: "at://did:plc:abc/org.hypercerts.claim.activity/xyz",
+   *   contributors: ["did:plc:user1", "did:plc:user2"],
+   *   contributionDetails: "Developer",
+   *   weight: "1.0"
+   * });
+   * ```
+   *
+   * @example Add contributor with detailed contribution record
+   * ```typescript
+   * await repo.hypercerts.addContribution({
+   *   hypercertUri: hypercertUri,
+   *   contributors: [{
+   *     identifier: "did:plc:coordinator",
+   *     displayName: "Alice",
+   *     image: avatarBlob
+   *   }],
+   *   contributionDetails: {
+   *     role: "Project Coordinator",
+   *     contributionDescription: "Led coordination efforts",
+   *     startDate: "2024-01-01",
+   *     endDate: "2024-06-30"
+   *   },
+   *   weight: "2.0"
    * });
    * ```
    */
   async addContribution(params: {
-    hypercertUri?: string;
-    contributors?: string[];
-    role: string;
-    description?: string;
-    startDate?: string;
-    endDate?: string;
-    [key: string]: unknown;
-  }): Promise<CreateResult> {
+    hypercertUri: string;
+    contributors: Array<ContributorIdentityParams>;
+    contributionDetails: ContributionDetailsParams;
+    weight?: string;
+    onProgress?: (step: ProgressStep) => void;
+  }): Promise<UpdateResult> {
     try {
-      const createdAt = new Date().toISOString();
-      // Extract known fields, spread the rest
-      const {
-        hypercertUri: _hypercertUri,
-        contributors: _contributors,
-        role,
-        description,
-        startDate,
-        endDate,
-        ...extraProps
-      } = params;
-      const contributionRecord: HypercertContributionDetails = {
-        $type: HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
-        role,
-        createdAt,
-        contributionDescription: description,
-        startDate,
-        endDate,
-        ...extraProps,
-      };
+      const newContributors = await this.buildContributorEntries(
+        params.contributors,
+        params.contributionDetails,
+        params.weight,
+        params.onProgress,
+      );
+      const result = await this.attachContributorsToHypercert(params.hypercertUri, newContributors);
+      this.emit("contributionCreated", { uri: result.uri, cid: result.cid });
 
-      const validation = validate(contributionRecord, HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS, "main", false);
-      if (!validation.success) {
-        throw new ValidationError(`Invalid contribution details record: ${validation.error?.message}`);
-      }
-
-      const result = await this.agent.com.atproto.repo.createRecord({
-        repo: this.repoDid,
-        collection: HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
-        record: contributionRecord as Record<string, unknown>,
-      });
-
-      if (!result.success) {
-        throw new NetworkError("Failed to create contribution details");
-      }
-
-      this.emit("contributionCreated", { uri: result.data.uri, cid: result.data.cid });
-      return { uri: result.data.uri, cid: result.data.cid };
+      return result;
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(
@@ -1569,7 +1611,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
   async addContributorInformation(params: {
     identifier: string;
     displayName?: string;
-    image?: JsonBlobRef | string;
+    image?: BlobRef | string;
     [key: string]: unknown;
   }): Promise<CreateResult> {
     try {
@@ -1583,7 +1625,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
           // URI string - wrap in typed object
           resolvedImage = { $type: "org.hypercerts.defs#uri", uri: image } as HypercertContributorInformation["image"];
         } else {
-          // JsonBlobRef from upload - wrap in smallImage
+          // BlobRef from upload - wrap in smallImage
           resolvedImage = {
             $type: "org.hypercerts.defs#smallImage",
             image: image,
@@ -1733,11 +1775,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async updateMeasurement(uri: string, updates: UpdateMeasurementParams): Promise<UpdateResult> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseUri(uri);
 
       if (collection !== HYPERCERT_COLLECTIONS.MEASUREMENT) {
         throw new ValidationError(
@@ -1745,36 +1783,19 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         );
       }
 
-      const existing = await this.agent.com.atproto.repo.getRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-      });
+      const { record: existingRecord } = await this.fetchRecord<HypercertMeasurement>(uri);
 
-      if (!existing.success) {
-        throw new NetworkError(`Measurement not found: ${uri}`);
-      }
-
-      const recordForUpdate = await this.applyMeasurementUpdates(existing.data.value as HypercertMeasurement, updates);
+      const recordForUpdate = await this.applyMeasurementUpdates(existingRecord, updates);
 
       const validation = validate(recordForUpdate, HYPERCERT_COLLECTIONS.MEASUREMENT, "main", false);
       if (!validation.success) {
         throw new ValidationError(`Invalid measurement record: ${validation.error?.message}`);
       }
 
-      const result = await this.agent.com.atproto.repo.putRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-        record: recordForUpdate,
-      });
+      const result = await this.saveRecord(collection, rkey, recordForUpdate);
 
-      if (!result.success) {
-        throw new NetworkError("Failed to update measurement");
-      }
-
-      this.emit("measurementUpdated", { uri: result.data.uri, cid: result.data.cid });
-      return { uri: result.data.uri, cid: result.data.cid };
+      this.emit("measurementUpdated", { uri: result.uri, cid: result.cid });
+      return result;
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(
@@ -1814,7 +1835,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       const evaluationRecord: HypercertEvaluation = {
         $type: HYPERCERT_COLLECTIONS.EVALUATION,
         subject: { uri: subject.uri, cid: subject.cid },
-        evaluators: params.evaluators,
+        evaluators: params.evaluators.map((evaluator) => ({ did: evaluator })),
         summary: params.summary,
         createdAt,
       };
@@ -1979,33 +2000,15 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async getCollection(uri: string): Promise<{ uri: string; cid: string; record: HypercertCollection }> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
-
-      const result = await this.agent.com.atproto.repo.getRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-      });
-
-      if (!result.success) {
-        throw new NetworkError("Failed to get collection");
-      }
+      const { uri: resultUri, cid, record } = await this.fetchRecord<HypercertCollection>(uri);
 
       // Validate with lexicon registry (more lenient - doesn't require $type)
-      const validation = validate(result.data.value, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
+      const validation = validate(record, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
       if (!validation.success) {
         throw new ValidationError(`Invalid collection record format: ${validation.error?.message}`);
       }
 
-      return {
-        uri: result.data.uri,
-        cid: result.data.cid ?? "",
-        record: result.data.value as HypercertCollection,
-      };
+      return { uri: resultUri, cid, record };
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(`Failed to get collection: ${error instanceof Error ? error.message : "Unknown"}`, error);
@@ -2018,8 +2021,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * @param params - Optional pagination parameters
    * @returns Promise resolving to paginated list of collections
    * @throws {@link NetworkError} if the list operation fails
-   *
-   * @example
+   * * @example
    * ```typescript
    * const { records } = await repo.hypercerts.listCollections();
    * for (const { record } of records) {
@@ -2131,41 +2133,20 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async getProject(uri: string): Promise<{ uri: string; cid: string; record: HypercertCollection }> {
     try {
-      // Parse URI
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
-
-      // Fetch record
-      const result = await this.agent.com.atproto.repo.getRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-      });
-
-      if (!result.success) {
-        throw new NetworkError("Failed to get project");
-      }
+      const { uri: resultUri, cid, record } = await this.fetchRecord<HypercertCollection>(uri);
 
       // Validate as collection
-      const validation = validate(result.data.value, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
+      const validation = validate(record, HYPERCERT_COLLECTIONS.COLLECTION, "main", false);
       if (!validation.success) {
         throw new ValidationError(`Invalid project record format: ${validation.error?.message}`);
       }
 
       // Verify it's actually a project (collection with type='project')
-      const record = result.data.value as HypercertCollection;
       if (record.type !== "project") {
         throw new ValidationError(`Record is not a project (type='${record.type}')`);
       }
 
-      return {
-        uri: result.data.uri,
-        cid: result.data.cid ?? "",
-        record,
-      };
+      return { uri: resultUri, cid, record };
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(`Failed to get project: ${error instanceof Error ? error.message : "Unknown"}`, error);
@@ -2263,29 +2244,14 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async updateProject(uri: string, updates: UpdateProjectParams): Promise<UpdateResult> {
     // Verify it's a project before updating
-    const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-    if (!uriMatch) {
-      throw new ValidationError(`Invalid URI format: ${uri}`);
-    }
-    const [, , collection, rkey] = uriMatch;
+    const fetchResult = await this.fetchRecord<HypercertCollection>(uri);
 
-    const existing = await this.agent.com.atproto.repo.getRecord({
-      repo: this.repoDid,
-      collection,
-      rkey,
-    });
-
-    if (!existing.success) {
-      throw new NetworkError(`Project not found: ${uri}`);
+    if (fetchResult.record.type !== "project") {
+      throw new ValidationError(`Record is not a project (type='${fetchResult.record.type}')`);
     }
 
-    const record = existing.data.value as HypercertCollection;
-    if (record.type !== "project") {
-      throw new ValidationError(`Record is not a project (type='${record.type}')`);
-    }
-
-    // Delegate to updateCollection
-    const result = await this.updateCollection(uri, updates);
+    // Pass pre-fetched record to avoid a second fetch in updateCollectionRecord
+    const result = await this.updateCollectionRecord(fetchResult, updates);
 
     this.emit("projectUpdated", { uri: result.uri, cid: result.cid });
     return result;
@@ -2306,23 +2272,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * ```
    */
   async deleteProject(uri: string): Promise<void> {
-    const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-    if (!uriMatch) {
-      throw new ValidationError(`Invalid URI format: ${uri}`);
-    }
-    const [, , collection, rkey] = uriMatch;
+    const { record } = await this.fetchRecord<HypercertCollection>(uri);
 
-    const existing = await this.agent.com.atproto.repo.getRecord({
-      repo: this.repoDid,
-      collection,
-      rkey,
-    });
-
-    if (!existing.success) {
-      throw new NetworkError(`Project not found: ${uri}`);
-    }
-
-    const record = existing.data.value as HypercertCollection;
     if (record.type !== "project") {
       throw new ValidationError(`Record is not a project (type='${record.type}')`);
     }
@@ -2371,24 +2322,29 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * ```
    */
   async updateCollection(uri: string, updates: UpdateCollectionParams): Promise<UpdateResult> {
+    const fetchResult = await this.fetchRecord<HypercertCollection>(uri);
+    const result = await this.updateCollectionRecord(fetchResult, updates);
+    this.emit("collectionUpdated", { uri: result.uri, cid: result.cid });
+    return result;
+  }
+
+  /**
+   * Core collection update logic operating on a pre-fetched record.
+   *
+   * Extracted so that callers like {@link updateProject} can fetch once,
+   * validate the type, and then delegate here without a redundant fetch.
+   *
+   * @param fetchResult - The pre-fetched record, collection, and rkey
+   * @param updates - Fields to update (partial)
+   * @returns Promise resolving to updated URI and CID
+   * @internal
+   */
+  private async updateCollectionRecord(
+    fetchResult: { record: HypercertCollection; collection: string; rkey: string },
+    updates: UpdateCollectionParams,
+  ): Promise<UpdateResult> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
-
-      const existing = await this.agent.com.atproto.repo.getRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-      });
-
-      if (!existing.success) {
-        throw new NetworkError(`Collection not found: ${uri}`);
-      }
-
-      const existingRecord = existing.data.value as HypercertCollection;
+      const { record: existingRecord, collection, rkey } = fetchResult;
 
       const recordForUpdate: Record<string, unknown> = {
         ...existingRecord,
@@ -2453,19 +2409,8 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
         throw new ValidationError(`Invalid collection record: ${validation.error?.message}`);
       }
 
-      const result = await this.agent.com.atproto.repo.putRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-        record: recordForUpdate,
-      });
-
-      if (!result.success) {
-        throw new NetworkError("Failed to update collection");
-      }
-
-      this.emit("collectionUpdated", { uri: result.data.uri, cid: result.data.cid });
-      return { uri: result.data.uri, cid: result.data.cid };
+      const result = await this.saveRecord(collection, rkey, recordForUpdate);
+      return result;
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NetworkError) throw error;
       throw new NetworkError(
@@ -2482,11 +2427,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async deleteCollection(uri: string): Promise<void> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { collection, rkey } = this.parseUri(uri);
 
       const result = await this.agent.com.atproto.repo.deleteRecord({
         repo: this.repoDid,
@@ -2517,21 +2458,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async attachLocationToCollection(uri: string, location: LocationParams): Promise<CreateResult> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
-
-      const existing = await this.agent.com.atproto.repo.getRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-      });
-
-      if (!existing.success) {
-        throw new NetworkError(`Collection not found: ${uri}`);
-      }
+      const { record, collection, rkey } = await this.fetchRecord<HypercertCollection>(uri);
 
       const resolvedLocation = await this.resolveLocation(location);
       if (!resolvedLocation) {
@@ -2539,20 +2466,11 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
       }
 
       const recordForUpdate: Record<string, unknown> = {
-        ...existing.data.value,
+        ...record,
         location: resolvedLocation,
       };
 
-      const updateResult = await this.agent.com.atproto.repo.putRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-        record: recordForUpdate,
-      });
-
-      if (!updateResult.success) {
-        throw new NetworkError("Failed to update collection with location");
-      }
+      await this.saveRecord(collection, rkey, recordForUpdate);
 
       this.emit("locationAttachedToCollection", {
         uri: resolvedLocation.uri,
@@ -2573,35 +2491,12 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    */
   async removeLocationFromCollection(uri: string): Promise<void> {
     try {
-      const uriMatch = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
-      if (!uriMatch) {
-        throw new ValidationError(`Invalid URI format: ${uri}`);
-      }
-      const [, , collection, rkey] = uriMatch;
+      const { record, collection, rkey } = await this.fetchRecord<HypercertCollection>(uri);
 
-      const existing = await this.agent.com.atproto.repo.getRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-      });
-
-      if (!existing.success) {
-        throw new NetworkError(`Collection not found: ${uri}`);
-      }
-
-      const recordForUpdate = { ...existing.data.value };
+      const recordForUpdate = { ...record } as Record<string, unknown>;
       delete (recordForUpdate as { location?: unknown }).location;
 
-      const result = await this.agent.com.atproto.repo.putRecord({
-        repo: this.repoDid,
-        collection,
-        rkey,
-        record: recordForUpdate,
-      });
-
-      if (!result.success) {
-        throw new NetworkError("Failed to remove location from collection");
-      }
+      await this.saveRecord(collection, rkey, recordForUpdate);
 
       this.emit("locationRemovedFromCollection", { collectionUri: uri });
     } catch (error) {
@@ -2709,7 +2604,7 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
     const result = await this.agent.com.atproto.repo.createRecord({
       repo: this.repoDid,
       collection: HYPERCERT_COLLECTIONS.LOCATION,
-      record: locationRecord as Record<string, unknown>,
+      record: locationRecord,
     });
 
     if (!result.success) {

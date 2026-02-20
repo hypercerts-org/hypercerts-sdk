@@ -24,8 +24,8 @@ describe("useProfile", () => {
       queryClient.setQueryData(atprotoKeys.session(), session);
 
       const mockProfile = createMockProfile();
-      const mockGet = vi.fn().mockResolvedValue(mockProfile);
-      const mockRepo = { profile: { get: mockGet, update: vi.fn() } };
+      const mockGetCertifiedProfile = vi.fn().mockResolvedValue(mockProfile);
+      const mockRepo = { profile: { getCertifiedProfile: mockGetCertifiedProfile, updateCertifiedProfile: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
       const { result } = renderHook(() => useProfile(), {
@@ -54,8 +54,8 @@ describe("useProfile", () => {
         handle: "test.bsky.social",
         displayName: "Test User",
       });
-      const mockGet = vi.fn().mockResolvedValue(mockProfile);
-      const mockRepo = { profile: { get: mockGet, update: vi.fn() } };
+      const mockGetCertifiedProfile = vi.fn().mockResolvedValue(mockProfile);
+      const mockRepo = { profile: { getCertifiedProfile: mockGetCertifiedProfile, updateCertifiedProfile: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
       const { result } = renderHook(() => useProfile(), {
@@ -89,8 +89,8 @@ describe("useProfile", () => {
         handle: "other.bsky.social",
         displayName: "Other User",
       });
-      const mockGet = vi.fn().mockResolvedValue(mockProfile);
-      const mockRepo = { profile: { get: mockGet, update: vi.fn() } };
+      const mockGetCertifiedProfile = vi.fn().mockResolvedValue(mockProfile);
+      const mockRepo = { profile: { getCertifiedProfile: mockGetCertifiedProfile, updateCertifiedProfile: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
       const { result } = renderHook(() => useProfile("did:plc:otheruser"), {
@@ -132,8 +132,8 @@ describe("useProfile", () => {
     });
   });
 
-  describe("updating profile", () => {
-    it("should provide update function", async () => {
+  describe("saving profile", () => {
+    it("should provide save function", async () => {
       const session = createMockSession();
       const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -141,9 +141,11 @@ describe("useProfile", () => {
       queryClient.setQueryData(atprotoKeys.session(), session);
 
       const mockProfile = createMockProfile();
-      const mockGet = vi.fn().mockResolvedValue(mockProfile);
-      const mockUpdate = vi.fn().mockResolvedValue(undefined);
-      const mockRepo = { profile: { get: mockGet, update: mockUpdate } };
+      const mockGetCertifiedProfile = vi.fn().mockResolvedValue(mockProfile);
+      const mockUpsertCertifiedProfile = vi.fn().mockResolvedValue(undefined);
+      const mockRepo = {
+        profile: { getCertifiedProfile: mockGetCertifiedProfile, upsertCertifiedProfile: mockUpsertCertifiedProfile },
+      };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
       const { result } = renderHook(() => useProfile(), {
@@ -157,11 +159,11 @@ describe("useProfile", () => {
         }),
       });
 
-      expect(result.current.update).toBeDefined();
-      expect(typeof result.current.update).toBe("function");
+      expect(result.current.save).toBeDefined();
+      expect(typeof result.current.save).toBe("function");
     });
 
-    it("should call repository.profile.update with params", async () => {
+    it("should call repository.profile.upsert with params", async () => {
       const session = createMockSession();
       const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -169,9 +171,11 @@ describe("useProfile", () => {
       queryClient.setQueryData(atprotoKeys.session(), session);
 
       const mockProfile = createMockProfile();
-      const mockGet = vi.fn().mockResolvedValue(mockProfile);
-      const mockUpdate = vi.fn().mockResolvedValue(undefined);
-      const mockRepo = { profile: { get: mockGet, update: mockUpdate } };
+      const mockGetCertifiedProfile = vi.fn().mockResolvedValue(mockProfile);
+      const mockUpsertCertifiedProfile = vi.fn().mockResolvedValue(undefined);
+      const mockRepo = {
+        profile: { getCertifiedProfile: mockGetCertifiedProfile, upsertCertifiedProfile: mockUpsertCertifiedProfile },
+      };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
       const { result } = renderHook(() => useProfile(), {
@@ -196,10 +200,10 @@ describe("useProfile", () => {
       };
 
       await act(async () => {
-        await result.current.update(updateParams);
+        await result.current.save(updateParams);
       });
 
-      expect(mockUpdate).toHaveBeenCalledWith(
+      expect(mockUpsertCertifiedProfile).toHaveBeenCalledWith(
         expect.objectContaining({
           displayName: "New Name",
           description: "New bio",
@@ -207,7 +211,7 @@ describe("useProfile", () => {
       );
     });
 
-    it("should set isUpdating while update is in progress", async () => {
+    it("should set isSaving while save is in progress", async () => {
       const session = createMockSession();
       const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -216,14 +220,16 @@ describe("useProfile", () => {
 
       let resolveUpdate: () => void;
       const mockProfile = createMockProfile();
-      const mockGet = vi.fn().mockResolvedValue(mockProfile);
-      const mockUpdate = vi.fn().mockImplementation(
+      const mockGetCertifiedProfile = vi.fn().mockResolvedValue(mockProfile);
+      const mockUpsertCertifiedProfile = vi.fn().mockImplementation(
         () =>
           new Promise<void>((resolve) => {
             resolveUpdate = resolve;
           }),
       );
-      const mockRepo = { profile: { get: mockGet, update: mockUpdate } };
+      const mockRepo = {
+        profile: { getCertifiedProfile: mockGetCertifiedProfile, upsertCertifiedProfile: mockUpsertCertifiedProfile },
+      };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
       const { result } = renderHook(() => useProfile(), {
@@ -242,22 +248,22 @@ describe("useProfile", () => {
         expect(result.current.profile).not.toBeNull();
       });
 
-      // Start update without awaiting
+      // Start save without awaiting
       act(() => {
-        result.current.update({ displayName: "New Name" });
+        result.current.save({ displayName: "New Name" });
       });
 
       await waitFor(() => {
-        expect(result.current.isUpdating).toBe(true);
+        expect(result.current.isSaving).toBe(true);
       });
 
-      // Complete the update
+      // Complete the save
       await act(async () => {
         resolveUpdate!();
       });
 
       await waitFor(() => {
-        expect(result.current.isUpdating).toBe(false);
+        expect(result.current.isSaving).toBe(false);
       });
     });
   });
@@ -271,8 +277,8 @@ describe("useProfile", () => {
       queryClient.setQueryData(atprotoKeys.session(), session);
 
       const mockProfile = createMockProfile();
-      const mockGet = vi.fn().mockResolvedValue(mockProfile);
-      const mockRepo = { profile: { get: mockGet, update: vi.fn() } };
+      const mockGetCertifiedProfile = vi.fn().mockResolvedValue(mockProfile);
+      const mockRepo = { profile: { getCertifiedProfile: mockGetCertifiedProfile, updateCertifiedProfile: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
       const { result } = renderHook(() => useProfile(), {
@@ -298,8 +304,8 @@ describe("useProfile", () => {
       queryClient.setQueryData(atprotoKeys.session(), session);
 
       const mockProfile = createMockProfile({ displayName: "Initial Name" });
-      const mockGet = vi.fn().mockResolvedValue(mockProfile);
-      const mockRepo = { profile: { get: mockGet, update: vi.fn() } };
+      const mockGetCertifiedProfile = vi.fn().mockResolvedValue(mockProfile);
+      const mockRepo = { profile: { getCertifiedProfile: mockGetCertifiedProfile, updateCertifiedProfile: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
       const { result } = renderHook(() => useProfile(), {
@@ -319,16 +325,16 @@ describe("useProfile", () => {
       });
 
       // Clear mock and set new response
-      mockGet.mockClear();
-      mockGet.mockResolvedValue({ ...mockProfile, displayName: "Updated Name" });
+      mockGetCertifiedProfile.mockClear();
+      mockGetCertifiedProfile.mockResolvedValue({ ...mockProfile, displayName: "Updated Name" });
 
       // Refetch
       await act(async () => {
         await result.current.refetch();
       });
 
-      // Verify get was called again
-      expect(mockGet).toHaveBeenCalled();
+      // Verify getCertifiedProfile was called again
+      expect(mockGetCertifiedProfile).toHaveBeenCalled();
     });
   });
 
@@ -341,8 +347,8 @@ describe("useProfile", () => {
       queryClient.setQueryData(atprotoKeys.session(), session);
 
       const mockError = new Error("Profile fetch failed");
-      const mockGet = vi.fn().mockRejectedValue(mockError);
-      const mockRepo = { profile: { get: mockGet, update: vi.fn() } };
+      const mockGetCertifiedProfile = vi.fn().mockRejectedValue(mockError);
+      const mockRepo = { profile: { getCertifiedProfile: mockGetCertifiedProfile, updateCertifiedProfile: vi.fn() } };
       const mockRepository = vi.fn().mockReturnValue(mockRepo);
 
       const { result } = renderHook(() => useProfile(), {

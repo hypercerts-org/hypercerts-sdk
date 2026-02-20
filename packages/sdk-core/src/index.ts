@@ -30,11 +30,15 @@ export type {
   ProgressStep,
 } from "./repository/types.js";
 
+// Blob URL Utilities
+export { getBlobUrl, extractCidFromImage } from "./lib/blob-url.js";
+
 // Lexicon Development Utilities
 export {
   parseAtUri,
   buildAtUri,
   extractRkeyFromUri,
+  AT_URI_REGEX,
   isValidAtUri,
   createStrongRef,
   createStrongRefFromResult,
@@ -95,10 +99,10 @@ export type {
   LocationParams,
   ContributionDetailsParams,
   CreateContributionDetailsParams,
-  ResolvedContributionDetails,
   ContributorIdentityParams,
   CreateContributorInformationParams,
-  ResolvedContributorIdentity,
+  CreateCertifiedProfileParams,
+  UpdateCertifiedProfileParams,
 } from "./repository/interfaces.js";
 
 // ============================================================================
@@ -160,6 +164,7 @@ export type {
   BadgeDefinition,
   BadgeResponse,
   FundingReceipt,
+  CertifiedProfileRecord,
   // SDK-specific types
   HypercertAttachment,
   HypercertImage,
@@ -174,9 +179,6 @@ export type {
   UpdateAttachmentParams,
   AttachmentParams,
 } from "./services/hypercerts/types.js";
-
-// Re-export ATProto lexicon types
-export type { JsonBlobRef } from "./services/hypercerts/types.js";
 
 // Errors
 export {
@@ -195,7 +197,7 @@ export { InMemoryStateStore } from "./storage/InMemoryStateStore.js";
 
 // Core types and schemas
 export type { DID, Organization, Collaborator, CollaboratorPermissions } from "./core/types.js";
-export { OrganizationSchema, CollaboratorSchema, CollaboratorPermissionsSchema } from "./core/types.js";
+export { OrganizationSchema, CollaboratorSchema, CollaboratorPermissionsSchema, isValidDid } from "./core/types.js";
 export { ATProtoSDKConfigSchema, OAuthConfigSchema, ServerConfigSchema, TimeoutConfigSchema } from "./core/config.js";
 
 // OAuth Permissions System

@@ -8,7 +8,10 @@
  */
 
 import type { Agent } from "@atproto/api";
-import { NetworkError } from "../core/errors.js";
+import { BlobRef } from "@atproto/lexicon";
+import { CID } from "multiformats/cid";
+import { NetworkError, ValidationError } from "../core/errors.js";
+import { isValidDid } from "../core/types.js";
 import type { BlobOperations } from "./interfaces.js";
 
 /**
@@ -66,7 +69,13 @@ export class BlobOperationsImpl implements BlobOperations {
     private repoDid: string,
     private _serverUrl: string,
     private isSDS: boolean,
-  ) {}
+  ) {
+    if (!isValidDid(repoDid)) {
+      throw new ValidationError(
+        `Invalid DID format: "${repoDid}". DIDs must start with "did:" (e.g., "did:plc:abc123")`,
+      );
+    }
+  }
 
   /**
    * Uploads a blob to the server.
@@ -110,7 +119,7 @@ export class BlobOperationsImpl implements BlobOperations {
    * });
    * ```
    */
-  async upload(blob: Blob): Promise<{ ref: { $link: string }; mimeType: string; size: number }> {
+  async upload(blob: Blob): Promise<BlobRef> {
     try {
       const arrayBuffer = await blob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
@@ -130,11 +139,7 @@ export class BlobOperationsImpl implements BlobOperations {
         throw new NetworkError("Failed to upload blob");
       }
 
-      return {
-        ref: { $link: result.data.blob.ref.toString() },
-        mimeType: result.data.blob.mimeType,
-        size: result.data.blob.size,
-      };
+      return result.data.blob;
     } catch (error) {
       if (error instanceof NetworkError) throw error;
       throw new NetworkError(
@@ -158,10 +163,7 @@ export class BlobOperationsImpl implements BlobOperations {
    * @throws {@link NetworkError} if the upload fails
    * @internal
    */
-  private async uploadViaSDS(
-    data: Uint8Array,
-    encoding: string,
-  ): Promise<{ ref: { $link: string }; mimeType: string; size: number }> {
+  private async uploadViaSDS(data: Uint8Array, encoding: string): Promise<BlobRef> {
     const url = `/xrpc/com.sds.repo.uploadBlob?repo=${encodeURIComponent(this.repoDid)}`;
     const response = await this.agent.fetchHandler(url, {
       method: "POST",
@@ -175,21 +177,21 @@ export class BlobOperationsImpl implements BlobOperations {
       throw new NetworkError(`SDS blob upload failed: ${response.statusText}`);
     }
 
+    // SDS returns { blob: { ref: { $link: string }, mimeType: string, size: number } }
+    // which is a JSON-serialized blob ref, not a BlobRef instance.
+    // Construct a BlobRef directly using CID.parse to preserve the size from the SDS response.
     const result = (await response.json()) as {
-      blob: {
-        ref: { $link: string } | string;
-        mimeType: string;
-        size: number;
-      };
+      blob: { ref: { $link: string }; mimeType: string; size: number };
     };
 
-    const ref = typeof result.blob.ref === "string" ? result.blob.ref : result.blob.ref.$link;
+    let cid: CID;
+    try {
+      cid = CID.parse(result.blob.ref.$link);
+    } catch {
+      throw new NetworkError("SDS blob upload returned an invalid blob reference");
+    }
 
-    return {
-      ref: { $link: ref },
-      mimeType: result.blob.mimeType,
-      size: result.blob.size,
-    };
+    return new BlobRef(cid, result.blob.mimeType, result.blob.size);
   }
 
   /**

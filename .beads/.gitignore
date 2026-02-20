@@ -1,3 +1,7 @@
+# Dolt database directory and lock file
+dolt/
+dolt-access.lock
+
 # SQLite databases
 *.db
 *.db?*

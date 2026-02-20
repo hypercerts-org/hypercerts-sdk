@@ -79,8 +79,12 @@ describe("Repository", () => {
     it("should return a ProfileOperations instance", () => {
       const profile = repository.profile;
       expect(profile).toBeDefined();
-      expect(typeof profile.get).toBe("function");
-      expect(typeof profile.update).toBe("function");
+      expect(typeof profile.getBskyProfile).toBe("function");
+      expect(typeof profile.getCertifiedProfile).toBe("function");
+      expect(typeof profile.createBskyProfile).toBe("function");
+      expect(typeof profile.updateBskyProfile).toBe("function");
+      expect(typeof profile.createCertifiedProfile).toBe("function");
+      expect(typeof profile.updateCertifiedProfile).toBe("function");
     });
   });
 
