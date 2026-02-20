@@ -291,4 +291,247 @@ describe("OAuthClient", () => {
       expect(warnLogs.length).toBe(0);
     });
   });
+
+  describe("loopback client_id auto-generation", () => {
+    it("should auto-generate for http://localhost", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const baseConfig = await createTestConfigAsync({ logger });
+      const configWithLoopback = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...baseConfig.oauth,
+          clientId: "http://localhost",
+          scope: "atproto",
+          redirectUri: "http://127.0.0.1:3000/callback",
+          developmentMode: true,
+        },
+      });
+
+      const client = new OAuthClient(configWithLoopback);
+
+      // Trigger async initialization to run buildClientMetadata()
+      try {
+        await client.authorize("test.bsky.social");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        // Expected - underlying client may reject loopback URLs
+      }
+
+      // Verify info log contains "Development mode"
+      const infoLogs = logger.logs.filter((log) => log.level === "info");
+      const devModeLog = infoLogs.find((log) => log.message.includes("Development mode"));
+      expect(devModeLog).toBeDefined();
+    });
+
+    it("should auto-generate for http://localhost/ (trailing slash)", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const baseConfig = await createTestConfigAsync({ logger });
+      const configWithLoopback = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...baseConfig.oauth,
+          clientId: "http://localhost/",
+          scope: "atproto",
+          redirectUri: "http://127.0.0.1:3000/callback",
+          developmentMode: true,
+        },
+      });
+
+      const client = new OAuthClient(configWithLoopback);
+
+      // Trigger async initialization to run buildClientMetadata()
+      try {
+        await client.authorize("test.bsky.social");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        // Expected - underlying client may reject loopback URLs
+      }
+
+      // Verify info log emitted
+      const infoLogs = logger.logs.filter((log) => log.level === "info");
+      const devModeLog = infoLogs.find((log) => log.message.includes("Development mode"));
+      expect(devModeLog).toBeDefined();
+
+      // Verify NO rewrite warning (http://localhost/ is acceptable)
+      const warnLogs = logger.logs.filter((log) => log.level === "warn");
+      const rewriteWarning = warnLogs.find((log) => log.message.includes("Rewriting client_id"));
+      expect(rewriteWarning).toBeUndefined();
+    });
+
+    it("should auto-generate for http://127.0.0.1", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const baseConfig = await createTestConfigAsync({ logger });
+      const configWithLoopback = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...baseConfig.oauth,
+          clientId: "http://127.0.0.1",
+          scope: "atproto",
+          redirectUri: "http://127.0.0.1:3000/callback",
+          developmentMode: true,
+        },
+      });
+
+      const client = new OAuthClient(configWithLoopback);
+
+      // Trigger async initialization to run buildClientMetadata()
+      try {
+        await client.authorize("test.bsky.social");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        // Expected - underlying client may reject loopback URLs
+      }
+
+      // Verify info log contains "Development mode"
+      const infoLogs = logger.logs.filter((log) => log.level === "info");
+      const devModeLog = infoLogs.find((log) => log.message.includes("Development mode"));
+      expect(devModeLog).toBeDefined();
+
+      // Verify rewrite warning mentioning "Rewriting client_id"
+      const warnLogs = logger.logs.filter((log) => log.level === "warn");
+      const rewriteWarning = warnLogs.find((log) => log.message.includes("Rewriting client_id"));
+      expect(rewriteWarning).toBeDefined();
+    });
+
+    it("should auto-generate for http://localhost:3000 (with port)", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const baseConfig = await createTestConfigAsync({ logger });
+      const configWithPort = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...baseConfig.oauth,
+          clientId: "http://localhost:3000",
+          scope: "atproto",
+          redirectUri: "http://127.0.0.1:3000/callback",
+          developmentMode: true,
+        },
+      });
+
+      const client = new OAuthClient(configWithPort);
+
+      // Trigger async initialization to run buildClientMetadata()
+      try {
+        await client.authorize("test.bsky.social");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        // Expected - underlying client may reject loopback URLs
+      }
+
+      // Verify info log contains "Development mode"
+      const infoLogs = logger.logs.filter((log) => log.level === "info");
+      const devModeLog = infoLogs.find((log) => log.message.includes("Development mode"));
+      expect(devModeLog).toBeDefined();
+
+      // Verify rewrite warning
+      const warnLogs = logger.logs.filter((log) => log.level === "warn");
+      const rewriteWarning = warnLogs.find((log) => log.message.includes("Rewriting client_id"));
+      expect(rewriteWarning).toBeDefined();
+    });
+
+    it("should auto-generate for http://localhost?scope=custom (with existing query params)", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const baseConfig = await createTestConfigAsync({ logger });
+      const configWithQueryParams = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...baseConfig.oauth,
+          clientId: "http://localhost?scope=custom&redirect_uri=http://127.0.0.1:3000/cb",
+          scope: "atproto",
+          redirectUri: "http://127.0.0.1:3000/callback",
+          developmentMode: true,
+        },
+      });
+
+      const client = new OAuthClient(configWithQueryParams);
+
+      // Trigger async initialization to run buildClientMetadata()
+      try {
+        await client.authorize("test.bsky.social");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        // Expected - underlying client may reject loopback URLs
+      }
+
+      // Verify info log contains "Development mode" (we take over regardless)
+      const infoLogs = logger.logs.filter((log) => log.level === "info");
+      const devModeLog = infoLogs.find((log) => log.message.includes("Development mode"));
+      expect(devModeLog).toBeDefined();
+
+      // Verify rewrite warning (we take over regardless of existing query params)
+      const warnLogs = logger.logs.filter((log) => log.level === "warn");
+      const rewriteWarning = warnLogs.find((log) => log.message.includes("Rewriting client_id"));
+      expect(rewriteWarning).toBeDefined();
+    });
+
+    it("should not touch non-loopback client_id", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const baseConfig = await createTestConfigAsync({ logger });
+      const configWithNonLocalhost = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...baseConfig.oauth,
+          clientId: "https://example.com/client-metadata.json",
+          scope: "atproto",
+          redirectUri: "https://example.com/callback",
+        },
+      });
+
+      const client = new OAuthClient(configWithNonLocalhost);
+
+      // Trigger async initialization to run buildClientMetadata()
+      try {
+        await client.authorize("test.bsky.social");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        // Expected - network error or other issues
+      }
+
+      // Verify NO info log containing "Development mode"
+      const infoLogs = logger.logs.filter((log) => log.level === "info");
+      const devModeLog = infoLogs.find((log) => log.message.includes("Development mode"));
+      expect(devModeLog).toBeUndefined();
+    });
+
+    it("should always use atproto transition:generic scope", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const baseConfig = await createTestConfigAsync({ logger });
+      const configWithLoopback = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...baseConfig.oauth,
+          clientId: "http://localhost",
+          scope: "atproto",
+          redirectUri: "http://127.0.0.1:3000/callback",
+          developmentMode: true,
+        },
+      });
+
+      const client = new OAuthClient(configWithLoopback);
+
+      // Trigger async initialization to run buildClientMetadata()
+      try {
+        await client.authorize("test.bsky.social");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        // Expected - underlying client may reject loopback URLs
+      }
+
+      // Verify info log mentions "atproto transition:generic"
+      const infoLogs = logger.logs.filter((log) => log.level === "info");
+      const scopeLog = infoLogs.find((log) => log.message.includes("atproto transition:generic"));
+      expect(scopeLog).toBeDefined();
+
+      // Verify NO scope override warning (we discussed this, it's dev mode, nobody cares)
+      const warnLogs = logger.logs.filter((log) => log.level === "warn");
+      const scopeOverrideWarning = warnLogs.find((log) => log.message.includes("overriding configured scope"));
+      expect(scopeOverrideWarning).toBeUndefined();
+    });
+  });
 });
