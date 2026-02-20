@@ -164,19 +164,21 @@ export class OAuthClient {
   }
 
   /**
-   * Builds a loopback client_id with query parameters for localhost development.
+   * Builds a loopback client_id with query parameters if client_id is localhost or someform of loopback.
+   *
+   * otherwise returns client_id as is
    *
    * Per AT Protocol OAuth spec, loopback clients must embed scope and redirect_uri
    * as query parameters in the client_id URL. This method auto-generates those
    * parameters for bare localhost URLs to simplify local development.
    *
    * @param clientId - The client_id from config
-   * @param _scope - The scope from config (ignored - always uses "atproto transition:generic")
+   * @param scope - The OAuth scope to embed in the loopback client_id URL
    * @param redirectUri - The redirect_uri from config
    * @returns The client_id with query params if applicable, otherwise unchanged
    * @internal
    */
-  private buildLoopbackClientId(clientId: string, _scope: string, redirectUri: string): string {
+  private buildClientId(clientId: string, scope: string, redirectUri: string): string {
     if (!isLoopbackUrl(clientId)) {
       return clientId;
     }
@@ -184,21 +186,17 @@ export class OAuthClient {
     // Always build from http://localhost — the AT Protocol spec requires
     // loopback client_id to be exactly http://localhost (no port, no IP)
     const loopbackUrl = new URL("http://localhost");
-    loopbackUrl.searchParams.set("scope", "atproto transition:generic");
+    loopbackUrl.searchParams.set("scope", scope);
     loopbackUrl.searchParams.set("redirect_uri", redirectUri);
 
     const generated = loopbackUrl.toString();
 
-    // Log that we are in dev mode
-    this.logger?.info(
-      'Development mode: using loopback client_id http://localhost with scope "atproto transition:generic"',
-      {
-        originalClientId: clientId,
-        generatedClientId: generated,
-      },
-    );
+    this.logger?.info(`Development mode: using loopback client_id http://localhost with scope "${scope}"`, {
+      originalClientId: clientId,
+      generatedClientId: generated,
+      scope,
+    });
 
-    // Warn only if we had to rewrite the URL (user passed something other than bare http://localhost)
     if (clientId !== "http://localhost" && clientId !== "http://localhost/") {
       this.logger?.warn(
         `Rewriting client_id from "${clientId}" to "http://localhost" — AT Protocol requires loopback client_id to use http://localhost without a port`,
@@ -231,17 +229,23 @@ export class OAuthClient {
   private buildClientMetadata() {
     const isLoopback = isLoopbackUrl(this.config.oauth.clientId);
 
-    // Transform clientId for loopback development
-    const clientId = this.buildLoopbackClientId(
+    const clientId = this.buildClientId(
       this.config.oauth.clientId,
       this.config.oauth.scope,
       this.config.oauth.redirectUri,
     );
 
     const clientIdUrl = new URL(clientId);
+    const metadataScope = this.config.oauth.scope;
 
-    // Use "atproto transition:generic" for loopback, user config otherwise
-    const metadataScope = isLoopback ? "atproto transition:generic" : this.config.oauth.scope;
+    if (isLoopback && !this.config.oauth.developmentMode) {
+      this.logger?.warn("Using HTTP loopback URLs without explicit developmentMode flag", {
+        clientId: clientId,
+        redirectUri: this.config.oauth.redirectUri,
+        note: "This is suitable for local development only. For production, use HTTPS URLs.",
+        recommendation: "Set oauth.developmentMode: true to suppress this warning.",
+      });
+    }
 
     const metadata = {
       client_id: clientId,

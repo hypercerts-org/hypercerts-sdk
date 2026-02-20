@@ -498,7 +498,7 @@ describe("OAuthClient", () => {
       expect(devModeLog).toBeUndefined();
     });
 
-    it("should always use atproto transition:generic scope", async () => {
+    it("should embed configured scope in loopback client_id", async () => {
       const { MockLogger } = await import("../utils/mocks.js");
       const logger = new MockLogger();
       const baseConfig = await createTestConfigAsync({ logger });
@@ -523,15 +523,82 @@ describe("OAuthClient", () => {
         // Expected - underlying client may reject loopback URLs
       }
 
-      // Verify info log mentions "atproto transition:generic"
+      // Verify info log mentions the configured scope ("atproto"), not a hardcoded value
       const infoLogs = logger.logs.filter((log) => log.level === "info");
-      const scopeLog = infoLogs.find((log) => log.message.includes("atproto transition:generic"));
+      const scopeLog = infoLogs.find((log) => log.message.includes('"atproto"'));
       expect(scopeLog).toBeDefined();
 
       // Verify NO scope override warning (we discussed this, it's dev mode, nobody cares)
       const warnLogs = logger.logs.filter((log) => log.level === "warn");
       const scopeOverrideWarning = warnLogs.find((log) => log.message.includes("overriding configured scope"));
       expect(scopeOverrideWarning).toBeUndefined();
+    });
+
+    it("should embed custom scope in loopback client_id URL", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const baseConfig = await createTestConfigAsync({ logger });
+      const customScope = "atproto transition:generic transition:email";
+      const configWithLoopback = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...baseConfig.oauth,
+          clientId: "http://localhost",
+          scope: customScope,
+          redirectUri: "http://127.0.0.1:3000/callback",
+          developmentMode: true,
+        },
+      });
+
+      const client = new OAuthClient(configWithLoopback);
+
+      // Trigger async initialization to run buildClientMetadata()
+      try {
+        await client.authorize("test.bsky.social");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        // Expected - underlying client may reject loopback URLs
+      }
+
+      // Verify info log mentions the exact custom scope string
+      const infoLogs = logger.logs.filter((log) => log.level === "info");
+      const scopeLog = infoLogs.find((log) => log.message.includes(customScope));
+      expect(scopeLog).toBeDefined();
+    });
+
+    it("should embed scope from config, not hardcoded value", async () => {
+      const { MockLogger } = await import("../utils/mocks.js");
+      const logger = new MockLogger();
+      const baseConfig = await createTestConfigAsync({ logger });
+      const configWithLoopback = await createTestConfigAsync({
+        logger,
+        oauth: {
+          ...baseConfig.oauth,
+          clientId: "http://localhost",
+          scope: "atproto repo:*",
+          redirectUri: "http://127.0.0.1:3000/callback",
+          developmentMode: true,
+        },
+      });
+
+      const client = new OAuthClient(configWithLoopback);
+
+      // Trigger async initialization to run buildClientMetadata()
+      try {
+        await client.authorize("test.bsky.social");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        // Expected - underlying client may reject loopback URLs
+      }
+
+      // Verify info log contains the configured scope
+      const infoLogs = logger.logs.filter((log) => log.level === "info");
+      const scopeLog = infoLogs.find((log) => log.message.includes("atproto repo:*"));
+      expect(scopeLog).toBeDefined();
+
+      // Verify info log does NOT contain the old hardcoded value
+      const hardcodedLog = infoLogs.find((log) => log.message.includes("transition:generic"));
+      expect(hardcodedLog).toBeUndefined();
     });
   });
 });
