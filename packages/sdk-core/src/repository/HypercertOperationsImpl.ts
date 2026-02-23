@@ -45,6 +45,7 @@ import type {
   BlobOperations,
   ContributionDetailsParams,
   ContributorIdentityParams,
+  CreateContributionDetailsParams,
   CreateHypercertParams,
   UpdateHypercertParams,
   CreateHypercertResult,
@@ -1312,24 +1313,18 @@ export class HypercertOperationsImpl extends EventEmitter<HypercertEvents> imple
    * Creates a standalone contributionDetails record.
    * @internal
    */
-  private async createContributionDetailsRecord(params: {
-    role: string;
-    contributionDescription?: string;
-    startDate?: string;
-    endDate?: string;
-    [key: string]: unknown;
-  }): Promise<CreateResult> {
-    const createdAt = new Date().toISOString();
-    const { role, contributionDescription, startDate, endDate, ...extraProps } = params;
-    const contributionRecord: HypercertContributionDetails = {
-      $type: HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
+  private async createContributionDetailsRecord(params: CreateContributionDetailsParams): Promise<CreateResult> {
+    const { role, contributionDescription, startDate, endDate, $type, createdAt, ...extraProps } = params;
+    const finalCreatedAt = createdAt ?? new Date().toISOString();
+    const contributionRecord = {
+      $type: $type ?? HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS,
       role,
-      createdAt,
+      createdAt: finalCreatedAt,
       contributionDescription,
       startDate,
       endDate,
       ...extraProps,
-    };
+    } as HypercertContributionDetails;
 
     const validation = validate(contributionRecord, HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS, "main", false);
     if (!validation.success) {

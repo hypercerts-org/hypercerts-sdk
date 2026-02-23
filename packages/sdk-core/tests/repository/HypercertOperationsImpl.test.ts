@@ -719,6 +719,184 @@ describe("HypercertOperationsImpl", () => {
       expect(detailsCall.record.endDate).toBe("2024-06-30T23:59:59Z");
     });
 
+    describe("contributionDetails $type and createdAt preservation", () => {
+      it("should preserve caller-supplied createdAt in contributionDetails record", async () => {
+        mockAgent.com.atproto.repo.createRecord.mockReset();
+        mockAgent.com.atproto.repo.createRecord
+          .mockResolvedValueOnce({
+            success: true,
+            data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+          })
+          .mockResolvedValueOnce({
+            success: true,
+            data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+          })
+          .mockResolvedValueOnce({
+            success: true,
+            data: {
+              uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+              cid: "contributor-cid",
+            },
+          })
+          .mockResolvedValueOnce({
+            success: true,
+            data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+          });
+
+        await hypercertOps.create({
+          ...validParams,
+          contributions: [
+            {
+              contributors: ["did:plc:contrib1"],
+              contributionDetails: {
+                role: "Developer",
+                contributionDescription: "Backend work",
+                createdAt: "2024-01-15T00:00:00.000Z",
+              },
+            },
+          ],
+        });
+
+        const detailsCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+        expect(detailsCall.collection).toBe("org.hypercerts.claim.contributionDetails");
+        expect(detailsCall.record.createdAt).toBe("2024-01-15T00:00:00.000Z");
+      });
+
+      it("should default createdAt when not provided in contributionDetails", async () => {
+        const fakeNow = "2025-06-01T12:00:00.000Z";
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(fakeNow));
+
+        try {
+          mockAgent.com.atproto.repo.createRecord.mockReset();
+          mockAgent.com.atproto.repo.createRecord
+            .mockResolvedValueOnce({
+              success: true,
+              data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+            })
+            .mockResolvedValueOnce({
+              success: true,
+              data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+            })
+            .mockResolvedValueOnce({
+              success: true,
+              data: {
+                uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+                cid: "contributor-cid",
+              },
+            })
+            .mockResolvedValueOnce({
+              success: true,
+              data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+            });
+
+          await hypercertOps.create({
+            ...validParams,
+            contributions: [
+              {
+                contributors: ["did:plc:contrib1"],
+                contributionDetails: {
+                  role: "Developer",
+                  contributionDescription: "Backend work",
+                  // no createdAt provided
+                },
+              },
+            ],
+          });
+
+          const detailsCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+          expect(detailsCall.collection).toBe("org.hypercerts.claim.contributionDetails");
+          expect(detailsCall.record.createdAt).toBe(fakeNow);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it("should preserve caller-supplied $type in contributionDetails record", async () => {
+        mockAgent.com.atproto.repo.createRecord.mockReset();
+        mockAgent.com.atproto.repo.createRecord
+          .mockResolvedValueOnce({
+            success: true,
+            data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+          })
+          .mockResolvedValueOnce({
+            success: true,
+            data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+          })
+          .mockResolvedValueOnce({
+            success: true,
+            data: {
+              uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+              cid: "contributor-cid",
+            },
+          })
+          .mockResolvedValueOnce({
+            success: true,
+            data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+          });
+
+        await hypercertOps.create({
+          ...validParams,
+          contributions: [
+            {
+              contributors: ["did:plc:contrib1"],
+              contributionDetails: {
+                role: "Developer",
+                contributionDescription: "Backend work",
+                $type: "org.custom.contributionDetails",
+              },
+            },
+          ],
+        });
+
+        const detailsCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+        expect(detailsCall.collection).toBe("org.hypercerts.claim.contributionDetails");
+        expect(detailsCall.record.$type).toBe("org.custom.contributionDetails");
+      });
+
+      it("should default $type when not provided in contributionDetails", async () => {
+        mockAgent.com.atproto.repo.createRecord.mockReset();
+        mockAgent.com.atproto.repo.createRecord
+          .mockResolvedValueOnce({
+            success: true,
+            data: { uri: "at://did:plc:test/org.hypercerts.claim.rights/abc", cid: "rights-cid" },
+          })
+          .mockResolvedValueOnce({
+            success: true,
+            data: { uri: "at://did:plc:test/org.hypercerts.claim.contributionDetails/xyz", cid: "details-cid" },
+          })
+          .mockResolvedValueOnce({
+            success: true,
+            data: {
+              uri: "at://did:plc:test/org.hypercerts.claim.contributorInformation/contrib1",
+              cid: "contributor-cid",
+            },
+          })
+          .mockResolvedValueOnce({
+            success: true,
+            data: { uri: "at://did:plc:test/org.hypercerts.claim.record/def", cid: "hypercert-cid" },
+          });
+
+        await hypercertOps.create({
+          ...validParams,
+          contributions: [
+            {
+              contributors: ["did:plc:contrib1"],
+              contributionDetails: {
+                role: "Developer",
+                contributionDescription: "Backend work",
+                // no $type provided
+              },
+            },
+          ],
+        });
+
+        const detailsCall = mockAgent.com.atproto.repo.createRecord.mock.calls[1][0];
+        expect(detailsCall.collection).toBe("org.hypercerts.claim.contributionDetails");
+        expect(detailsCall.record.$type).toBe("org.hypercerts.claim.contributionDetails");
+      });
+    });
+
     it("should call onProgress callback", async () => {
       const onProgress = vi.fn();
 

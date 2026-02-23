@@ -50,6 +50,12 @@ export type { LocationParams };
  * Contains the full details of a contribution (role, description, timeframe).
  */
 export interface CreateContributionDetailsParams {
+  /** Optional AT Protocol record type. Defaults to HYPERCERT_COLLECTIONS.CONTRIBUTION_DETAILS */
+  $type?: string;
+
+  /** Optional ISO 8601 datetime. Defaults to new Date().toISOString() */
+  createdAt?: string;
+
   /**
    * Role or title of the contributor.
    * @example "coordinator", "implementer", "funder", "volunteer"
