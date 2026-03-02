@@ -1,5 +1,337 @@
 # @hypercerts-org/sdk-core
 
+## 0.10.0-beta.9
+
+### Minor Changes
+
+- [#128](https://github.com/hypercerts-org/hypercerts-sdk/pull/128)
+  [`d10642f`](https://github.com/hypercerts-org/hypercerts-sdk/commit/d10642ff3647513f03db4b73ca2e9ab7a06fe955) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - **BREAKING CHANGE (pre-1.0):** Add strict URI validation for attachment
+  content strings
+
+  This introduces a breaking behavioral change for 0.x consumers:
+  - Add `isValidUri` utility to validate URI strings have a proper scheme (supports http, https, at://, ipfs://, and any
+    RFC 3986-compliant scheme)
+  - **`addAttachment` now throws `ValidationError`** when content strings are not valid URIs (e.g., plain text like
+    `"not-a-uri"`)
+  - Export `isValidUri` from the public API for consumer use
+
+  **Migration Guide:** Existing code that passes plain text or non-URI strings to `addAttachment` will now fail with a
+  `ValidationError`. To migrate:
+  1. Ensure all content strings passed to `addAttachment` are valid URIs
+  2. Use the new `isValidUri` utility to validate strings before passing them
+  3. Convert plain text content to proper URI format (e.g., data URIs, IPFS URIs, or HTTP URLs)
+
+  **Compatibility Note:** Consumers relying on the previous lenient behavior that accepted non-URI strings must update
+  their code. The validation now strictly enforces that attachment content must be a valid URI with a recognized scheme.
+
+- [#127](https://github.com/hypercerts-org/hypercerts-sdk/pull/127)
+  [`5662f3f`](https://github.com/hypercerts-org/hypercerts-sdk/commit/5662f3f03d286a55c2623223b40ebc0542c1dcca) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Auto-detect user's PDS URL from OAuth session instead of requiring static
+  configuration
+
+  **Breaking Changes:**
+  - `servers.pds` config option has been removed. The user's PDS URL is now automatically detected from the OAuth
+    session's token info (`tokenInfo.aud`) during `callback()` and `restoreSession()`. This means the SDK correctly
+    routes operations to each user's actual PDS regardless of which server they're hosted on.
+  - A new `handleResolver` config option replaces `servers.pds` for its handle resolution role during OAuth
+    authorization. This is optional — if omitted, DNS-based resolution is used.
+  - `getAccountEmail()` no longer requires `servers.pds` to be configured, since it uses the session's fetch handler
+    which internally routes to the correct PDS.
+  - `sdk.repository()` is now async (returns `Promise<Repository>`). On cache miss it automatically resolves the PDS
+    from the session's token info, so callers no longer need to manually call `resolveSessionPds()` first.
+
+  **New APIs:**
+  - `sdk.resolveSessionPds(session)` — Manually resolve and cache a session's PDS URL. Useful for pre-warming the cache
+    or for sessions created outside the SDK's auth flow.
+
+  **Migration:**
+
+  ```typescript
+  // Before
+  const sdk = createATProtoSDK({
+    oauth: { ... },
+    servers: { pds: "https://bsky.social", sds: "https://sds.example.com" },
+  });
+
+  // After
+  const sdk = createATProtoSDK({
+    oauth: { ... },
+    handleResolver: "https://bsky.social", // optional, for handle resolution only
+    servers: { sds: "https://sds.example.com" },
+  });
+  ```
+
+- [#137](https://github.com/hypercerts-org/hypercerts-sdk/pull/137)
+  [`6f914e5`](https://github.com/hypercerts-org/hypercerts-sdk/commit/6f914e5a1f76ede52af4b8b75cf71dc935314dd7) Thanks
+  [@aspiers](https://github.com/aspiers)! - Add `isValidDid()` utility function for DID format validation
+  - Validates DID format (did:method:identifier) with support for numeric method names per W3C spec
+  - Exported from `@hypercerts-org/sdk-core` for consumer use
+  - `BlobOperationsImpl` constructor now validates `repoDid` and throws `ValidationError` for invalid formats
+
+  > **⚠️ Potentially breaking:** callers that previously passed invalid DID strings to `BlobOperationsImpl` (directly or
+  > via `Repository`) will now receive a `ValidationError` at construction time instead of silently accepting the value.
+  > Use `isValidDid(repoDid)` to check before constructing if needed.
+
+- [#125](https://github.com/hypercerts-org/hypercerts-sdk/pull/125)
+  [`a493f3b`](https://github.com/hypercerts-org/hypercerts-sdk/commit/a493f3b05174eeef104c83f7be14749f1c0185a2) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Add dual profile system with separate Bluesky and Certified profile
+  operations, plus upsert methods
+
+  **Core SDK (`@hypercerts-org/sdk-core`):**
+
+  **Breaking Changes:**
+
+  The profile API has been completely redesigned to support two profile types:
+  - **Removed generic profile methods:**
+    - ❌ `profile.get()`
+    - ❌ `profile.create(params)`
+    - ❌ `profile.update(params)`
+  - **Removed deprecated profile types:**
+    - ❌ `HypercertProfile` - Use `CertifiedProfileRecord` instead
+    - ❌ `CreateHypercertProfileParams` - Use `CreateCertifiedProfileParams` instead
+    - ❌ `UpdateHypercertProfileParams` - Use `UpdateCertifiedProfileParams` instead
+    - ❌ `HypercertProfileParams` - Use specific create/update types instead
+    - ❌ `CreateProfileParams` - Use `CreateCertifiedProfileParams` instead
+  - **Removed unused type export:**
+    - ❌ `JsonBlobRef` - No longer used in SDK. This type was removed because:
+      - It was too "snowflaky" - required converting `BlobRef` instances to JSON format unnecessarily
+      - The actual `BlobRef` object works perfectly fine for all use cases
+      - It created flaky tests where we manually created mock JSON objects that weren't representative of actual
+        `JsonBlobRef` values
+      - Internal implementation now uses `BlobRef` instances directly throughout
+      - Users who need this type for advanced use cases can import it directly from `@atproto/lexicon`
+  - **Added profile-specific methods:**
+    - ✅ `profile.getBskyProfile()` - Get Bluesky profile (app.bsky.actor.profile)
+    - ✅ `profile.createBskyProfile(params)` - Create Bluesky profile
+    - ✅ `profile.updateBskyProfile(params)` - Update Bluesky profile
+    - ✅ `profile.getCertifiedProfile()` - Get Certified profile (app.certified.actor.profile) **[Returns `null` if
+      profile doesn't exist]**
+    - ✅ `profile.createCertifiedProfile(params)` - Create Certified profile
+    - ✅ `profile.updateCertifiedProfile(params)` - Update Certified profile
+    - ✅ `profile.upsertBskyProfile(params)` - Create or update Bluesky profile **[New]**
+    - ✅ `profile.upsertCertifiedProfile(params)` - Create or update Certified profile **[New]**
+
+  **Features:**
+  - **Bluesky profiles** (`app.bsky.actor.profile`):
+    - Standard AT Protocol profiles
+    - Avatar/banner returned as CDN URLs (`https://cdn.bsky.app/...`)
+    - Includes Bluesky-specific fields (labels, pinnedPost, etc.)
+  - **Certified profiles** (`app.certified.actor.profile`):
+    - Hypercerts-specific profiles with additional fields
+    - Avatar/banner returned as PDS blob URLs (`https://pds.../xrpc/...`)
+    - **`getCertifiedProfile()` returns `null` if profile doesn't exist** (not an error - common for new users)
+    - Supports `pronouns` field (max 20 graphemes)
+    - Supports `website` field
+    - Images stored using `HypercertImageRecord` format internally (smallImage/largeImage wrappers)
+  - **Upsert methods** (Recommended for most use cases):
+    - `upsertBskyProfile(params)` - Automatically creates or updates Bluesky profile
+    - `upsertCertifiedProfile(params)` - Automatically creates or updates Certified profile
+    - Simpler DX - no need to check if profile exists first
+    - Perfect for "save profile" operations
+  - **New types:**
+    - `BskyProfile` - Type for Bluesky profiles (alias for `AppBskyActorDefs.ProfileViewDetailed`)
+    - `CertifiedProfile` - Type for Certified profiles
+    - `CertifiedProfileRecord` - Record type for Certified profiles (replaces `HypercertProfile`)
+    - `CreateBskyProfileParams`, `UpdateBskyProfileParams`
+    - `CreateCertifiedProfileParams`, `UpdateCertifiedProfileParams` (replace `CreateHypercertProfileParams`,
+      `UpdateHypercertProfileParams`)
+
+  **Migration Guide:**
+
+  ```typescript
+  // BEFORE (old API - removed)
+  const profile = await repo.profile.get();
+  await repo.profile.create({ displayName: "Alice" });
+  await repo.profile.update({ displayName: "New Name" });
+
+  // AFTER - Recommended: Use upsert (works for both create and update)
+  await repo.profile.upsertCertifiedProfile({
+    displayName: "Alice",
+    pronouns: "she/her",
+    website: "https://alice.com",
+  });
+
+  // AFTER - Advanced: Explicit create/update for fine control
+  const certProfile = await repo.profile.getCertifiedProfile();
+  if (!certProfile) {
+    await repo.profile.createCertifiedProfile({
+      displayName: "Alice",
+      pronouns: "she/her",
+    });
+  } else {
+    await repo.profile.updateCertifiedProfile({
+      displayName: "New Name",
+    });
+  }
+
+  // Getting profiles - handle null case
+  const profile = await repo.profile.getCertifiedProfile();
+  if (profile) {
+    console.log(profile.displayName);
+  } else {
+    console.log("User hasn't created a profile yet");
+  }
+
+  // Type migrations
+  import type {
+    CertifiedProfileRecord, // was: HypercertProfile
+    CreateCertifiedProfileParams, // was: CreateHypercertProfileParams
+    UpdateCertifiedProfileParams, // was: UpdateHypercertProfileParams
+  } from "@hypercerts-org/sdk-core/types";
+  ```
+
+  **React SDK (`@hypercerts-org/sdk-react`):**
+
+  **Breaking Changes:**
+  - `useProfile` hook renamed `update` to `save` and `isUpdating` to `isSaving`
+  - `save()` now uses upsert internally - works for first-time profile creation too
+
+  ```typescript
+  // BEFORE
+  const { update, isUpdating } = useProfile();
+  await update({ displayName: "Alice" });
+
+  // AFTER
+  const { save, isSaving } = useProfile();
+  await save({ displayName: "Alice" }); // Works even if profile doesn't exist!
+  ```
+
+- [#130](https://github.com/hypercerts-org/hypercerts-sdk/pull/130)
+  [`a9701cd`](https://github.com/hypercerts-org/hypercerts-sdk/commit/a9701cd47e2743207ff6bb6968eef7d9fc4db17c) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Fix `addContribution` to properly update hypercerts with contributor
+  references
+
+  **Breaking Changes:**
+
+  The `addContribution` method signature has changed to align with the `create()` method's contribution handling:
+  - `hypercertUri` is now **required** (was optional)
+  - `contributors` now accepts `Array<ContributorIdentityParams>` (was `string[]`)
+    - Supports DIDs, StrongRefs, or inline contributor creation params
+  - `contributionDetails` parameter **replaces** separate `role`/`description` params
+    - Supports inline role strings, StrongRefs, or inline contribution creation params
+  - Added optional `weight` parameter for contribution weighting
+  - Added optional `onProgress` callback for progress tracking
+  - Returns `UpdateResult` instead of `CreateResult` (since it updates the hypercert)
+
+  **What Changed:**
+
+  The method now correctly:
+  - Creates or references contributionDetails records
+  - Creates or references contributorInformation records
+  - **Updates the hypercert's `contributors` array** with the new entries (this was the bug)
+  - Supports batch addition of multiple contributors in one call
+  - Preserves existing contributors when adding new ones
+
+  **Migration:**
+
+  ```typescript
+  // Before (0.10.0-beta.7 and earlier):
+  await repo.hypercerts.addContribution({
+    hypercertUri: "at://...", // optional
+    contributors: ["did:plc:user1"],
+    role: "Developer",
+    description: "Built features",
+  });
+
+  // After (0.10.0-beta.8+):
+  await repo.hypercerts.addContribution({
+    hypercertUri: "at://...", // required
+    contributors: ["did:plc:user1"], // or StrongRef or create params
+    contributionDetails: "Developer", // or StrongRef or create params object
+    weight: "1.0", // optional
+  });
+
+  // With detailed contribution record:
+  await repo.hypercerts.addContribution({
+    hypercertUri: "at://...",
+    contributors: [
+      {
+        identifier: "did:plc:user1",
+        displayName: "Alice",
+        image: avatarBlob,
+      },
+    ],
+    contributionDetails: {
+      role: "Developer",
+      contributionDescription: "Built features",
+      startDate: "2024-01-01",
+      endDate: "2024-06-30",
+    },
+    weight: "2.0",
+  });
+  ```
+
+  **Additional Breaking Change:**
+
+  The `update()` method signature has been corrected to accept actual record fields:
+  - Now accepts `UpdateHypercertParams` (fields from `HypercertClaim` record schema)
+  - Previously accepted `Partial<CreateHypercertParams>` (SDK input format)
+
+  **Why this change:**
+  - Prevents invalid fields like `contributions` being added to records
+  - Allows updating `contributors` array directly (which exists in the schema)
+  - Type-safe - can only update fields that actually exist in the record
+  - Validation now works correctly
+
+  **Migration for update():**
+
+  Most code should continue to work since common fields like `title`, `description`, `startDate`, etc. exist in both
+  formats.
+
+  If you were using SDK input fields that don't exist in records (e.g., `contributions`), you'll need to update:
+
+  ```typescript
+  // Before:
+  await repo.hypercerts.update({
+    uri: hypercertUri,
+    updates: {
+      contributions: [...],  // ❌ Invalid - doesn't exist in record
+    },
+  });
+
+  // After: Use the actual record field
+  await repo.hypercerts.update({
+    uri: hypercertUri,
+    updates: {
+      contributors: [...],  // ✅ Valid - exists in record schema
+    },
+  });
+
+  // Or use the new addContribution method
+  await repo.hypercerts.addContribution({
+    hypercertUri: hypercertUri,
+    contributors: ["did:plc:user1"],
+    contributionDetails: "Developer",
+  });
+  ```
+
+  **Implementation Details:**
+  - Added `UpdateHypercertParams` type for type-safe record updates
+  - Added `buildContributorEntries()` helper to resolve and build contributor entries
+  - Added `attachContributorsToHypercert()` helper to update hypercerts with new contributors
+  - Refactored `processContributors()` to reuse `buildContributorEntries()` for consistency
+  - Removed unused `createContributionsWithProgress()` method
+
+- [#126](https://github.com/hypercerts-org/hypercerts-sdk/pull/126)
+  [`5db01ee`](https://github.com/hypercerts-org/hypercerts-sdk/commit/5db01ee2baee53a0fd1c4e1ee1e32f2c7e41c30e) Thanks
+  [@Kzoeps](https://github.com/Kzoeps)! - Refactor internal URI parsing and blob upload operations
+
+  **Breaking:** `BlobOperationsImpl.upload()` now returns AT Protocol's `BlobRef` type instead of a plain
+  `{ ref, mimeType, size }` object. Callers should access blob properties via `BlobRef` methods (e.g.
+  `result.ref.toString()` for the CID string). SDS uploads now return a proper `BlobRef` instance with `ref`,
+  `mimeType`, and `size` correctly populated from the server response.
+  - Fix `validateScope` permission prefix regex to correctly accept query-param style scopes (e.g. `repo?action=create`,
+    `blob?accept=video/*`, `rpc?lxm=*`) and reject bare `atproto` with a suffix
+  - Export `AT_URI_REGEX` from `@hypercerts-org/sdk-core` for direct regex usage
+  - Consolidate AT-URI parsing in HypercertOperationsImpl using `parseAtUri()` utility
+  - Add internal `fetchRecord<T>()` and `saveRecord()` helpers to reduce code duplication
+  - Fix `AT_URI_REGEX` rkey capture group to use `[^/]+` instead of `.+` to prevent over-matching
+  - Fix `fetchRecord` to throw `NetworkError` when CID is absent instead of silently using an empty string
+  - Fix `saveRecord` error message formatting (was passing two arguments to `NetworkError`)
+  - Remove dead `parseAndValidateUri` method
+  - Eliminate redundant network fetch in `updateProject` by passing pre-fetched record to `updateCollectionRecord`
+
 ## 0.10.0-beta.8
 
 ### Minor Changes
