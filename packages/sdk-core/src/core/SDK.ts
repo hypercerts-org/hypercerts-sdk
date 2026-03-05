@@ -175,6 +175,13 @@ export class ATProtoSDK {
     // Initialize OAuth client
     this.oauthClient = new OAuthClient(configWithDefaults);
 
+    // Experimental software warning
+    console.warn(
+      "[@hypercerts-org/sdk-core] ⚠️ This SDK is experimental and should not be used in production. " +
+        "For production use, please use the ATProto SDK (https://github.com/bluesky-social/atproto) " +
+        "and the scaffold app (https://github.com/hypercerts-org/hypercerts-app).",
+    );
+
     this.logger?.info("ATProto SDK initialized");
   }
 

@@ -1,5 +1,11 @@
 # Hypercerts SDK
 
+> **⚠️ Experimental Software — Not for Production Use**
+>
+> This SDK is experimental and under active development. It should **not** be used in production environments. For
+> production use, please use the [ATProto SDK](https://github.com/bluesky-social/atproto/tree/main/packages) directly
+> and the [scaffold app](https://github.com/hypercerts-org/hypercerts-app) as a reference implementation.
+
 A monorepo containing SDK packages for the Hypercerts protocol on ATProto.
 
 ## Packages
