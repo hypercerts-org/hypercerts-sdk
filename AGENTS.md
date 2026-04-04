@@ -1,5 +1,16 @@
 # AGENTS.MD - AI Agent Instructions for Hypercerts SDK
 
+> **⚠️ Not Currently Maintained — Do Not Use**
+>
+> This SDK is **currently unmaintained** while the Hypercerts core development team focuses on higher-priority matters,
+> and **should not be used**. It is currently out of sync with the
+> [`@hypercerts-org/lexicon`](https://www.npmjs.com/package/@hypercerts-org/lexicon) package and is likely to break when
+> creating or updating Hypercerts records on ATProto. We plan to resume work on it in the next few months.
+>
+> In the meantime, we recommend using the
+> [`@hypercerts-org/lexicon`](https://www.npmjs.com/package/@hypercerts-org/lexicon) package directly, along with the
+> official [AT Protocol SDK](https://github.com/bluesky-social/atproto) and related packages.
+
 This document provides instructions for AI agents working in the Hypercerts SDK repository.
 
 ## Project Overview
