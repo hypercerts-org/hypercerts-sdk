@@ -5,7 +5,8 @@
 > This SDK is **currently unmaintained** while the Hypercerts core development team focuses on higher-priority matters,
 > and **should not be used**. It is currently out of sync with the
 > [`@hypercerts-org/lexicon`](https://www.npmjs.com/package/@hypercerts-org/lexicon) package and is likely to break when
-> creating or updating Hypercerts records on ATProto. We plan to resume work on it in the next few months.
+> creating or updating Hypercerts records on ATProto. We'll reassess it over the coming months, informed by developer
+> feedback and developments in AI.
 >
 > In the meantime, we recommend using the
 > [`@hypercerts-org/lexicon`](https://www.npmjs.com/package/@hypercerts-org/lexicon) package directly, along with the
