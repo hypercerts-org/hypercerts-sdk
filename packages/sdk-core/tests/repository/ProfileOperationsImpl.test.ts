@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Agent } from "@atproto/api";
+import { BlobRef as LexiconBlobRef, type JsonBlobRef } from "@atproto/lexicon";
 import { ProfileOperationsImpl } from "../../src/repository/ProfileOperationsImpl.js";
 import { NetworkError } from "../../src/core/errors.js";
 import type { BlobOperations } from "../../src/repository/interfaces.js";
@@ -453,6 +454,41 @@ describe("ProfileOperationsImpl", () => {
 
       await expect(profileOps.updateBskyProfile({ displayName: "Alice" })).rejects.toThrow(NetworkError);
     });
+
+    it("should use existing JsonBlobRef as avatar without re-uploading", async () => {
+      const existingBlobRef: JsonBlobRef = {
+        $type: "blob",
+        ref: createMockBlobRef().ref,
+        mimeType: "image/png",
+        size: 1000,
+      };
+
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          value: {
+            $type: BSKY_PROFILE_COLLECTION,
+            createdAt: "2024-01-01T00:00:00.000Z",
+            displayName: "Alice",
+          },
+        },
+      });
+
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: `at://${TEST_REPO_DID}/${BSKY_PROFILE_COLLECTION}/self`,
+          cid: "bafy999",
+        },
+      });
+
+      await profileOps.updateBskyProfile({ avatar: existingBlobRef });
+
+      // Should NOT upload - use the ref directly (converted to BlobRef for validation)
+      expect(mockBlobs.upload).not.toHaveBeenCalled();
+      const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      expect(putCall.record.avatar).toBeInstanceOf(LexiconBlobRef);
+    });
   });
 
   describe("createCertifiedProfile", () => {
@@ -604,6 +640,45 @@ describe("ProfileOperationsImpl", () => {
       expect(putCall.record).not.toHaveProperty("pronouns");
       expect(putCall.record).not.toHaveProperty("website");
       expect(putCall.record).toHaveProperty("displayName", "Alice");
+    });
+
+    it("should use existing JsonBlobRef as avatar without re-uploading", async () => {
+      const existingBlobRef: JsonBlobRef = {
+        $type: "blob",
+        ref: createMockBlobRef().ref,
+        mimeType: "image/png",
+        size: 1000,
+      };
+
+      mockAgent.com.atproto.repo.getRecord.mockResolvedValue({
+        success: true,
+        data: {
+          value: {
+            $type: CERTIFIED_PROFILE_COLLECTION,
+            createdAt: "2024-01-01T00:00:00.000Z",
+            displayName: "Alice",
+          },
+        },
+      });
+
+      mockAgent.com.atproto.repo.putRecord.mockResolvedValue({
+        success: true,
+        data: {
+          uri: `at://${TEST_REPO_DID}/${CERTIFIED_PROFILE_COLLECTION}/self`,
+          cid: "bafy999",
+        },
+      });
+
+      await profileOps.updateCertifiedProfile({ avatar: existingBlobRef });
+
+      // Should NOT upload - use the ref directly (converted to BlobRef for validation)
+      expect(mockBlobs.upload).not.toHaveBeenCalled();
+      const putCall = mockAgent.com.atproto.repo.putRecord.mock.calls[0][0];
+      // Certified profile wraps in smallImage format
+      expect(putCall.record.avatar).toMatchObject({
+        $type: "org.hypercerts.defs#smallImage",
+        image: expect.any(LexiconBlobRef),
+      });
     });
   });
 
